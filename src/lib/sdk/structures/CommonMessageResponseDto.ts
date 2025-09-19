@@ -1,3 +1,3 @@
 export type CommonMessageResponseDto = {
-  message: string;
+	message: string;
 };

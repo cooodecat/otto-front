@@ -13,7 +13,9 @@
 
 	// Full-width layout paths (no sidebar)
 	function isFullWidthLayoutPath(pathname: string): boolean {
-		return pathname === '/projects/new' || pathname === '/projects' || pathname.includes('/pipelines');
+		return (
+			pathname === '/projects/new' || pathname === '/projects' || pathname.includes('/pipelines')
+		);
 	}
 
 	let isCanvasLayout = $derived(isCanvasLayoutPath($page.url.pathname));
@@ -21,7 +23,7 @@
 </script>
 
 {#if isCanvasLayout}
-	<div class="min-h-screen relative">
+	<div class="relative min-h-screen">
 		<!-- GlobalSidebar equivalent - to be implemented -->
 		<div class="global-sidebar">
 			<!-- Sidebar content -->
@@ -36,7 +38,7 @@
 		{@render children()}
 	</main>
 {:else}
-	<div class="min-h-screen bg-gray-50 flex">
+	<div class="flex min-h-screen bg-gray-50">
 		<div class="w-80 flex-shrink-0">
 			<div class="p-4">
 				<!-- GlobalSidebar equivalent -->
@@ -45,7 +47,7 @@
 				</div>
 			</div>
 		</div>
-		<main class="flex-1 min-h-screen">
+		<main class="min-h-screen flex-1">
 			{@render children()}
 		</main>
 	</div>

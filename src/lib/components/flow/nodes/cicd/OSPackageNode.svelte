@@ -1,0 +1,170 @@
+<script lang="ts">
+	import { Package, Edit3 } from 'lucide-svelte';
+	import BaseNode from '../BaseNode.svelte';
+	import type { OSPackageNodeData } from '$lib/types/flow-node.types';
+	interface Props {
+		id: string;
+		data: OSPackageNodeData;
+	}
+
+	const { data, id }: Props = $props();
+
+	let isEditing = $state(false);
+	let packages = $state<string[]>(data.installPackages || []);
+	let packageManager = $state(data.packageManager || 'apt');
+	let updateList = $state<boolean>(data.updatePackageList ?? true);
+	let newPackage = $state('');
+
+	function handleAddPackage() {
+		if (newPackage.trim() && !packages.includes(newPackage.trim())) {
+			packages = [...packages, newPackage.trim()];
+			newPackage = '';
+		}
+	}
+
+	function handleRemovePackage(index: number) {
+		packages = packages.filter((_, i) => i !== index);
+	}
+
+	function handleKeyPress(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			handleAddPackage();
+		}
+	}
+
+	const updatedData = $derived({
+		...data,
+		installPackages: packages,
+		packageManager: packageManager,
+		updatePackageList: updateList
+	});
+</script>
+
+<BaseNode
+	data={updatedData}
+	{id}
+	colorClass="bg-blue-500"
+	icon={Package}
+	minWidth={280}
+	deletable={true}
+	useCICDOutputs={true}
+>
+	<div class="space-y-3">
+		<!-- 기본 정보 -->
+		<div class="rounded border border-blue-200 bg-blue-50 p-3">
+			<div class="mb-2 flex items-center justify-between">
+				<div class="text-sm font-medium text-blue-700">
+					{packageManager} ({packages.length} packages)
+				</div>
+				<button
+					onclick={() => (isEditing = !isEditing)}
+					class="rounded p-1 hover:bg-gray-100"
+					title="편집"
+				>
+					<Edit3 size={14} class="text-gray-500" />
+				</button>
+			</div>
+
+			<!-- 패키지 목록 미리보기 -->
+			{#if !isEditing}
+				<div class="space-y-1">
+					{#each packages.slice(0, 3) as pkg, idx}
+						<div class="rounded bg-white px-2 py-1 font-mono text-xs text-gray-600">
+							{pkg}
+						</div>
+					{/each}
+					{#if packages.length > 3}
+						<div class="text-xs text-gray-500 italic">
+							+{packages.length - 3} more packages...
+						</div>
+					{/if}
+				</div>
+			{/if}
+		</div>
+
+		<!-- 편집 모드 -->
+		{#if isEditing}
+			<div class="space-y-3 rounded border bg-gray-50 p-3">
+				<!-- 패키지 매니저 선택 -->
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700"> Package Manager </label>
+					<select
+						bind:value={packageManager}
+						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+					>
+						<option value="apt">apt (Ubuntu/Debian)</option>
+						<option value="yum">yum (CentOS/RHEL)</option>
+						<option value="dnf">dnf (Fedora)</option>
+						<option value="apk">apk (Alpine)</option>
+						<option value="brew">brew (macOS)</option>
+						<option value="pacman">pacman (Arch)</option>
+					</select>
+				</div>
+
+				<!-- 업데이트 리스트 토글 -->
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700"> Update package list </label>
+					<div class="flex items-center gap-2">
+						<input type="checkbox" bind:checked={updateList} />
+						<span class="text-sm text-gray-600">
+							{updateList ? 'Yes' : 'No'}
+						</span>
+					</div>
+				</div>
+
+				<!-- 패키지 추가 -->
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700"> Add Package </label>
+					<div class="flex gap-2">
+						<input
+							type="text"
+							bind:value={newPackage}
+							onkeypress={handleKeyPress}
+							placeholder="Enter package name"
+							class="flex-1 rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						/>
+						<button
+							onclick={handleAddPackage}
+							class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						>
+							Add
+						</button>
+					</div>
+				</div>
+
+				<!-- 패키지 목록 -->
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700">
+						Packages ({packages.length})
+					</label>
+					<div class="max-h-32 space-y-1 overflow-y-auto">
+						{#each packages as pkg, idx}
+							<div class="flex items-center justify-between rounded border bg-white px-2 py-1">
+								<span class="font-mono text-sm text-gray-700">
+									{pkg}
+								</span>
+								<button
+									onclick={() => handleRemovePackage(idx)}
+									class="text-xs text-red-500 hover:text-red-700"
+								>
+									✕
+								</button>
+							</div>
+						{/each}
+						{#if packages.length === 0}
+							<div class="py-2 text-center text-sm text-gray-500 italic">No packages added</div>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- 설정 옵션 -->
+		<div class="text-xs text-gray-500">
+			<div>Update package list: {updateList ? 'Yes' : 'No'}</div>
+			{#if data.timeout}
+				<div>Timeout: {data.timeout}s</div>
+			{/if}
+		</div>
+	</div>
+</BaseNode>
