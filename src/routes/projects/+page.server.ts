@@ -1,13 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import api from '$lib/sdk';
-import { makeFetch } from '$lib/utils/make-fetch';
+import { isAuthenticated } from '$lib/server/server-utils';
 
-export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
-	try {
-		await api.functional.auth.refresh.authRefreshSignIn(makeFetch({ fetch }));
-	} catch (err) {
-		throw redirect(302, '/');
-	}
+export const load: PageServerLoad = async (serverEvent) => {
+	const isAuth = await isAuthenticated(serverEvent);
+	if (!isAuth) throw redirect(302, '/');
+
 	return {};
 };
