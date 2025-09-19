@@ -4,19 +4,23 @@
 	import api from '$lib/sdk';
 	import { makeFetch } from '$lib/utils/make-fetch';
 	import { Plus, Search, Filter, Calendar, GitBranch, Activity } from 'lucide-svelte';
-    import {getProject} from "$lib/sdk/functional/projects";
+	import { getProject } from '$lib/sdk/functional/projects';
 
-	let projects = $state<getProject.Output[] >([]);
+	let projects = $state<getProject.Output[]>([]);
 	let loading = $state(false); // 초기값을 false로 변경
 	let searchTerm = $state('');
 	let error = $state('');
 	let hasLoaded = $state(false); // 중복 로딩 방지
 
 	// 검색 필터링
-	const filteredProjects = $derived(projects.filter(project =>
-		project.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-		(project.projectDescription && project.projectDescription.toLowerCase().includes(searchTerm.toLowerCase()))
-	));
+	const filteredProjects = $derived(
+		projects.filter(
+			(project) =>
+				project.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				(project.projectDescription &&
+					project.projectDescription.toLowerCase().includes(searchTerm.toLowerCase()))
+		)
+	);
 
 	onMount(async () => {
 		await loadProjects();
@@ -25,12 +29,10 @@
 	async function loadProjects() {
 		loading = true;
 		error = '';
-		
+
 		try {
-			const data = await api.functional.projects.getProjects(
-				makeFetch({ fetch })
-			);
-			
+			const data: any = await api.functional.projects.getProjects(makeFetch({ fetch }));
+
 			// 데이터 설정
 			if (Array.isArray(data)) {
 				projects = [...data]; // 새로운 배열로 할당
@@ -44,7 +46,7 @@
 			console.error('Error loading projects:', err);
 			projects = [];
 		}
-		
+
 		loading = false;
 	}
 
@@ -80,35 +82,35 @@
 <div class="min-h-screen bg-gray-50">
 	<div class="container mx-auto px-4 py-8">
 		<!-- Project Header -->
-		<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+		<div class="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
 			<div>
 				<h1 class="text-2xl font-bold text-gray-900">프로젝트</h1>
-				<p class="text-gray-600 mt-1">
-					CI/CD 파이프라인을 관리하고 배포를 모니터링합니다
-				</p>
+				<p class="mt-1 text-gray-600">CI/CD 파이프라인을 관리하고 배포를 모니터링합니다</p>
 			</div>
 
-			<div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+			<div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
 				<div class="relative">
-					<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+					<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
 					<input
 						type="text"
 						placeholder="프로젝트 검색..."
 						bind:value={searchTerm}
-						class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-full sm:w-64"
+						class="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none sm:w-64"
 					/>
 				</div>
 
-				<button class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-					<Filter class="w-4 h-4" />
+				<button
+					class="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 transition-colors hover:bg-gray-50"
+				>
+					<Filter class="h-4 w-4" />
 					<span>필터</span>
 				</button>
 
 				<button
 					onclick={handleCreateProject}
-					class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
+					class="flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700"
 				>
-					<Plus class="w-4 h-4" />
+					<Plus class="h-4 w-4" />
 					<span>프로젝트 생성</span>
 				</button>
 			</div>
@@ -116,130 +118,134 @@
 
 		<!-- Loading State -->
 		{#if loading}
-			<div class="flex items-center justify-center h-64">
-				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+			<div class="flex h-64 items-center justify-center">
+				<div class="h-12 w-12 animate-spin rounded-full border-b-2 border-purple-600"></div>
 			</div>
 
-		<!-- Error State -->
+			<!-- Error State -->
 		{:else if error}
-			<div class="text-center py-12">
-				<h3 class="text-lg font-semibold text-red-600 mb-2">오류가 발생했습니다</h3>
-				<p class="text-gray-600 mb-6">{error}</p>
+			<div class="py-12 text-center">
+				<h3 class="mb-2 text-lg font-semibold text-red-600">오류가 발생했습니다</h3>
+				<p class="mb-6 text-gray-600">{error}</p>
 				<button
 					onclick={loadProjects}
-					class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+					class="rounded-lg bg-purple-600 px-6 py-3 font-medium text-white transition-colors hover:bg-purple-700"
 				>
 					다시 시도
 				</button>
 			</div>
 
-		<!-- Project Cards (Empty State + Grid) -->
+			<!-- Project Cards (Empty State + Grid) -->
 		{:else}
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-			<!-- Empty State Card -->
-			{#if projects.length === 0}
-				<div class="col-span-full">
-					<div class="text-center py-16">
-						<div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-							<Plus class="w-8 h-8 text-gray-400" />
-						</div>
-						<h3 class="text-lg font-semibold text-gray-900 mb-2">프로젝트가 없습니다</h3>
-						<p class="text-gray-600 mb-6">
-							첫 번째 프로젝트를 생성하여 CI/CD 파이프라인을 구축해보세요
-						</p>
-						<button
-							onclick={handleCreateProject}
-							class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer"
-						>
-							프로젝트 생성하기
-						</button>
-					</div>
-				</div>
-			{:else}
-				<!-- Create New Project Card -->
-				<div
-					onclick={handleCreateProject}
-					class="bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 p-6 hover:border-purple-400 hover:shadow-md transition-all cursor-pointer group flex items-center justify-center min-h-[200px]"
-				>
-					<div class="text-center">
-						<div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-200 transition-colors">
-							<Plus class="w-6 h-6 text-purple-600" />
-						</div>
-						<h3 class="text-lg font-medium text-gray-900 mb-2">새 프로젝트 생성</h3>
-						<p class="text-sm text-gray-600">
-							GitHub 저장소를 연결하여<br />새로운 프로젝트를 시작하세요
-						</p>
-					</div>
-				</div>
-
-				<!-- Existing Project Cards -->
-				{#each filteredProjects as project}
-					<div
-						onclick={() => handleProjectClick(project.projectId)}
-						class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
-					>
-						<div class="flex items-start justify-between mb-4">
-							<h3 class="text-lg font-semibold text-gray-900">
-								{project.projectName}
-							</h3>
-							<Activity class="w-5 h-5 text-green-500" />
-						</div>
-
-						{#if project.projectDescription}
-							<p class="text-sm text-gray-600 mb-4 line-clamp-2">
-								{project.projectDescription}
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+				<!-- Empty State Card -->
+				{#if projects.length === 0}
+					<div class="col-span-full">
+						<div class="py-16 text-center">
+							<div
+								class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100"
+							>
+								<Plus class="h-8 w-8 text-gray-400" />
+							</div>
+							<h3 class="mb-2 text-lg font-semibold text-gray-900">프로젝트가 없습니다</h3>
+							<p class="mb-6 text-gray-600">
+								첫 번째 프로젝트를 생성하여 CI/CD 파이프라인을 구축해보세요
 							</p>
-						{/if}
-
-						<div class="space-y-2 text-sm">
-							{#if project.githubRepositoryName}
-								<div class="flex items-center gap-2 text-gray-600">
-									<GitBranch class="w-4 h-4" />
-									<span>
-										{project.githubOwner}/{project.githubRepositoryName}
-									</span>
-								</div>
-							{/if}
-
-							{#if project.selectedBranch}
-								<div class="flex items-center gap-2 text-gray-600">
-									<GitBranch class="w-4 h-4" />
-									<span>브랜치: {project.selectedBranch}</span>
-								</div>
-							{/if}
-
-							{#if project.createdAt}
-								<div class="flex items-center gap-2 text-gray-500">
-									<Calendar class="w-4 h-4" />
-									<span>{formatDate(project.createdAt)}</span>
-								</div>
-							{/if}
+							<button
+								onclick={handleCreateProject}
+								class="cursor-pointer rounded-lg bg-purple-600 px-6 py-3 font-medium text-white transition-colors hover:bg-purple-700"
+							>
+								프로젝트 생성하기
+							</button>
 						</div>
+					</div>
+				{:else}
+					<!-- Create New Project Card -->
+					<div
+						onclick={handleCreateProject}
+						class="group flex min-h-[200px] cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md"
+					>
+						<div class="text-center">
+							<div
+								class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 transition-colors group-hover:bg-purple-200"
+							>
+								<Plus class="h-6 w-6 text-purple-600" />
+							</div>
+							<h3 class="mb-2 text-lg font-medium text-gray-900">새 프로젝트 생성</h3>
+							<p class="text-sm text-gray-600">
+								GitHub 저장소를 연결하여<br />새로운 프로젝트를 시작하세요
+							</p>
+						</div>
+					</div>
 
-						<div class="mt-4 pt-4 border-t border-gray-100">
-							<div class="flex items-center justify-between">
-								<span class="text-xs text-gray-500">
-									{#if project.updatedAt}
-										최근 업데이트: {formatDate(project.updatedAt)}
-									{:else}
-										업데이트 정보 없음
-									{/if}
-								</span>
-								<button
-									onclick={(e) => {
-										e.stopPropagation();
-										handleProjectClick(project.projectId);
-									}}
-									class="text-xs text-purple-600 hover:text-purple-700 font-medium"
-								>
-									파이프라인 보기 →
-								</button>
+					<!-- Existing Project Cards -->
+					{#each filteredProjects as project}
+						<div
+							onclick={() => handleProjectClick(project.projectId)}
+							class="cursor-pointer rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+						>
+							<div class="mb-4 flex items-start justify-between">
+								<h3 class="text-lg font-semibold text-gray-900">
+									{project.projectName}
+								</h3>
+								<Activity class="h-5 w-5 text-green-500" />
+							</div>
+
+							{#if project.projectDescription}
+								<p class="mb-4 line-clamp-2 text-sm text-gray-600">
+									{project.projectDescription}
+								</p>
+							{/if}
+
+							<div class="space-y-2 text-sm">
+								{#if project.githubRepositoryName}
+									<div class="flex items-center gap-2 text-gray-600">
+										<GitBranch class="h-4 w-4" />
+										<span>
+											{project.githubOwner}/{project.githubRepositoryName}
+										</span>
+									</div>
+								{/if}
+
+								{#if project.selectedBranch}
+									<div class="flex items-center gap-2 text-gray-600">
+										<GitBranch class="h-4 w-4" />
+										<span>브랜치: {project.selectedBranch}</span>
+									</div>
+								{/if}
+
+								{#if project.createdAt}
+									<div class="flex items-center gap-2 text-gray-500">
+										<Calendar class="h-4 w-4" />
+										<span>{formatDate(project.createdAt)}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="mt-4 border-t border-gray-100 pt-4">
+								<div class="flex items-center justify-between">
+									<span class="text-xs text-gray-500">
+										{#if project.updatedAt}
+											최근 업데이트: {formatDate(project.updatedAt)}
+										{:else}
+											업데이트 정보 없음
+										{/if}
+									</span>
+									<button
+										onclick={(e) => {
+											e.stopPropagation();
+											handleProjectClick(project.projectId);
+										}}
+										class="text-xs font-medium text-purple-600 hover:text-purple-700"
+									>
+										파이프라인 보기 →
+									</button>
+								</div>
 							</div>
 						</div>
-					</div>
-				{/each}
-			{/if}
-		</div>
+					{/each}
+				{/if}
+			</div>
 		{/if}
 	</div>
 </div>
