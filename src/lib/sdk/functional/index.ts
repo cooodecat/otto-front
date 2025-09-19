@@ -9,6 +9,10 @@ import { PlainFetcher } from "@nestia/fetcher/lib/PlainFetcher";
 
 export * as auth from "./auth/index";
 export * as user from "./user/index";
+export * as projects from "./projects/index";
+export * as github_app from "./github_app/index";
+export * as webhook from "./webhook/index";
+export * as pipelines from "./pipelines/index";
 
 /**
  * @controller AppController.getHello
