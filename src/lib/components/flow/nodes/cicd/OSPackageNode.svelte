@@ -110,8 +110,9 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- 패키지 매니저 선택 -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700"> Package Manager </label>
+          <label for="pm-select-{id}" class="mb-1 block text-sm font-medium text-gray-700"> Package Manager </label>
           <select
+            id="pm-select-{id}"
             bind:value={packageManager}
             onchange={saveNodeData}
             class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -127,9 +128,9 @@
 
         <!-- 업데이트 리스트 토글 -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700"> Update package list </label>
+          <label for="update-pkg-{id}" class="mb-1 block text-sm font-medium text-gray-700"> Update package list </label>
           <div class="flex items-center gap-2">
-            <input type="checkbox" bind:checked={updateList} onchange={saveNodeData} />
+            <input id="update-pkg-{id}" type="checkbox" bind:checked={updateList} onchange={saveNodeData} />
             <span class="text-sm text-gray-600">
               {updateList ? 'Yes' : 'No'}
             </span>
@@ -138,9 +139,10 @@
 
         <!-- 패키지 추가 -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700"> Add Package </label>
+          <label for="add-pkg-{id}" class="mb-1 block text-sm font-medium text-gray-700"> Add Package </label>
           <div class="flex gap-2">
             <input
+              id="add-pkg-{id}"
               type="text"
               bind:value={newPackage}
               onkeypress={handleKeyPress}
@@ -158,9 +160,9 @@
 
         <!-- 패키지 목록 -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">
+          <span class="mb-1 block text-sm font-medium text-gray-700">
             Packages ({packages.length})
-          </label>
+          </span>
           <div class="max-h-32 space-y-1 overflow-y-auto">
             {#each packages as pkg, idx}
               <div class="flex items-center justify-between rounded border bg-white px-2 py-1">

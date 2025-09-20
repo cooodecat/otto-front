@@ -27,6 +27,7 @@
       successColor?: string;
       failedColor?: string;
     };
+    children?: any;
   }
 
   const {
@@ -45,7 +46,8 @@
       showFailed: true,
       successColor: '#10b981',
       failedColor: '#ef4444'
-    }
+    },
+    children
   }: Props = $props();
 
   const label = $derived(data?.label || 'Unknown Node');
@@ -107,8 +109,10 @@
         <p class="mb-2 text-xs text-gray-600">{description}</p>
       {/if}
 
-      <!-- Slot for custom content -->
-      <slot />
+      <!-- Render custom content -->
+      {#if children}
+        {@render children()}
+      {/if}
     </div>
   </div>
 
