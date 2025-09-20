@@ -1,0 +1,37 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+
+# Package.json, tsconfig.json 등 JSON 파일
+[*.json]
+indent_size = 2
+
+# YAML 파일
+[*.{yml,yaml}]
+indent_size = 2
+
+# TypeScript, JavaScript, Svelte 파일
+[*.{ts,tsx,js,jsx,svelte}]
+indent_size = 2
+
+# CSS 파일
+[*.{css,scss,less}]
+indent_size = 2
+
+# HTML 파일
+[*.html]
+indent_size = 2
