@@ -1,13 +1,19 @@
 <script lang="ts">
 	import { Package, Edit3 } from 'lucide-svelte';
 	import BaseNode from '../BaseNode.svelte';
+	import { CICD_GROUP_COLORS, CICDBlockGroup } from '$lib/types/flow-node.types';
 	import type { OSPackageNodeData } from '$lib/types/flow-node.types';
+	import { getContext } from 'svelte';
 	interface Props {
 		id: string;
 		data: OSPackageNodeData;
 	}
 
 	const { data, id }: Props = $props();
+	const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.PREBUILD];
+
+	// 노드 데이터 업데이트 핸들러 가져오기
+	const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>('updateNodeData');
 
 	let isEditing = $state(false);
 	let packages = $state<string[]>(data.installPackages || []);
@@ -15,15 +21,30 @@
 	let updateList = $state<boolean>(data.updatePackageList ?? true);
 	let newPackage = $state('');
 
+	// 데이터 저장 헬퍼 함수
+	function saveNodeData() {
+		if (updateNodeData) {
+			updateNodeData(id, {
+				installPackages: packages,
+				packageManager,
+				updatePackageList: updateList
+			});
+		}
+	}
+
 	function handleAddPackage() {
 		if (newPackage.trim() && !packages.includes(newPackage.trim())) {
 			packages = [...packages, newPackage.trim()];
 			newPackage = '';
+			// 저장
+			saveNodeData();
 		}
 	}
 
 	function handleRemovePackage(index: number) {
 		packages = packages.filter((_, i) => i !== index);
+		// 저장
+		saveNodeData();
 	}
 
 	function handleKeyPress(event: KeyboardEvent) {
@@ -43,17 +64,17 @@
 <BaseNode
 	data={updatedData}
 	{id}
-	colorClass="bg-blue-500"
+	colorClass={groupColor.colorClass}
 	icon={Package}
 	minWidth={280}
 	deletable={true}
-	useCICDOutputs={true}
+	showOutput={true}
 >
 	<div class="space-y-3">
 		<!-- 기본 정보 -->
-		<div class="rounded border border-blue-200 bg-blue-50 p-3">
+		<div class="rounded border {groupColor.borderClass} {groupColor.bgClass} p-3">
 			<div class="mb-2 flex items-center justify-between">
-				<div class="text-sm font-medium text-blue-700">
+				<div class="text-sm font-medium {groupColor.textClass}">
 					{packageManager} ({packages.length} packages)
 				</div>
 				<button
@@ -90,6 +111,7 @@
 					<label class="mb-1 block text-sm font-medium text-gray-700"> Package Manager </label>
 					<select
 						bind:value={packageManager}
+						onchange={saveNodeData}
 						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
 					>
 						<option value="apt">apt (Ubuntu/Debian)</option>
@@ -105,7 +127,7 @@
 				<div>
 					<label class="mb-1 block text-sm font-medium text-gray-700"> Update package list </label>
 					<div class="flex items-center gap-2">
-						<input type="checkbox" bind:checked={updateList} />
+						<input type="checkbox" bind:checked={updateList} onchange={saveNodeData} />
 						<span class="text-sm text-gray-600">
 							{updateList ? 'Yes' : 'No'}
 						</span>

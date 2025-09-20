@@ -40,15 +40,30 @@
 	// 로컬스토리지 자동 저장 (nodes 변경 감지)
 	$effect(() => {
 		if (initialized && projectId && pipelineId && nodes.length > 0) {
-			console.log('🔄 Nodes changed, saving to localStorage...', nodes.length);
+			console.log('🔄 $effect triggered - Nodes changed:', {
+				nodeCount: nodes.length,
+				initialized,
+				projectId,
+				pipelineId,
+				nodes: nodes.map(n => ({ id: n.id, position: n.position }))
+			});
 			saveToLocalStorage();
+		} else {
+			console.log('🚫 $effect triggered but conditions not met:', {
+				initialized,
+				projectId,
+				pipelineId,
+				nodeCount: nodes.length
+			});
 		}
 	});
 
-	// 로컬스토리지 자동 저장 (edges 변경 감지)
+	// 로컬스토리지 자동 저장 (edges 변경 감지) - 실제 변경이 있을 때만
+	let lastEdgeCount = $state(0);
 	$effect(() => {
-		if (initialized && projectId && pipelineId && edges.length >= 0) {
-			console.log('🔗 Edges changed, saving to localStorage...', edges.length);
+		if (initialized && projectId && pipelineId && edges.length !== lastEdgeCount) {
+			console.log('🔗 Edges actually changed:', lastEdgeCount, '->', edges.length);
+			lastEdgeCount = edges.length;
 			saveToLocalStorage();
 		}
 	});
@@ -61,14 +76,16 @@
 		}
 
 		try {
-			// 1. 먼저 로컬스토리지에서 시도
 			const storageKey = `pipeline-${projectId}-${pipelineId}`;
+
+			// 1. 로컬스토리지에서 확인
+			console.log(`💾 Checking localStorage for pipeline (${storageKey})`);
 			const savedData = localStorage.getItem(storageKey);
 
 			if (savedData) {
 				try {
 					const { nodes: savedNodes, edges: savedEdges } = JSON.parse(savedData);
-					console.log(`📁 Loading pipeline from localStorage (${storageKey}):`, {
+					console.log(`✅ Found pipeline in localStorage:`, {
 						nodes: savedNodes.length,
 						edges: savedEdges.length
 					});
@@ -86,38 +103,61 @@
 					return;
 				} catch (parseError) {
 					console.error('❌ Failed to parse saved pipeline data:', parseError);
+					// 파싱 실패 시 로컬스토리지 삭제하고 서버에서 로드
+					localStorage.removeItem(storageKey);
 				}
 			}
 
-			// 2. 로컬스토리지에 없으면 서버에서 로드
+			// 2. 로컬스토리지에 없으면 서버에서 파이프라인 정보 가져오기
 			console.log(`🌐 Loading pipeline from server: ${pipelineId}`);
-			const data = await api.functional.pipelines.getPipelineById(makeFetch({ fetch }), pipelineId);
+			
+			try {
+				const data = await api.functional.pipelines.getPipelineById(makeFetch({ fetch }), pipelineId);
+				console.log(`✅ Pipeline loaded from server:`, data);
+				
+				pipeline = data;
 
-			pipeline = data;
+				// 서버에 저장된 플로우 데이터가 있다면 로드
+				if (data.data && data.data.nodes && data.data.edges && data.data.nodes.length > 0) {
+					console.log(`📁 Using server pipeline data:`, {
+						nodes: data.data.nodes.length,
+						edges: data.data.edges.length
+					});
 
-			// 저장된 플로우 데이터가 있다면 로드
-			if (data.data && data.data.nodes && data.data.edges) {
-				console.log(`📁 Loading pipeline from server:`, {
-					nodes: data.data.nodes.length,
-					edges: data.data.edges.length
-				});
+					nodes = data.data.nodes;
+					edges = data.data.edges;
 
-				nodes = data.data.nodes;
-				edges = data.data.edges;
-
-				// 서버 데이터를 로컬스토리지에 저장
-				localStorage.setItem(
-					storageKey,
-					JSON.stringify({
-						nodes: data.data.nodes,
-						edges: data.data.edges
-					})
-				);
-				console.log(`💾 Server data saved to localStorage (${storageKey})`);
+					// 서버 데이터를 로컬스토리지에 저장
+					localStorage.setItem(
+						storageKey,
+						JSON.stringify({
+							nodes: data.data.nodes,
+							edges: data.data.edges
+						})
+					);
+					console.log(`💾 Server data saved to localStorage (${storageKey})`);
+				} else {
+					// 3. 서버에도 플로우 데이터가 없으면 기본 시작 노드 생성
+					console.log(`🏁 No pipeline data found, will create default start node`);
+					nodes = [];
+					edges = [];
+				}
+			} catch (serverError) {
+				console.error('❌ Failed to load pipeline from server:', serverError);
+				
+				// 서버 로드 실패 시에도 기본 시작 노드 생성
+				console.log(`🏁 Server load failed, will create default start node`);
+				nodes = [];
+				edges = [];
+				error = '서버에서 파이프라인을 불러올 수 없습니다. 새로운 파이프라인을 시작합니다.';
 			}
+
 		} catch (err) {
-			console.error('파이프라인 로드 실패:', err);
+			console.error('❌ Pipeline load error:', err);
 			error = '파이프라인을 불러오는데 실패했습니다';
+			// 모든 실패 시에도 기본 시작 노드 생성
+			nodes = [];
+			edges = [];
 		}
 
 		loading = false;
@@ -136,6 +176,9 @@
 				selectable: false,
 				deletable: false
 			};
+			
+			// Pipeline Start 노드는 onFailed 강제로 null
+			startNode.data.onFailed = null;
 
 			nodes = [startNode];
 			edges = [];
@@ -147,10 +190,34 @@
 		if (projectId && pipelineId && (nodes.length > 0 || edges.length > 0)) {
 			const storageKey = `pipeline-${projectId}-${pipelineId}`;
 			const pipelineData = { nodes, edges };
+			
+			console.log(`💾 SAVING TO LOCALSTORAGE (${storageKey}):`, {
+				nodeCount: nodes.length,
+				edgeCount: edges.length,
+				nodePositions: nodes.map(n => ({ id: n.id, position: n.position })),
+				timestamp: new Date().toISOString()
+			});
+			
 			localStorage.setItem(storageKey, JSON.stringify(pipelineData));
-			console.log(`💾 Saved to localStorage (${storageKey}):`, {
-				nodes: nodes.length,
-				edges: edges.length
+			
+			// 저장 확인
+			const saved = localStorage.getItem(storageKey);
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				console.log(`✅ CONFIRMED SAVED TO LOCALSTORAGE:`, {
+					savedNodeCount: parsed.nodes?.length,
+					savedEdgeCount: parsed.edges?.length,
+					savedNodePositions: parsed.nodes?.map((n: any) => ({ id: n.id, position: n.position }))
+				});
+			} else {
+				console.error('❌ FAILED TO SAVE TO LOCALSTORAGE');
+			}
+		} else {
+			console.log('🚫 SKIPPING LOCALSTORAGE SAVE:', {
+				projectId,
+				pipelineId,
+				nodeCount: nodes.length,
+				edgeCount: edges.length
 			});
 		}
 	}
@@ -258,10 +325,57 @@
 		console.log('Edge clicked:', event.detail);
 	}
 
+	function updateNodeConnections(sourceNodeId: string, targetNodeId: string, sourceHandle: string, isRemoving = false) {
+		const sourceNode = nodes.find(node => node.id === sourceNodeId);
+		if (!sourceNode) return;
+
+		const updatedNodes = nodes.map(node => {
+			if (node.id === sourceNodeId) {
+				const updatedData = { ...node.data };
+				
+				// Pipeline Start 노드는 onFailed가 항상 null
+				const isPipelineStart = node.data.blockType === 'pipeline_start';
+				
+				if (isRemoving) {
+					// 연결 제거 시
+					if (sourceHandle === 'success') {
+						updatedData.onSuccess = null;
+					} else if (sourceHandle === 'failed' && !isPipelineStart) {
+						updatedData.onFailed = null;
+					} else {
+						updatedData.onSuccess = null; // default handle
+					}
+				} else {
+					// 연결 추가 시
+					if (sourceHandle === 'success') {
+						updatedData.onSuccess = targetNodeId;
+					} else if (sourceHandle === 'failed' && !isPipelineStart) {
+						updatedData.onFailed = targetNodeId;
+					} else {
+						updatedData.onSuccess = targetNodeId; // default handle
+					}
+				}
+				
+				// Pipeline Start 노드는 onFailed 강제로 null 유지
+				if (isPipelineStart) {
+					updatedData.onFailed = null;
+				}
+				
+				return { ...node, data: updatedData };
+			}
+			return node;
+		});
+
+		nodes = updatedNodes;
+		console.log(`🔄 Updated node ${sourceNodeId} connections:`, 
+			isRemoving ? 'removed' : 'added', 
+			`${sourceHandle} -> ${targetNodeId}`);
+	}
+
 	function onConnect(connection: any) {
 		console.log('🔗 Connection attempt:', connection);
 
-		// 1:1 연결 제한 - 이미 같은 source handle에서 나가는 연결이 있는지 확인
+		// 1:1 연결 제한 - 이미 같은 source handle에서 나가는 연결이 있으면 삭제
 		const sourceHandle = connection.sourceHandle || 'default';
 		console.log('📍 Source handle:', sourceHandle);
 		
@@ -271,42 +385,65 @@
 		);
 
 		if (existingEdge) {
-			console.log('🚫 Connection rejected: Source handle already has a connection');
-			return;
+			console.log('🗑️ Removing existing connection from same source handle:', existingEdge.id);
+			edges = edges.filter(edge => edge.id !== existingEdge.id);
+			// 기존 연결 제거 시 노드 데이터도 업데이트
+			updateNodeConnections(existingEdge.source, existingEdge.target, sourceHandle, true);
 		}
 
-		// 새 연결 추가
+		// 새 연결 추가 - crypto.randomUUID() 사용
 		const newEdge = {
 			...connection,
-			id: `${connection.source}-${connection.target}-${sourceHandle}`,
+			id: crypto.randomUUID(),
 			type: 'cicd',
-			sourceHandle: sourceHandle
+			sourceHandle: sourceHandle,
+			data: {
+				sourceHandle: sourceHandle,
+				targetHandle: connection.targetHandle
+			}
 		};
 
 		console.log('🔗 Creating new edge:', newEdge);
 
 		edges = [...edges, newEdge];
+		
+		// 새 연결 추가 시 노드 데이터 업데이트
+		updateNodeConnections(connection.source, connection.target, sourceHandle, false);
+		
 		console.log('✅ Connection added:', newEdge);
 	}
 
-	// 노드 이동 완료 핸들러
-	function onNodeMoveEnd(event: CustomEvent, node: any) {
-		console.log('🎯 Node move ended:', node);
+	// 노드 드래그 종료 핸들러 - onnodedragstop 이벤트 사용
+	function onNodeDragStop(event: any) {
+		console.log('🎯 Raw drag stop event:', event);
+		console.log('🎯 Event detail:', event.detail);
+		console.log('🎯 Event targetNode:', event.targetNode);
+		console.log('🎯 Event nodes:', event.nodes);
 		
-		// 이동된 노드의 위치 업데이트
-		const nodeIndex = nodes.findIndex(n => n.id === node.id);
+		// SvelteFlow의 onnodedragstop 이벤트에서 노드 정보 추출
+		const draggedNode = event.targetNode || event.detail?.node || (event.nodes && event.nodes[0]);
+		
+		if (!draggedNode || !draggedNode.id) {
+			console.log('🚫 No dragged node found in event');
+			return;
+		}
+		
+		console.log('🎯 Node dragged:', draggedNode.id, draggedNode.position);
+		
+		// 드래그된 노드의 위치를 업데이트
+		const nodeIndex = nodes.findIndex(node => node.id === draggedNode.id);
 		if (nodeIndex !== -1) {
-			console.log(`📍 Updating position for ${node.id}:`, node.position);
+			console.log(`📍 Updating position for ${draggedNode.id}:`, draggedNode.position);
 			
-			// 새로운 노드 객체 생성 (깊은 복사)
-			nodes[nodeIndex] = {
-				...nodes[nodeIndex],
-				position: node.position
+			// 새 배열 생성하여 반응성 트리거
+			const updatedNodes = [...nodes];
+			updatedNodes[nodeIndex] = {
+				...updatedNodes[nodeIndex],
+				position: { ...draggedNode.position }
 			};
 			
-			// 반응성 트리거
-			nodes = [...nodes];
-			console.log('💾 Node position updated - localStorage will save automatically');
+			nodes = updatedNodes;
+			console.log('💾 Node position updated - localStorage will be saved via $effect');
 		}
 	}
 
@@ -318,6 +455,14 @@
 		
 		changes.forEach(change => {
 			if (change.type === 'remove') {
+				// 삭제될 엣지 정보 가져오기
+				const edgeToRemove = edges.find(edge => edge.id === change.id);
+				if (edgeToRemove) {
+					// 노드 연결 정보 업데이트
+					const sourceHandle = edgeToRemove.sourceHandle || 'default';
+					updateNodeConnections(edgeToRemove.source, edgeToRemove.target, sourceHandle, true);
+				}
+				
 				// 엣지 삭제
 				edges = edges.filter(edge => edge.id !== change.id);
 				hasChanges = true;
@@ -382,9 +527,35 @@
 		console.log('🗑️ Edge deleted:', edgeId);
 	}
 
+	// 노드 데이터 업데이트 핸들러
+	function updateNodeData(nodeId: string, newData: any) {
+		console.log('🔄 Updating node data:', nodeId, newData);
+		
+		const nodeIndex = nodes.findIndex(node => node.id === nodeId);
+		if (nodeIndex !== -1) {
+			// 데이터가 실제로 변경되었는지 확인
+			const currentData = nodes[nodeIndex].data;
+			const hasChanges = JSON.stringify(currentData) !== JSON.stringify({ ...currentData, ...newData });
+			
+			if (hasChanges) {
+				const updatedNodes = [...nodes];
+				updatedNodes[nodeIndex] = {
+					...updatedNodes[nodeIndex],
+					data: { ...updatedNodes[nodeIndex].data, ...newData }
+				};
+				
+				nodes = updatedNodes;
+				console.log('✅ Node data updated - localStorage will be saved via $effect');
+			} else {
+				console.log('🚫 No actual changes in node data, skipping update');
+			}
+		}
+	}
+
 	// Context 설정 - 노드 삭제 핸들러
 	setContext('deleteNodeHandler', handleDeleteNode);
 	setContext('deleteEdgeHandler', handleDeleteEdge);
+	setContext('updateNodeData', updateNodeData);
 
 	// 드래그 앤 드롭 핸들러들
 	function onDragOver(event: DragEvent) {
@@ -519,7 +690,7 @@
 						{nodeTypes}
 						{edgeTypes}
 						{onConnect}
-						{onNodeMoveEnd}
+						{onNodeDragStop}
 						{onEdgesChange}
 						{handleFlowInit}
 						{onDragOver}

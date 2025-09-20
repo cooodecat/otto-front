@@ -9,7 +9,7 @@ import EnvironmentSetupNode from './nodes/cicd/EnvironmentSetupNode.svelte';
 import TestJestNode from './nodes/cicd/TestJestNode.svelte';
 import TestMochaNode from './nodes/cicd/TestMochaNode.svelte';
 import TestVitestNode from './nodes/cicd/TestVitestNode.svelte';
-import TestPlaywrightNode from './nodes/cicd/TestPlaywrightNode.svelte';
+// import TestPlaywrightNode from './nodes/cicd/TestPlaywrightNode.svelte';
 import TestCustomNode from './nodes/cicd/TestCustomNode.svelte';
 import NotificationSlackNode from './nodes/cicd/NotificationSlackNode.svelte';
 import NotificationEmailNode from './nodes/cicd/NotificationEmailNode.svelte';
@@ -37,7 +37,7 @@ export const nodeTypes = {
 	[CICDBlockType.TEST_JEST]: TestJestNode,
 	[CICDBlockType.TEST_MOCHA]: TestMochaNode,
 	[CICDBlockType.TEST_VITEST]: TestVitestNode,
-	[CICDBlockType.TEST_PLAYWRIGHT]: TestPlaywrightNode,
+	// [CICDBlockType.TEST_PLAYWRIGHT]: TestPlaywrightNode,
 	[CICDBlockType.TEST_CUSTOM]: TestCustomNode,
 	[CICDBlockType.NOTIFICATION_SLACK]: NotificationSlackNode,
 	[CICDBlockType.NOTIFICATION_EMAIL]: NotificationEmailNode,
@@ -47,8 +47,8 @@ export const nodeTypes = {
 };
 
 // 노드 생성 헬퍼 함수
-export function createNodeInstance(type: string, position: { x: number; y: number }, id?: string) {
-	const nodeId = id || crypto.randomUUID();
+export function createNodeInstance(type: string, position: { x: number; y: number }) {
+	const nodeId = crypto.randomUUID();
 	const blockType = type as CICDBlockType;
 	const config = CICD_BLOCK_CONFIGS[blockType];
 
@@ -65,7 +65,9 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
 		data: {
 			label: config.label,
 			blockType,
-			blockId: nodeId
+			blockId: nodeId,
+			onSuccess: null,
+			onFailed: null
 		} as Partial<AnyCICDNodeData>
 	};
 
@@ -113,6 +115,30 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
 					watchMode: false
 				}
 			};
+		case CICDBlockType.TEST_MOCHA:
+			return {
+				...baseNode,
+				data: {
+					...baseNode.data,
+					groupType: CICDBlockGroup.TEST,
+					testDir: 'test',
+					reporter: 'spec',
+					timeout: 2000,
+					recursive: true
+				}
+			};
+		case CICDBlockType.TEST_VITEST:
+			return {
+				...baseNode,
+				data: {
+					...baseNode.data,
+					groupType: CICDBlockGroup.TEST,
+					configFile: 'vitest.config.ts',
+					coverage: false,
+					watchMode: false,
+					environment: 'node'
+				}
+			};
 		case CICDBlockType.OS_PACKAGE:
 			return {
 				...baseNode,
@@ -131,7 +157,7 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
 					...baseNode.data,
 					groupType: CICDBlockGroup.PREBUILD,
 					version: '18',
-					packageManager: 'pnpm'
+					packageManager: 'npm'
 				}
 			};
 		case CICDBlockType.BUILD_VITE:
@@ -153,9 +179,32 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
 					groupType: CICDBlockGroup.NOTIFICATION,
 					channel: '',
 					webhookUrlEnv: 'SLACK_WEBHOOK_URL',
-					messageTemplate: 'Pipeline {status}: {project} - {branch}',
-					onSuccessOnly: false,
-					onFailureOnly: false
+					messageTemplate: 'Pipeline {status} completed'
+				}
+			};
+		case CICDBlockType.NOTIFICATION_EMAIL:
+			return {
+				...baseNode,
+				data: {
+					...baseNode.data,
+					groupType: CICDBlockGroup.NOTIFICATION,
+					recipients: '',
+					subject: 'Pipeline {status}',
+					messageTemplate: 'Pipeline {status} completed',
+					smtpHost: '',
+					smtpPort: 587,
+					smtpUser: '',
+					smtpPasswordEnv: 'SMTP_PASSWORD'
+				}
+			};
+		case CICDBlockType.CUSTOM_COMMAND:
+			return {
+				...baseNode,
+				data: {
+					...baseNode.data,
+					groupType: CICDBlockGroup.UTILITY,
+					commands: [],
+					workingDirectory: ''
 				}
 			};
 		default:
@@ -163,7 +212,9 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
 				...baseNode,
 				data: {
 					...baseNode.data,
-					groupType: CICDBlockGroup.UTILITY
+					groupType: CICDBlockGroup.UTILITY,
+					onSuccess: null,
+					onFailed: null
 				}
 			};
 	}

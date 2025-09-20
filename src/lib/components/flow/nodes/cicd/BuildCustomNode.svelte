@@ -1,13 +1,19 @@
 <script lang="ts">
 	import { Settings, Plus, X } from 'lucide-svelte';
 	import BaseNode from '../BaseNode.svelte';
+	import { CICD_GROUP_COLORS, CICDBlockGroup } from '$lib/types/flow-node.types';
 	import type { BuildCustomNodeData } from '$lib/types/flow-node.types';
+	import { getContext } from 'svelte';
 	interface Props {
 		id: string;
 		data: BuildCustomNodeData;
 	}
 
 	const { data, id }: Props = $props();
+	const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.BUILD];
+
+	// 노드 데이터 업데이트 핸들러 가져오기
+	const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>('updateNodeData');
 
 	let isEditing = $state(false);
 	let packageManager = $state(data.packageManager || 'npm');
@@ -15,6 +21,18 @@
 	let customCommands = $state(data.customCommands || []);
 	let workingDirectory = $state(data.workingDirectory || '');
 	let newCommand = $state('');
+
+	// 데이터 저장 헬퍼 함수
+	function saveNodeData() {
+		if (updateNodeData) {
+			updateNodeData(id, {
+				packageManager,
+				scriptName,
+				customCommands,
+				workingDirectory
+			});
+		}
+	}
 
 	function toggleEdit() {
 		isEditing = !isEditing;
@@ -24,11 +42,15 @@
 		if (newCommand.trim()) {
 			customCommands = [...customCommands, newCommand.trim()];
 			newCommand = '';
+			// 저장
+			saveNodeData();
 		}
 	}
 
 	function removeCommand(index: number) {
 		customCommands = customCommands.filter((_, i) => i !== index);
+		// 저장
+		saveNodeData();
 	}
 
 	function handleKeyPress(event: KeyboardEvent) {
@@ -41,22 +63,22 @@
 <BaseNode
 	{data}
 	{id}
-	colorClass="bg-emerald-500"
+	colorClass={groupColor.colorClass}
 	icon={Settings}
-	minWidth={240}
-	deletable={true}
+	minWidth={260}
+	showInput={true}
 	useCICDOutputs={true}
 >
 	<div class="space-y-2">
 		<!-- 헤더 및 토글 버튼 -->
-		<div class="flex items-center justify-between rounded border border-emerald-200 bg-emerald-50 p-3">
+		<div class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3">
 			<div>
-				<div class="mb-1 text-sm font-medium text-emerald-700">⚙️ Custom Build</div>
+				<div class="mb-1 text-sm font-medium {groupColor.textClass}">⚙️ Custom Build</div>
 				<div class="text-xs text-gray-600">Run custom build commands</div>
 			</div>
 			<button
 				onclick={toggleEdit}
-				class="text-xs text-emerald-600 hover:text-emerald-700 focus:outline-none"
+				class="text-xs text-blue-600 hover:text-blue-700 focus:outline-none"
 			>
 				{isEditing ? 'Done' : 'Edit'}
 			</button>
@@ -109,7 +131,8 @@
 					<label class="mb-1 block text-sm font-medium text-gray-700">Package Manager</label>
 					<select
 						bind:value={packageManager}
-						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+						onchange={saveNodeData}
+						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						<option value="npm">npm</option>
 						<option value="yarn">yarn</option>
@@ -123,8 +146,9 @@
 					<input
 						type="text"
 						bind:value={scriptName}
+						onchange={saveNodeData}
 						placeholder="e.g., build, build:prod"
-						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 				</div>
 
@@ -134,8 +158,9 @@
 					<input
 						type="text"
 						bind:value={workingDirectory}
+						onchange={saveNodeData}
 						placeholder="e.g., ./frontend"
-						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 				</div>
 
@@ -150,11 +175,11 @@
 							bind:value={newCommand}
 							onkeypress={handleKeyPress}
 							placeholder="Enter command (e.g., npm run build)"
-							class="flex-1 rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+							class="flex-1 rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 						/>
 						<button
 							onclick={addCommand}
-							class="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+							class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
 						>
 							<Plus class="h-4 w-4" />
 						</button>
@@ -180,9 +205,5 @@
 			</div>
 		{/if}
 
-		<div class="flex gap-2 text-xs">
-			<span class="rounded bg-green-100 px-2 py-1 text-green-700">Success</span>
-			<span class="rounded bg-red-100 px-2 py-1 text-red-700">Failed</span>
-		</div>
 	</div>
 </BaseNode>

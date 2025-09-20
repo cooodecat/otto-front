@@ -34,7 +34,7 @@
 			CICDBlockType.TEST_JEST,
 			CICDBlockType.TEST_MOCHA,
 			CICDBlockType.TEST_VITEST,
-			CICDBlockType.TEST_PLAYWRIGHT,
+			// CICDBlockType.TEST_PLAYWRIGHT,
 			CICDBlockType.TEST_CUSTOM
 		],
 		[CICDBlockGroup.NOTIFICATION]: [
@@ -84,14 +84,14 @@
 
 	function handleClick(blockType: CICDBlockType) {
 		// 드래그 중이면 클릭 무시
-		if (isDragging) return;
+		/*if (isDragging) return;
 		
 		// 클릭 시 랜덤 위치에 노드 추가
 		const position = {
 			x: Math.random() * 300 + 100,
 			y: Math.random() * 300 + 100
 		};
-		onAddNode(blockType, position);
+		onAddNode(blockType, position);*/
 	}
 </script>
 
@@ -165,7 +165,6 @@
 	<div class="border-t border-gray-200 bg-gray-50 p-4">
 		<div class="space-y-1 text-xs text-gray-600">
 			<p><strong>드래그:</strong> 캔버스로 드래그해서 추가</p>
-			<p><strong>클릭:</strong> 랜덤 위치에 추가</p>
 		</div>
 	</div>
 </div>

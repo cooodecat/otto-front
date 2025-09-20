@@ -1,22 +1,39 @@
 <script lang="ts">
 	import { Settings, Plus, X, Eye, EyeOff } from 'lucide-svelte';
 	import BaseNode from '../BaseNode.svelte';
+	import { CICD_GROUP_COLORS, CICDBlockGroup } from '$lib/types/flow-node.types';
 	import type { EnvironmentSetupNodeData } from '$lib/types/flow-node.types';
+	import { getContext } from 'svelte';
 	interface Props {
 		id: string;
 		data: EnvironmentSetupNodeData;
 	}
 
 	const { data, id }: Props = $props();
+	const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.PREBUILD];
+
+	// 노드 데이터 업데이트 핸들러 가져오기
+	const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>('updateNodeData');
 
 	let isEditing = $state(false);
 	let environmentVariables = $state(data.environmentVariables || {});
 	let loadFromFile = $state(data.loadFromFile || '');
 	let newKey = $state('');
 	let newValue = $state('');
-	let hiddenValues = $state<Set<string>>(new Set());
+	let hiddenValues = $state<Set<string>>(new Set(Object.keys(environmentVariables || {})));
 	let editingValues = $state<Set<string>>(new Set());
-	let newInputVisible = $state(true);
+	let newInputVisible = $state(false);
+
+	// 데이터 저장 헬퍼 함수
+	function saveNodeData() {
+		console.log('🟡 saveNodeData called for:', id);
+		if (updateNodeData) {
+			updateNodeData(id, {
+				environmentVariables,
+				loadFromFile
+			});
+		}
+	}
 
 	function toggleEdit() {
 		isEditing = !isEditing;
@@ -26,14 +43,76 @@
 		if (newKey && newValue) {
 			environmentVariables[newKey] = newValue;
 			environmentVariables = { ...environmentVariables };
+			// 새로 추가된 변수는 기본적으로 숨김 처리
+			hiddenValues.add(newKey);
+			hiddenValues = new Set(hiddenValues);
 			newKey = '';
 			newValue = '';
+			// 저장
+			saveNodeData();
 		}
+	}
+
+	function importFromEnvFile() {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.env,.env.*';
+		input.onchange = (event) => {
+			const file = (event.target as HTMLInputElement).files?.[0];
+			if (file) {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					const content = e.target?.result as string;
+					parseEnvContent(content);
+					loadFromFile = file.name;
+				};
+				reader.readAsText(file);
+			}
+		};
+		input.click();
+	}
+
+	function parseEnvContent(content: string) {
+		const lines = content.split('\n');
+		const newVars: Record<string, string> = {};
+		
+		lines.forEach(line => {
+			const trimmed = line.trim();
+			if (trimmed && !trimmed.startsWith('#')) {
+				const equalIndex = trimmed.indexOf('=');
+				if (equalIndex > 0) {
+					const key = trimmed.substring(0, equalIndex).trim();
+					let value = trimmed.substring(equalIndex + 1).trim();
+					
+					// 따옴표 제거
+					if ((value.startsWith('"') && value.endsWith('"')) || 
+						(value.startsWith("'") && value.endsWith("'"))) {
+						value = value.slice(1, -1);
+					}
+					
+					newVars[key] = value;
+				}
+			}
+		});
+		
+		// 기존 변수와 병합
+		environmentVariables = { ...environmentVariables, ...newVars };
+		
+		// 새로 추가된 변수들을 숨김 처리
+		Object.keys(newVars).forEach(key => {
+			hiddenValues.add(key);
+		});
+		hiddenValues = new Set(hiddenValues);
+		
+		// 저장
+		saveNodeData();
 	}
 
 	function removeEnvVar(key: string) {
 		delete environmentVariables[key];
 		environmentVariables = { ...environmentVariables };
+		// 저장
+		saveNodeData();
 	}
 
 	function handleKeyPress(event: KeyboardEvent) {
@@ -59,17 +138,17 @@
 <BaseNode
 	{data}
 	{id}
-	colorClass="bg-blue-500"
+	colorClass={groupColor.colorClass}
 	icon={Settings}
 	minWidth={240}
 	deletable={true}
-	useCICDOutputs={true}
+	showOutput={true}
 >
 	<div class="space-y-2">
 		<!-- 헤더 및 토글 버튼 -->
-		<div class="flex items-center justify-between rounded border border-blue-200 bg-blue-50 p-3">
+		<div class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3">
 			<div>
-				<div class="mb-1 text-sm font-medium text-blue-700">🔧 Environment Setup</div>
+				<div class="mb-1 text-sm font-medium {groupColor.textClass}">🔧 Environment Setup</div>
 				<div class="text-xs text-gray-600">Configure environment variables and system settings</div>
 			</div>
 			<button
@@ -89,11 +168,8 @@
 						<div class="mt-1 max-h-20 space-y-1 overflow-y-auto">
 							{#each Object.entries(environmentVariables) as [key, value]}
 								<div class="flex items-center justify-between text-gray-600">
-									<div class="flex items-center gap-2 flex-1 min-w-0">
-										<span class="font-mono text-xs">{key}=</span>
-										<span class="truncate font-mono text-xs">
-											{hiddenValues.has(key) ? '••••••••' : value}
-										</span>
+									<div class="flex items-center flex-1 min-w-0">
+										<span class="font-mono text-xs">{key} = {hiddenValues.has(key) ? '••••••••' : value}</span>
 									</div>
 									<button
 										onclick={() => toggleValueVisibility(key)}
@@ -130,12 +206,21 @@
 				<!-- Load from file -->
 				<div>
 					<label class="mb-1 block text-sm font-medium text-gray-700">Load from file (optional)</label>
-					<input
-						type="text"
-						bind:value={loadFromFile}
-						placeholder=".env, config.env, etc."
-						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
+					<div class="flex gap-2">
+						<input
+							type="text"
+							bind:value={loadFromFile}
+							placeholder=".env, config.env, etc."
+							class="flex-1 rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+						<button
+							onclick={importFromEnvFile}
+							class="rounded bg-green-500 px-3 py-1 text-sm text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+							title="Import .env file"
+						>
+							Import .env
+						</button>
+					</div>
 				</div>
 
 				<!-- Environment Variables -->
@@ -198,9 +283,6 @@
 			</div>
 		{/if}
 
-		<div class="flex gap-2 text-xs">
-			<span class="rounded bg-green-100 px-2 py-1 text-green-700">Success</span>
-			<span class="rounded bg-red-100 px-2 py-1 text-red-700">Failed</span>
-		</div>
+		<!-- Environment 설정은 성공 시에만 다음 단계로 진행 -->
 	</div>
 </BaseNode>
