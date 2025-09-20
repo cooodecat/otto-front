@@ -139,6 +139,7 @@ export interface EnvironmentSetupNodeData extends BaseCICDNodeData {
   blockType: CICDBlockType.ENVIRONMENT_SETUP;
   groupType: CICDBlockGroup.PREBUILD;
   environmentVariables: Record<string, { value: string; visible: boolean }>;
+  loadFromFile?: string;
 }
 
 // ============================================================================
@@ -247,17 +248,17 @@ export interface NotificationEmailNodeData extends BaseCICDNodeData {
 // ============================================================================
 // UTILITY 블록들
 // ============================================================================
-/*export interface ConditionBranchNodeData extends BaseCICDNodeData {
-	blockType: CICDBlockType.CONDITION_BRANCH;
-	groupType: CICDBlockGroup.UTILITY;
-	// TODO: 조건부 분기 구현 시 추가
+export interface ConditionBranchNodeData extends BaseCICDNodeData {
+  blockType: CICDBlockType.CONDITION_BRANCH;
+  groupType: CICDBlockGroup.UTILITY;
+  // TODO: 조건부 분기 구현 시 추가
 }
 
 export interface ParallelExecutionNodeData extends BaseCICDNodeData {
-	blockType: CICDBlockType.PARALLEL_EXECUTION;
-	groupType: CICDBlockGroup.UTILITY;
-	// TODO: 병렬 실행 구현 시 추가
-}*/
+  blockType: CICDBlockType.PARALLEL_EXECUTION;
+  groupType: CICDBlockGroup.UTILITY;
+  // TODO: 병렬 실행 구현 시 추가
+}
 
 export interface CustomCommandNodeData extends BaseCICDNodeData {
   blockType: CICDBlockType.CUSTOM_COMMAND;
@@ -285,8 +286,8 @@ export type AnyCICDNodeData =
   | TestCustomNodeData
   | NotificationSlackNodeData
   | NotificationEmailNodeData
-  /*	| ConditionBranchNodeData
-	| ParallelExecutionNodeData*/
+  | ConditionBranchNodeData
+  | ParallelExecutionNodeData
   | CustomCommandNodeData;
 
 // ============================================================================
