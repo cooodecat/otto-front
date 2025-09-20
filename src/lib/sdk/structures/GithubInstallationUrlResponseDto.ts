@@ -1,4 +1,4 @@
 export type GithubInstallationUrlResponseDto = {
-	installation_url: string;
-	app_slug: string;
+  installation_url: string;
+  app_slug: string;
 };
