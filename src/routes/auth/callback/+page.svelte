@@ -25,6 +25,12 @@
           </div>
           <h2 class="text-xl font-semibold text-gray-900">로그인 실패</h2>
           <p class="text-gray-600">{data.error}</p>
+          {#if data.details}
+            <details class="mt-2">
+              <summary class="cursor-pointer text-sm text-gray-500">상세 정보</summary>
+              <pre class="mt-2 text-xs text-gray-400 overflow-auto max-h-40">{data.details}</pre>
+            </details>
+          {/if}
           <button
             onclick={() => (window.location.href = '/')}
             class="mt-4 flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"

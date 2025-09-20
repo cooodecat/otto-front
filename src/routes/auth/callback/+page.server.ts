@@ -30,11 +30,20 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
       maxAge: result.refreshTokenExpiresIn
     });
   } catch (err) {
+    console.error('Login error:', err);
     if (err instanceof Response && err.status === 302) {
       throw err;
     }
+
+    // 에러 메시지 상세 표시
+    let errorMessage = '로그인 처리 중 오류가 발생했습니다.';
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    }
+
     return {
-      error: '로그인 처리 중 오류가 발생했습니다.'
+      error: errorMessage,
+      details: JSON.stringify(err, null, 2)
     };
   }
   throw redirect(302, '/projects');
