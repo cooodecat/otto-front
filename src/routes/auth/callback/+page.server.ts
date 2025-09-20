@@ -6,6 +6,7 @@ import { makeFetch } from '$lib/utils/make-fetch';
 export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
   const code = url.searchParams.get('code') ?? '';
   const state = url.searchParams.get('state') ?? '';
+  const isSecure = url.protocol === 'https:';
 
   try {
     const result = await api.functional.auth.github.authGithubSignIn(makeFetch({ fetch }), {
@@ -16,7 +17,7 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
     cookies.set('access_token', result.accessToken, {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: result.accessTokenExpiresIn
     });
@@ -24,7 +25,7 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
     cookies.set('refresh_token', result.refreshToken, {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: result.refreshTokenExpiresIn
     });
