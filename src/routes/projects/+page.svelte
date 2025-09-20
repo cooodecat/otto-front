@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { Plus, Search, Filter, Calendar, GitBranch, Activity } from 'lucide-svelte';
+  import { Plus, Search, Filter, Calendar, GitBranch, Activity, Trash2 } from 'lucide-svelte';
   import { getProject } from '$lib/sdk/functional/projects';
 
   let projects = $state<getProject.Output[]>([]);
@@ -11,6 +11,12 @@
   let searchTerm = $state('');
   let error = $state('');
   let _hasLoaded = $state(false); // 중복 로딩 방지
+  let deleteModal = $state<{ show: boolean; projectId: string; projectName: string }>({
+    show: false,
+    projectId: '',
+    projectName: ''
+  });
+  let isDeleting = $state(false);
 
   // 검색 필터링
   const filteredProjects = $derived(
@@ -71,6 +77,48 @@
       });
     } catch {
       return '날짜 없음';
+    }
+  }
+
+  function showDeleteConfirm(projectId: string, projectName: string, e: Event) {
+    e.stopPropagation(); // 카드 클릭 이벤트 전파 방지
+    deleteModal = {
+      show: true,
+      projectId,
+      projectName
+    };
+  }
+
+  function cancelDelete() {
+    deleteModal = {
+      show: false,
+      projectId: '',
+      projectName: ''
+    };
+  }
+
+  async function confirmDelete() {
+    if (!deleteModal.projectId) return;
+
+    isDeleting = true;
+    error = '';
+
+    try {
+      await api.functional.projects.deleteProject(
+        makeFetch({ fetch }),
+        deleteModal.projectId
+      );
+
+      // 로컬 상태에서 프로젝트 제거
+      projects = projects.filter(p => p.projectId !== deleteModal.projectId);
+
+      // 모달 닫기
+      cancelDelete();
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      error = '프로젝트 삭제에 실패했습니다.';
+    } finally {
+      isDeleting = false;
     }
   }
 </script>
@@ -188,7 +236,17 @@
                 <h3 class="text-lg font-semibold text-gray-900">
                   {project.projectName}
                 </h3>
-                <Activity class="h-5 w-5 text-green-500" />
+                <div class="flex items-center gap-2">
+                  <Activity class="h-5 w-5 text-green-500" />
+                  <button
+                    type="button"
+                    onclick={(e) => showDeleteConfirm(project.projectId, project.projectName, e)}
+                    class="p-1 rounded hover:bg-red-50 transition-colors"
+                    title="프로젝트 삭제"
+                  >
+                    <Trash2 class="h-4 w-4 text-red-500 cursor-pointer" />
+                  </button>
+                </div>
               </div>
 
               {#if project.projectDescription}
@@ -247,3 +305,53 @@
     {/if}
   </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+{#if deleteModal.show}
+  <div class="fixed inset-0 z-50 flex items-center justify-center">
+    <!-- Backdrop with glass effect -->
+    <div 
+      class="absolute inset-0 bg-gray-900 bg-opacity-20 backdrop-blur-sm transition-opacity"
+      onclick={cancelDelete}
+    ></div>
+    
+    <!-- Modal Content -->
+    <div class="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <h3 class="mb-4 text-lg font-semibold text-gray-900">프로젝트 삭제 확인</h3>
+      
+      <p class="mb-6 text-gray-600">
+        <span class="font-medium text-gray-900">"{deleteModal.projectName}"</span> 프로젝트를 삭제하시겠습니까?
+      </p>
+      
+      <div class="mb-4 rounded-lg bg-yellow-50 p-4 border border-yellow-200">
+        <p class="text-sm text-yellow-800">
+          <strong>⚠️ 주의:</strong> 이 작업은 되돌릴 수 없습니다.<br>프로젝트와 관련된 모든 파이프라인도 함께 삭제됩니다.
+        </p>
+      </div>
+      
+      <div class="flex gap-3 justify-end">
+        <button
+          type="button"
+          onclick={cancelDelete}
+          disabled={isDeleting}
+          class="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onclick={confirmDelete}
+          disabled={isDeleting}
+          class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {#if isDeleting}
+            <div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+            삭제 중...
+          {:else}
+            삭제
+          {/if}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
