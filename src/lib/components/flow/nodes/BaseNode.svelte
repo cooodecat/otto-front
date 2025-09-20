@@ -115,6 +115,7 @@
 		<Handle
 			type="source"
 			position={Position.Bottom}
+			id="default"
 			style="background: #555; width: 12px; height: 12px;"
 		/>
 	{/if}
@@ -151,14 +152,6 @@
 			/>
 		{/if}
 
-		<!-- Success/Failed 라벨 표시 -->
-		<div class="absolute right-0 -bottom-8 left-0 flex justify-between px-8">
-			{#if cicdOutputConfig.showSuccess}
-				<div class="text-xs font-medium text-green-600">Success</div>
-			{/if}
-			{#if cicdOutputConfig.showFailed}
-				<div class="text-xs font-medium text-red-600">Failed</div>
-			{/if}
-		</div>
+		<!-- Success/Failed 라벨 제거 - 간선 색상으로 충분함 -->
 	{/if}
 </div>

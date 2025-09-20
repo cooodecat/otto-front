@@ -11,7 +11,7 @@
 		handleFlowInit: () => void;
 		onDragOver: (event: DragEvent) => void;
 		handleAddNode: (blockType: CICDBlockType, position: { x: number; y: number }) => void;
-		onNodeMoveEnd?: (event: CustomEvent, node: any) => void;
+		onNodeDragStop?: (event: CustomEvent) => void;
 		onEdgesChange?: (changes: any[]) => void;
 	}
 
@@ -24,7 +24,7 @@
 		handleFlowInit, 
 		onDragOver, 
 		handleAddNode,
-		onNodeMoveEnd,
+		onNodeDragStop,
 		onEdgesChange
 	}: Props = $props();
 
@@ -71,7 +71,7 @@
 		{nodeTypes}
 		{edgeTypes}
 		onconnect={onConnect}
-		onnodemoveend={onNodeMoveEnd}
+		onnodedragstop={onNodeDragStop}
 		onedgeschange={onEdgesChange}
 		oninit={handleFlowInit}
 		fitView={false}

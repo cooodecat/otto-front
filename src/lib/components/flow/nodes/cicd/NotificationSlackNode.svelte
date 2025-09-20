@@ -1,168 +1,138 @@
 <script lang="ts">
-	import { MessageSquare, Settings, Hash } from 'lucide-svelte';
+	import { MessageSquare } from 'lucide-svelte';
 	import BaseNode from '../BaseNode.svelte';
+	import { CICD_GROUP_COLORS, CICDBlockGroup } from '$lib/types/flow-node.types';
 	import type { NotificationSlackNodeData } from '$lib/types/flow-node.types';
+	import { getContext } from 'svelte';
+
 	interface Props {
 		id: string;
 		data: NotificationSlackNodeData;
 	}
 
 	const { data, id }: Props = $props();
+	const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.NOTIFICATION];
 
-	let isExpanded = $state(false);
+	// 노드 데이터 업데이트 핸들러 가져오기
+	const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>('updateNodeData');
 
-	const getTriggerText = $derived(() => {
-		if (data.onSuccessOnly) return 'Success only';
-		if (data.onFailureOnly) return 'Failure only';
-		return 'Success & Failure';
-	});
+	let isEditing = $state(false);
+	let channel = $state(data?.channel || '');
+	let webhookUrlEnv = $state(data?.webhookUrlEnv || 'SLACK_WEBHOOK_URL');
+	let messageTemplate = $state(data?.messageTemplate || 'Pipeline {status} completed');
 
-	const getTriggerColor = $derived(() => {
-		if (data.onSuccessOnly) return 'text-green-600 bg-green-50';
-		if (data.onFailureOnly) return 'text-red-600 bg-red-50';
-		return 'text-blue-600 bg-blue-50';
-	});
+	// 데이터 저장 헬퍼 함수
+	function saveNodeData() {
+		if (updateNodeData) {
+			updateNodeData(id, {
+				channel,
+				webhookUrlEnv,
+				messageTemplate
+			});
+		}
+	}
+
+	function toggleEdit() {
+		isEditing = !isEditing;
+	}
+
 </script>
 
 <BaseNode
 	{data}
 	{id}
-	colorClass="bg-purple-500"
+	colorClass={groupColor.colorClass}
 	icon={MessageSquare}
 	minWidth={280}
-	deletable={true}
+	showInput={true}
 	useCICDOutputs={true}
 >
-	<div class="space-y-3">
-		<!-- 기본 정보 -->
-		<div class="rounded border border-purple-200 bg-purple-50 p-3">
-			<div class="mb-2 flex items-center justify-between">
-				<div class="flex items-center gap-2 text-sm font-medium text-purple-700">
-					<span>💬</span>
-					Slack Notify
-				</div>
-				<button
-					onclick={() => (isExpanded = !isExpanded)}
-					class="rounded p-1 hover:bg-gray-100"
-					title="설정 보기"
-				>
-					<Settings size={14} class="text-gray-500" />
-				</button>
+	<div class="space-y-2">
+		<!-- 헤더 및 토글 버튼 -->
+		<div class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3">
+			<div>
+				<div class="mb-1 text-sm font-medium {groupColor.textClass}">💬 Slack Notify</div>
+				<div class="text-xs text-gray-600">Send Slack notifications</div>
 			</div>
-
-			<!-- 채널 정보 -->
-			{#if data.channel}
-				<div class="mb-2 flex items-center gap-2">
-					<Hash class="h-3 w-3 text-gray-500" />
-					<span class="font-mono text-xs text-gray-800">
-						{data.channel}
-					</span>
-				</div>
-			{/if}
-
-			<!-- 트리거 조건 -->
-			<div class="flex items-center gap-2">
-				<span class="text-xs text-gray-600">Trigger:</span>
-				<span class="rounded px-2 py-1 text-xs font-medium {getTriggerColor}">
-					{getTriggerText}
-				</span>
-			</div>
+			<button
+				onclick={toggleEdit}
+				class="text-xs text-blue-600 hover:text-blue-700 focus:outline-none"
+			>
+				{isEditing ? 'Done' : 'Edit'}
+			</button>
 		</div>
 
-		<!-- 확장 정보 -->
-		{#if isExpanded}
-			<div class="space-y-3 rounded border bg-gray-50 p-3">
-				<!-- 메시지 템플릿 -->
-				<div>
-					<label class="mb-1 block text-sm font-medium text-gray-700"> Message Template </label>
-					<div class="max-h-20 overflow-y-auto rounded border bg-white p-2 font-mono text-xs">
-						{data.messageTemplate || 'Pipeline {status}: {project} - {branch}'}
-					</div>
-					<div class="mt-1 text-xs text-gray-500">
-						Variables: {'{status}, {project}, {branch}, {commit}, {duration}'}
-					</div>
-				</div>
-
-				<!-- Webhook 설정 -->
-				<div>
-					<label class="mb-1 block text-sm font-medium text-gray-700">
-						Webhook Configuration
-					</label>
-					<div class="rounded border bg-white p-2">
-						<div class="space-y-1 text-xs">
-							<div>
-								<span class="text-gray-600">URL Env Var:</span>
-								<span class="ml-1 font-mono text-gray-800">
-									{data.webhookUrlEnv}
-								</span>
-							</div>
-							{#if data.channel}
-								<div>
-									<span class="text-gray-600">Channel:</span>
-									<span class="ml-1 font-mono text-gray-800">
-										#{data.channel}
-									</span>
-								</div>
-							{/if}
-						</div>
-					</div>
-				</div>
-
-				<!-- 알림 설정 -->
-				<div class="grid grid-cols-2 gap-2">
-					<div class="rounded border bg-white p-2">
-						<div class="mb-1 text-xs text-gray-600">Success Notifications</div>
-						<div class="flex items-center gap-1">
-							<div
-								class="h-2 w-2 rounded-full {!data.onFailureOnly ? 'bg-green-400' : 'bg-gray-300'}"
-							></div>
-							<span class="text-xs">
-								{!data.onFailureOnly ? 'Enabled' : 'Disabled'}
-							</span>
-						</div>
-					</div>
-					<div class="rounded border bg-white p-2">
-						<div class="mb-1 text-xs text-gray-600">Failure Notifications</div>
-						<div class="flex items-center gap-1">
-							<div
-								class="h-2 w-2 rounded-full {!data.onSuccessOnly ? 'bg-red-400' : 'bg-gray-300'}"
-							></div>
-							<span class="text-xs">
-								{!data.onSuccessOnly ? 'Enabled' : 'Disabled'}
-							</span>
-						</div>
-					</div>
-				</div>
-
-				<!-- 실행 정보 -->
-				<div class="grid grid-cols-2 gap-2 text-xs">
+		<!-- 표시 모드 -->
+		{#if !isEditing}
+			<div class="space-y-2 text-xs">
+				{#if channel}
 					<div>
-						<span class="text-gray-600">Timeout:</span>
-						<span class="ml-1">{data.timeout || 30}s</span>
+						<div class="font-medium text-gray-700">Channel</div>
+						<div class="mt-1 rounded border bg-gray-100 px-2 py-1 font-mono text-xs">
+							#{channel}
+						</div>
 					</div>
-					<div>
-						<span class="text-gray-600">Retry:</span>
-						<span class="ml-1">{data.retryCount || 3}</span>
-					</div>
-				</div>
+				{/if}
 
-				<!-- 연결 정보 -->
-				<div class="border-t border-gray-200 pt-2">
-					<div class="text-xs text-gray-600">
-						<div>On Success: {data.onSuccess || 'Continue'}</div>
-						<div>On Failed: {data.onFailed || 'Continue anyway'}</div>
+				{#if webhookUrlEnv}
+					<div>
+						<div class="font-medium text-gray-700">Webhook URL Env</div>
+						<div class="mt-1 rounded border bg-gray-100 px-2 py-1 font-mono text-xs">
+							{webhookUrlEnv}
+						</div>
 					</div>
-				</div>
+				{/if}
+
+
+				{#if !channel && !webhookUrlEnv}
+					<div class="text-gray-500">No Slack configuration</div>
+				{/if}
 			</div>
 		{/if}
 
-		<!-- 상태 표시 -->
-		<div class="flex items-center justify-between text-xs text-gray-500">
-			<span>Team Communication</span>
-			<span class="flex items-center gap-1">
-				<span class="h-2 w-2 rounded-full bg-yellow-400"></span>
-				Ready
-			</span>
-		</div>
+		<!-- 편집 모드 -->
+		{#if isEditing}
+			<div class="space-y-3 rounded border bg-gray-50 p-3">
+				<!-- Channel -->
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700">Channel</label>
+					<input
+						type="text"
+						bind:value={channel}
+						onchange={saveNodeData}
+						placeholder="general"
+						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+				</div>
+
+				<!-- Webhook URL Environment Variable -->
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700">Webhook URL Environment Variable</label>
+					<input
+						type="text"
+						bind:value={webhookUrlEnv}
+						onchange={saveNodeData}
+						placeholder="SLACK_WEBHOOK_URL"
+						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+				</div>
+
+				<!-- Message Template -->
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700">Message Template</label>
+					<textarea
+						bind:value={messageTemplate}
+						onchange={saveNodeData}
+						rows="3"
+						placeholder="Pipeline {status} completed"
+						class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+					></textarea>
+					<div class="mt-1 text-xs text-gray-500">
+						Variables: {'{status}, {branch}, {commit}, {duration}'}
+					</div>
+				</div>
+
+			</div>
+		{/if}
 	</div>
 </BaseNode>
