@@ -91,7 +91,7 @@
       <!-- 패키지 목록 미리보기 -->
       {#if !isEditing}
         <div class="space-y-1">
-          {#each packages.slice(0, 3) as pkg, idx}
+          {#each packages.slice(0, 3) as pkg, _idx}
             <div class="rounded bg-white px-2 py-1 font-mono text-xs text-gray-600">
               {pkg}
             </div>

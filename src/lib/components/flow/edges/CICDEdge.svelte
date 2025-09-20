@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getSmoothStepPath, Position } from '@xyflow/svelte';
-  import { CheckCircle, XCircle, Trash2 } from 'lucide-svelte';
+  import { Trash2 } from 'lucide-svelte';
   import { getContext } from 'svelte';
 
   interface Props {
@@ -29,19 +29,19 @@
     sourcePosition,
     targetPosition,
     sourceHandle,
-    targetHandle,
+    targetHandle: _targetHandle,
     data,
     markerEnd,
-    source,
-    target,
-    selected
+    source: _source,
+    target: _target,
+    selected: _selected
   }: Props = $props();
 
   // 성공/실패에 따른 스타일 결정
   const actualSourceHandle = $derived(sourceHandle || data?.sourceHandle || 'default');
   const isSuccessPath = $derived(actualSourceHandle === 'success-output');
   const isFailedPath = $derived(actualSourceHandle === 'failed-output');
-  const isDefaultPath = $derived(!isSuccessPath && !isFailedPath);
+  const _isDefaultPath = $derived(!isSuccessPath && !isFailedPath);
 
   // 디버깅 로그 제거 (성능 향상)
 

@@ -10,7 +10,7 @@
   let loading = $state(false); // 초기값을 false로 변경
   let searchTerm = $state('');
   let error = $state('');
-  let hasLoaded = $state(false); // 중복 로딩 방지
+  let _hasLoaded = $state(false); // 중복 로딩 방지
 
   // 검색 필터링
   const filteredProjects = $derived(

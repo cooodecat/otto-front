@@ -5,14 +5,7 @@
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
   import { RotateCcw, Play, Loader2, Save, ArrowLeft } from 'lucide-svelte';
-  import {
-    SvelteFlow,
-    Background,
-    Controls,
-    MiniMap,
-    SvelteFlowProvider,
-    useSvelteFlow
-  } from '@xyflow/svelte';
+  import { SvelteFlowProvider } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
   import { edgeTypes } from '$lib/components/flow/edgeTypes';
@@ -33,7 +26,7 @@
   let nodes = $state<any[]>([]);
   let edges = $state<any[]>([]);
   let initialized = $state(false);
-  let flowInstance = $state<any>(null);
+  let _flowInstance = $state<any>(null);
   let showResetConfirm = $state(false);
 
   onMount(async () => {
@@ -324,11 +317,11 @@
   }
 
   // Flow 이벤트 핸들러들
-  function onNodeClick(event: CustomEvent) {
+  function _onNodeClick(event: CustomEvent) {
     console.log('Node clicked:', event.detail);
   }
 
-  function onEdgeClick(event: CustomEvent) {
+  function _onEdgeClick(event: CustomEvent) {
     console.log('Edge clicked:', event.detail);
   }
 
@@ -580,7 +573,7 @@
     }
   }
 
-  function onDrop(event: DragEvent) {
+  function _onDrop(event: DragEvent) {
     event.preventDefault();
 
     const blockType =

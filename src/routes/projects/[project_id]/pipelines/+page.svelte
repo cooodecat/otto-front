@@ -12,7 +12,6 @@
     Settings,
     Activity,
     Play,
-    Pause,
     ArrowLeft
   } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';

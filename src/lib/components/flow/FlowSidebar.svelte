@@ -4,14 +4,14 @@
     CICDBlockGroup,
     CICD_GROUP_COLORS,
     CICD_BLOCK_CONFIGS,
-    type AnyCICDNodeData
+    type AnyCICDNodeData as _AnyCICDNodeData
   } from '$lib/types/flow-node.types';
 
   interface Props {
     onAddNode: (blockType: CICDBlockType, position: { x: number; y: number }) => void;
   }
 
-  const { onAddNode }: Props = $props();
+  const { onAddNode: _onAddNode }: Props = $props();
 
   let isDragging = $state(false);
   let dragBlockType = $state<CICDBlockType | null>(null);
@@ -82,16 +82,16 @@
     dragBlockType = null;
   }
 
-  function handleClick(blockType: CICDBlockType) {
+  function handleClick(_blockType: CICDBlockType) {
     // 드래그 중이면 클릭 무시
     /*if (isDragging) return;
-		
+
 		// 클릭 시 랜덤 위치에 노드 추가
 		const position = {
 			x: Math.random() * 300 + 100,
 			y: Math.random() * 300 + 100
 		};
-		onAddNode(blockType, position);*/
+		onAddNode(_blockType, position);*/
   }
 </script>
 

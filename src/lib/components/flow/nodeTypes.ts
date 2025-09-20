@@ -20,7 +20,7 @@ import {
   CICDBlockType,
   CICDBlockGroup,
   CICD_BLOCK_CONFIGS,
-  CICD_GROUP_COLORS,
+  CICD_GROUP_COLORS as _CICD_GROUP_COLORS,
   type AnyCICDNodeData
 } from '$lib/types/flow-node.types';
 

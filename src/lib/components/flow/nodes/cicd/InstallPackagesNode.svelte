@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Package, Settings } from 'lucide-svelte';
+  import { Package } from 'lucide-svelte';
   import BaseNode from '../BaseNode.svelte';
   import { CICD_GROUP_COLORS, CICDBlockGroup } from '$lib/types/flow-node.types';
   import type { InstallPackagesNodeData } from '$lib/types/flow-node.types';

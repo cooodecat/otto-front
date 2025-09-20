@@ -21,7 +21,7 @@ export async function isAuthenticated({ cookies, fetch }: ServerLoadEvent) {
       maxAge: p.refreshTokenExpiresIn
     });
     return true;
-  } catch (e) {
+  } catch (_e) {
     return false;
   }
 }
