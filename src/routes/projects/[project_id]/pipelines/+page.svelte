@@ -264,7 +264,7 @@
                     class="p-1 rounded hover:bg-red-50 transition-colors"
                     title="파이프라인 삭제"
                   >
-                    <Trash2 class="h-4 w-4 text-red-500" />
+                    <Trash2 class="h-4 w-4 text-red-500 cursor-pointer" />
                   </button>
                 </div>
               </div>
@@ -331,9 +331,9 @@
 <!-- Delete Confirmation Modal -->
 {#if deleteModal.show}
   <div class="fixed inset-0 z-50 flex items-center justify-center">
-    <!-- Backdrop -->
+    <!-- Backdrop with glass effect -->
     <div 
-      class="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+      class="absolute inset-0 bg-opacity-20 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
     ></div>
     
@@ -347,7 +347,7 @@
       
       <div class="mb-4 rounded-lg bg-yellow-50 p-4 border border-yellow-200">
         <p class="text-sm text-yellow-800">
-          <strong>⚠️ 주의:</strong> 이 작업은 되돌릴 수 없습니다. 파이프라인 설정과 관련된 모든 데이터가 삭제됩니다.
+          <strong>⚠️ 주의:</strong> 이 작업은 되돌릴 수 없습니다.<br>파이프라인 구성과 플로우 데이터가 모두 삭제됩니다.
         </p>
       </div>
       
