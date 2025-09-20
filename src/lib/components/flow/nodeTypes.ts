@@ -61,6 +61,7 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
     type: blockType,
     position,
     selectable: true,
+    selected: false,
     dragHandle: '.drag-handle',
     data: {
       label: config.label,

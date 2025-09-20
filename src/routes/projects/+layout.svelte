@@ -62,6 +62,7 @@
   }
 
   .sidebar {
-    /* Add your sidebar styles here */
+    /* Sidebar styles will be added here when needed */
+    min-height: 100vh;
   }
 </style>

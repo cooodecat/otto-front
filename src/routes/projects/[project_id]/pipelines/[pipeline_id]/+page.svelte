@@ -498,9 +498,6 @@
     const newNode = createNodeInstance(blockType.toString(), position);
     console.log('✅ New node created:', newNode);
 
-    // 새 노드도 선택되지 않은 상태로 설정
-    newNode.selected = false;
-
     nodes = [...clearedNodes, newNode];
 
     // 약간의 지연 후 다시 한 번 선택 해제 (SvelteFlow 내부 상태 정리)

@@ -11,7 +11,7 @@
     handleFlowInit: () => void;
     onDragOver: (event: DragEvent) => void;
     handleAddNode: (blockType: CICDBlockType, position: { x: number; y: number }) => void;
-    onNodeDragStop?: (event: CustomEvent) => void;
+    onNodeDragStop?: (event: any) => void;
     onEdgesChange?: (changes: any[]) => void;
   }
 

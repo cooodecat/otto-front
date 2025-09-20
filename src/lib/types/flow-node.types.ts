@@ -132,7 +132,7 @@ export interface NodeVersionNodeData extends BaseCICDNodeData {
   blockType: CICDBlockType.NODE_VERSION;
   groupType: CICDBlockGroup.PREBUILD;
   version: string;
-  packageManager: 'npm' | 'yarn' | 'pnpm';
+  packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun';
 }
 
 export interface EnvironmentSetupNodeData extends BaseCICDNodeData {
@@ -147,7 +147,7 @@ export interface EnvironmentSetupNodeData extends BaseCICDNodeData {
 export interface InstallPackagesNodeData extends BaseCICDNodeData {
   blockType: CICDBlockType.INSTALL_MODULE_NODE;
   groupType: CICDBlockGroup.BUILD;
-  packageManager: 'npm' | 'yarn' | 'pnpm';
+  packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun';
   cleanInstall: boolean;
   productionOnly: boolean;
 }
@@ -171,7 +171,7 @@ export interface BuildViteNodeData extends BaseCICDNodeData {
 export interface BuildCustomNodeData extends BaseCICDNodeData {
   blockType: CICDBlockType.BUILD_CUSTOM;
   groupType: CICDBlockGroup.BUILD;
-  packageManager: 'npm' | 'yarn' | 'pnpm';
+  packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun';
   scriptName: string;
   customCommands: string[];
   workingDirectory: string;
@@ -211,6 +211,14 @@ export interface TestCustomNodeData extends BaseCICDNodeData {
   groupType: CICDBlockGroup.TEST;
   testCommands: string[];
   workingDirectory: string;
+}
+
+export interface TestPlaywrightNodeData extends BaseCICDNodeData {
+  blockType: CICDBlockType.TEST_PLAYWRIGHT;
+  groupType: CICDBlockGroup.TEST;
+  configFile: string;
+  browsers: ('chromium' | 'firefox' | 'webkit')[];
+  headless: boolean;
 }
 
 // ============================================================================
@@ -273,6 +281,7 @@ export type AnyCICDNodeData =
   | TestJestNodeData
   | TestMochaNodeData
   | TestVitestNodeData
+  | TestPlaywrightNodeData
   | TestCustomNodeData
   | NotificationSlackNodeData
   | NotificationEmailNodeData
