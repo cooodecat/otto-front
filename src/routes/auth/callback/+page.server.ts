@@ -51,7 +51,8 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
     }
 
     return {
-      error: errorMessage
+      error: errorMessage,
+      details: err instanceof Error ? err.stack : undefined
     };
   }
   throw redirect(302, '/projects');
