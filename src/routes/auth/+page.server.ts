@@ -7,7 +7,7 @@ export const load: PageServerLoad = async (serverEvent) => {
   const isAuth = await isAuthenticated(serverEvent);
   if (isAuth) return redirect(302, '/projects');
   const clientId = PUBLIC_GITHUB_CLIENT_ID ?? 'your-github-client-id';
-  const redirectUri = `${process.env.ORIGIN || 'http://localhost:5173'}/auth/callback`;
+  const redirectUri = `${serverEvent.url.origin}/auth/callback`;
   const scope = 'read:user user:email';
   const state = crypto.randomUUID();
   const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
