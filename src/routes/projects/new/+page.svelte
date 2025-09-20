@@ -430,7 +430,7 @@
 
 	function goToProject() {
 		if (createdProjectId) {
-			goto(`/projects/${createdProjectId}`);
+			goto(`/projects/${createdProjectId}/pipelines`);
 		}
 	}
 </script>
