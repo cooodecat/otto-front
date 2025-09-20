@@ -12,7 +12,6 @@
     Github,
     Loader2,
     GitBranch,
-    Star,
     Lock,
     Unlock,
     ChevronDown,
@@ -57,7 +56,7 @@
   let loadingRepositories = $state(false);
 
   // 검색된 리포지토리 필터링
-  const filteredRepositories = $derived(
+  const _filteredRepositories = $derived(
     repositories.filter(
       (repo) =>
         repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -272,7 +271,7 @@
     }
   }
 
-  async function loadRepositories() {
+  async function _loadRepositories() {
     try {
       loading = true;
       error = '';
@@ -344,7 +343,7 @@
     }
   }
 
-  function handleRepositoryChange(repoName: string) {
+  function _handleRepositoryChange(repoName: string) {
     const repo = repositories.find((r) => r.name === repoName);
     if (repo) {
       selectedRepository = repo;
@@ -420,7 +419,7 @@
     }
   }
 
-  function formatDate(dateString: string) {
+  function _formatDate(dateString: string) {
     try {
       return new Date(dateString).toLocaleDateString('ko-KR');
     } catch {

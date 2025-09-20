@@ -23,7 +23,7 @@
   let newKey = $state('');
   let newValue = $state('');
   let hiddenValues = $state<Set<string>>(new Set(Object.keys(environmentVariables || {})));
-  let editingValues = $state<Set<string>>(new Set());
+  let _editingValues = $state<Set<string>>(new Set());
   let newInputVisible = $state(false);
 
   // 데이터 저장 헬퍼 함수
