@@ -1,13 +1,12 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
 
   let { children } = $props();
 
   // Canvas layout paths (like Next.js pattern from otto-ui)
   function isCanvasLayoutPath(pathname: string): boolean {
     if (pathname === '/pipelines') return true;
-    const pipelineDetailPattern = /^\/projects\/[^\/]+\/pipelines\/[^\/]+$/;
+    const pipelineDetailPattern = /^\/projects\/[^/]+\/pipelines\/[^/]+$/;
     return pipelineDetailPattern.test(pathname);
   }
 
