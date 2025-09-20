@@ -36,6 +36,7 @@ jobs:
         run: pnpm check
         env:
           PUBLIC_GITHUB_CLIENT_ID: ${{ vars.PUBLIC_GITHUB_CLIENT_ID || 'dummy-client-id-for-ci' }}
+          PUBLIC_BACKEND_URL: ${{ vars.PUBLIC_BACKEND_URL || 'http://localhost:4000' }}
 
   build:
     runs-on: ubuntu-latest
