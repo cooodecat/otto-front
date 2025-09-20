@@ -1,7 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import api from '$lib/sdk';
-import { makeFetch } from '$lib/utils/make-fetch';
 import { PUBLIC_GITHUB_CLIENT_ID } from '$env/static/public';
 import { isAuthenticated } from '$lib/server/server-utils';
 
