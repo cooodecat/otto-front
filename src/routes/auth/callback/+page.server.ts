@@ -9,10 +9,18 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
   const isSecure = url.protocol === 'https:';
 
   try {
+    console.log('[Auth Callback] Processing OAuth callback:', {
+      code: code?.substring(0, 8) + '...',
+      state: state?.substring(0, 8) + '...',
+      protocol: url.protocol
+    });
+
     const result = await api.functional.auth.github.authGithubSignIn(makeFetch({ fetch }), {
       code,
       state: state || ''
     });
+
+    console.log('[Auth Callback] Authentication successful');
 
     cookies.set('access_token', result.accessToken, {
       path: '/',
@@ -30,20 +38,20 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
       maxAge: result.refreshTokenExpiresIn
     });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('[Auth Callback] Authentication error:', err);
+
     if (err instanceof Response && err.status === 302) {
       throw err;
     }
 
-    // 에러 메시지 상세 표시
     let errorMessage = '로그인 처리 중 오류가 발생했습니다.';
+
     if (err instanceof Error) {
-      errorMessage = err.message;
+      errorMessage = err.message || errorMessage;
     }
 
     return {
-      error: errorMessage,
-      details: JSON.stringify(err, null, 2)
+      error: errorMessage
     };
   }
   throw redirect(302, '/projects');
