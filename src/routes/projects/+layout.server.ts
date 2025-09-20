@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
 import { isAuthenticated } from '$lib/server/server-utils';
+import type { PageServerLoad } from '../auth/callback/$types';
 
 export const load: PageServerLoad = async (serverEvent) => {
 	const isAuth = await isAuthenticated(serverEvent);
