@@ -38,7 +38,9 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'lax',
-      maxAge: result.accessTokenExpiresIn
+      maxAge: result.accessTokenExpiresIn,
+      // Production에서는 도메인 전체에서 쿠키 공유
+      ...(isSecure && { domain: '.codecat-otto.shop' })
     });
 
     cookies.set('refresh_token', result.refreshToken, {
@@ -46,7 +48,9 @@ export const load: PageServerLoad = async ({ url, fetch, cookies }) => {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'lax',
-      maxAge: result.refreshTokenExpiresIn
+      maxAge: result.refreshTokenExpiresIn,
+      // Production에서는 도메인 전체에서 쿠키 공유
+      ...(isSecure && { domain: '.codecat-otto.shop' })
     });
   } catch (err) {
     console.error('[Auth Callback] Authentication error:', err);
