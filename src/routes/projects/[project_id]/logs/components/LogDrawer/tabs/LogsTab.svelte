@@ -16,10 +16,7 @@
 	let logContainer: HTMLDivElement;
 	
 	// Use provided logs or fallback to mock data
-	$derived.by(() => {
-		if (!logs || logs.length === 0) {
-			// Mock log data fallback
-			logs = [
+	const mockLogs: LogEntry[] = [
 		{ timestamp: new Date().toISOString(), level: 'info', message: '[PREPARING] Initializing build environment...', phase: 'PREPARING' },
 		{ timestamp: new Date().toISOString(), level: 'info', message: '[PREPARING] Loading configuration...', phase: 'PREPARING' },
 		{ timestamp: new Date().toISOString(), level: 'info', message: '[PREPARING] Configuration loaded successfully', phase: 'PREPARING' },
@@ -33,11 +30,9 @@
 		{ timestamp: new Date().toISOString(), level: 'info', message: '[FINALIZING] Uploading to S3...', phase: 'FINALIZING' },
 		{ timestamp: new Date().toISOString(), level: 'info', message: '[FINALIZING] > Progress: 75%', phase: 'FINALIZING' },
 		{ timestamp: new Date().toISOString(), level: 'info', message: '[FINALIZING] > Uploaded 34.5MB', phase: 'FINALIZING' },
-			];
-		}
-	});
+	];
 	
-	const displayLogs = $derived(logs);
+	const displayLogs = $derived(logs.length > 0 ? logs : mockLogs);
 	
 	function downloadLogs() {
 		const logText = displayLogs.map(log => 
@@ -106,6 +101,7 @@
 				<span>{log.message}</span>
 			</div>
 		{/each}
+		{/if}
 	</div>
 </div>
 
