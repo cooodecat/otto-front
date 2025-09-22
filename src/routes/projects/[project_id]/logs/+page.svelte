@@ -5,7 +5,7 @@
 	import LogDrawer from './components/LogDrawer/LogDrawer.svelte';
 	import { RefreshCw } from 'lucide-svelte';
 	
-	const projectId = $page.params.project_id;
+	const projectId = $page.params.project_id!;
 	
 	let selectedExecutionId = $state<string | null>(null);
 	let filterType = $state<'ALL' | 'BUILD' | 'DEPLOY'>('ALL');

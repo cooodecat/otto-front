@@ -25,7 +25,8 @@
 						: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
 				}"
 			>
-				<svelte:component this={tab.icon} class="w-4 h-4" />
+				{@const Icon = tab.icon}
+				<Icon class="w-4 h-4" />
 				<span class="font-medium">{tab.label}</span>
 				<span class="text-xs text-gray-400">({tab.shortcut})</span>
 			</button>

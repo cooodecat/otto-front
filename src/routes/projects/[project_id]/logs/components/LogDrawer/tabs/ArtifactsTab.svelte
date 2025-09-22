@@ -51,7 +51,8 @@
 				{#each artifacts as artifact}
 					<div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
 						<div class="flex items-center gap-3">
-							<svelte:component this={artifact.icon} class="w-8 h-8 text-gray-400" />
+							{@const Icon = artifact.icon}
+							<Icon class="w-8 h-8 text-gray-400" />
 							<div>
 								<p class="font-medium text-gray-900">{artifact.name}</p>
 								<p class="text-sm text-gray-500">{artifact.size}</p>

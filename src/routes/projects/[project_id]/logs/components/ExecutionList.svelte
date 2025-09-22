@@ -77,45 +77,6 @@
 	];
 	
 	// Filter executions based on filterType
-	$derived.by(() => {
-		const filtered = filterType === 'ALL' 
-			? mockExecutions
-			: mockExecutions.filter(e => e.executionType === filterType);
-		
-		// Group by date
-		const groups: Map<string, ExecutionMetadata[]> = new Map();
-		
-		filtered.forEach(execution => {
-			const date = new Date(execution.startedAt);
-			const today = new Date();
-			const yesterday = new Date(today);
-			yesterday.setDate(yesterday.getDate() - 1);
-			
-			let groupKey: string;
-			if (date.toDateString() === today.toDateString()) {
-				groupKey = 'Today';
-			} else if (date.toDateString() === yesterday.toDateString()) {
-				groupKey = 'Yesterday';
-			} else {
-				groupKey = date.toLocaleDateString('en-US', { 
-					month: 'long', 
-					day: 'numeric', 
-					year: 'numeric' 
-				});
-			}
-			
-			if (!groups.has(groupKey)) {
-				groups.set(groupKey, []);
-			}
-			groups.get(groupKey)!.push(execution);
-		});
-		
-		return Array.from(groups.entries()).map(([date, items]) => ({
-			date,
-			items
-		}));
-	});
-	
 	const executionGroups = $derived.by(() => {
 		const filtered = filterType === 'ALL' 
 			? mockExecutions
