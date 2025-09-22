@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { ExecutionMetadata, ExecutionGroup } from '$lib/types/log.types';
 	import ExecutionItem from './ExecutionItem.svelte';
+	import { logApiService } from '$lib/services/log-api.service';
+	import { onMount } from 'svelte';
 	
 	interface Props {
 		projectId: string;
@@ -11,8 +13,44 @@
 	
 	let { projectId, filterType, selectedExecutionId, onSelect }: Props = $props();
 	
-	// Mock data for now - will be replaced with API call
-	const mockExecutions: ExecutionMetadata[] = [
+	let executions = $state<ExecutionMetadata[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+	
+	// Load executions from API
+	async function loadExecutions() {
+		loading = true;
+		error = null;
+		try {
+			const response = await logApiService.getExecutions({
+				projectId,
+				type: filterType === 'ALL' ? undefined : filterType,
+				page: 1,
+				pageSize: 50
+			});
+			executions = response.executions;
+		} catch (err) {
+			console.error('Failed to load executions:', err);
+			error = err instanceof Error ? err.message : 'Failed to load executions';
+			// Fallback to mock data for testing
+			executions = getMockExecutions();
+		} finally {
+			loading = false;
+		}
+	}
+	
+	// Watch for filter changes
+	$effect(() => {
+		loadExecutions();
+	});
+	
+	onMount(() => {
+		loadExecutions();
+	});
+	
+	// Mock data fallback for testing when API is not available
+	function getMockExecutions(): ExecutionMetadata[] {
+		return [
 		{
 			executionId: '1',
 			buildNumber: 125,
@@ -74,13 +112,12 @@
 				warningCount: 1
 			}
 		}
-	];
+		];
+	}
 	
-	// Filter executions based on filterType
+	// Group executions by date
 	const executionGroups = $derived.by(() => {
-		const filtered = filterType === 'ALL' 
-			? mockExecutions
-			: mockExecutions.filter(e => e.executionType === filterType);
+		const filtered = executions;
 		
 		// Group by date
 		const groups: Map<string, ExecutionMetadata[]> = new Map();
@@ -140,7 +177,17 @@
 </script>
 
 <div class="px-6 py-4">
-	{#if executionGroups.length === 0}
+	{#if loading}
+		<div class="flex justify-center py-12">
+			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+		</div>
+	{:else if error}
+		<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+			<p class="text-sm text-yellow-800">
+				⚠️ Using mock data: {error}
+			</p>
+		</div>
+	{:else if executionGroups.length === 0}
 		<div class="text-center py-12">
 			<p class="text-gray-500">No executions found</p>
 		</div>
