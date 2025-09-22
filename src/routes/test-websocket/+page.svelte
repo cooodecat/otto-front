@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { LogWebSocketService } from '$lib/services/log-websocket.service';
-	import type { LogEntry } from '$lib/types/log.types';
+	import type { LogEntry, PhaseInfo } from '$lib/types/log.types';
+	import { MockLogServer } from '$lib/utils/mock-server';
 	
 	let wsService: LogWebSocketService;
+	let mockServer: MockLogServer | null = null;
 	let connected = $state(false);
 	let logs = $state<LogEntry[]>([]);
+	let phases = $state<PhaseInfo[]>([]);
 	let error = $state<string | null>(null);
 	let testExecutionId = $state('test-execution-001');
 	let token = $state('');
+	let useMockServer = $state(true);
 	
 	async function connectWebSocket() {
 		try {
@@ -51,8 +55,46 @@
 		}
 	}
 	
+	function startMockServer() {
+		if (mockServer) {
+			mockServer.stop();
+		}
+		
+		mockServer = new MockLogServer();
+		
+		mockServer.onLog((log) => {
+			logs = [...logs, log];
+		});
+		
+		mockServer.onPhase((phase) => {
+			const index = phases.findIndex(p => p.id === phase.id);
+			if (index >= 0) {
+				phases[index] = phase;
+				phases = [...phases];
+			} else {
+				phases = [...phases, phase];
+			}
+		});
+		
+		mockServer.onStatus((status) => {
+			console.log('Execution status:', status);
+		});
+		
+		mockServer.start(1000);
+		connected = true;
+	}
+	
+	function stopMockServer() {
+		mockServer?.stop();
+		mockServer = null;
+		connected = false;
+		logs = [];
+		phases = [];
+	}
+	
 	onDestroy(() => {
 		wsService?.disconnect();
+		mockServer?.stop();
 	});
 	
 	// Simulate backend sending logs
@@ -111,21 +153,51 @@
 					/>
 				</div>
 				
+				<div class="mb-4">
+					<label class="flex items-center gap-2">
+						<input 
+							type="checkbox" 
+							bind:checked={useMockServer}
+							class="rounded"
+							disabled={connected}
+						/>
+						<span>Use Mock Server (for testing without backend)</span>
+					</label>
+				</div>
+				
 				<div class="flex gap-2">
 					{#if !connected}
-						<button 
-							onclick={connectWebSocket}
-							class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-						>
-							Connect
-						</button>
+						{#if useMockServer}
+							<button 
+								onclick={startMockServer}
+								class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+							>
+								Start Mock Server
+							</button>
+						{:else}
+							<button 
+								onclick={connectWebSocket}
+								class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+							>
+								Connect to WebSocket
+							</button>
+						{/if}
 					{:else}
-						<button 
-							onclick={disconnect}
-							class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-						>
-							Disconnect
-						</button>
+						{#if useMockServer}
+							<button 
+								onclick={stopMockServer}
+								class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+							>
+								Stop Mock Server
+							</button>
+						{:else}
+							<button 
+								onclick={disconnect}
+								class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+							>
+								Disconnect
+							</button>
+						{/if}
 						<button 
 							onclick={subscribeToExecution}
 							class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -158,6 +230,28 @@
 				<div>Backend URL: {import.meta.env.PUBLIC_BACKEND_URL || 'Not configured'}</div>
 			</div>
 		</div>
+		
+		<!-- Phase Status -->
+		{#if phases.length > 0}
+			<div class="bg-white rounded-lg shadow p-6 mb-6">
+				<h2 class="text-lg font-semibold mb-4">Execution Phases</h2>
+				<div class="grid grid-cols-4 gap-4">
+					{#each phases as phase}
+						<div class="p-3 rounded-lg border 
+							{phase.status === 'completed' ? 'bg-green-50 border-green-200' : ''}
+							{phase.status === 'running' ? 'bg-blue-50 border-blue-200' : ''}
+							{phase.status === 'pending' ? 'bg-gray-50 border-gray-200' : ''}
+						">
+							<div class="font-medium text-sm">{phase.name}</div>
+							<div class="text-xs text-gray-500 capitalize">{phase.status}</div>
+							{#if phase.duration}
+								<div class="text-xs text-gray-500">{phase.duration}s</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 		
 		<!-- Log Display -->
 		<div class="bg-white rounded-lg shadow p-6">
