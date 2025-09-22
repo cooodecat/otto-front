@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { writable, type Writable } from 'svelte/store';
 import type { LogEntry, ExecutionStatus, PhaseInfo, WebSocketEvents } from '$lib/types/log.types';
+import { PUBLIC_WEBSOCKET_URL, PUBLIC_BACKEND_URL } from '$env/static/public';
 
 export class LogWebSocketService {
 	private socket: Socket | null = null;
@@ -18,9 +19,10 @@ export class LogWebSocketService {
 	async connect(token: string, websocketUrl?: string): Promise<void> {
 		if (this.socket?.connected) return;
 		
-		const url = websocketUrl || import.meta.env.PUBLIC_WEBSOCKET_URL || 'http://localhost:4000/logs';
+		const url = websocketUrl || PUBLIC_WEBSOCKET_URL || PUBLIC_BACKEND_URL || 'http://localhost:4000';
+		const logsNamespace = `${url}/logs`;
 		
-		this.socket = io(url, {
+		this.socket = io(logsNamespace, {
 			auth: { token },
 			withCredentials: true,
 			reconnection: true,

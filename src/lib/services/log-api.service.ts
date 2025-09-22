@@ -4,8 +4,9 @@ import type {
 	LogEntry,
 	ExecutionLog
 } from '$lib/types/log.types';
+import { PUBLIC_API_URL, PUBLIC_BACKEND_URL } from '$env/static/public';
 
-const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_BASE_URL = PUBLIC_API_URL || `${PUBLIC_BACKEND_URL}/api/v1` || 'http://localhost:4000/api/v1';
 
 export class LogApiService {
 	private async fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
