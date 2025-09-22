@@ -104,13 +104,10 @@
     error = '';
 
     try {
-      await api.functional.projects.deleteProject(
-        makeFetch({ fetch }),
-        deleteModal.projectId
-      );
+      await api.functional.projects.deleteProject(makeFetch({ fetch }), deleteModal.projectId);
 
       // 로컬 상태에서 프로젝트 제거
-      projects = projects.filter(p => p.projectId !== deleteModal.projectId);
+      projects = projects.filter((p) => p.projectId !== deleteModal.projectId);
 
       // 모달 닫기
       cancelDelete();
@@ -241,10 +238,10 @@
                   <button
                     type="button"
                     onclick={(e) => showDeleteConfirm(project.projectId, project.projectName, e)}
-                    class="p-1 rounded hover:bg-red-50 transition-colors"
+                    class="rounded p-1 transition-colors hover:bg-red-50"
                     title="프로젝트 삭제"
                   >
-                    <Trash2 class="h-4 w-4 text-red-500 cursor-pointer" />
+                    <Trash2 class="h-4 w-4 cursor-pointer text-red-500" />
                   </button>
                 </div>
               </div>
@@ -310,26 +307,27 @@
 {#if deleteModal.show}
   <div class="fixed inset-0 z-50 flex items-center justify-center">
     <!-- Backdrop with glass effect -->
-    <div 
-      class="absolute inset-0 bg-gray-900 bg-opacity-20 backdrop-blur-sm transition-opacity"
+    <div
+      class="bg-opacity-20 absolute inset-0 bg-gray-900 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
     ></div>
-    
+
     <!-- Modal Content -->
     <div class="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
       <h3 class="mb-4 text-lg font-semibold text-gray-900">프로젝트 삭제 확인</h3>
-      
+
       <p class="mb-6 text-gray-600">
         <span class="font-medium text-gray-900">"{deleteModal.projectName}"</span> 프로젝트를 삭제하시겠습니까?
       </p>
-      
-      <div class="mb-4 rounded-lg bg-yellow-50 p-4 border border-yellow-200">
+
+      <div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
         <p class="text-sm text-yellow-800">
-          <strong>⚠️ 주의:</strong> 이 작업은 되돌릴 수 없습니다.<br>프로젝트와 관련된 모든 파이프라인도 함께 삭제됩니다.
+          <strong>⚠️ 주의:</strong> 이 작업은 되돌릴 수 없습니다.<br />프로젝트와 관련된 모든
+          파이프라인도 함께 삭제됩니다.
         </p>
       </div>
-      
-      <div class="flex gap-3 justify-end">
+
+      <div class="flex justify-end gap-3">
         <button
           type="button"
           onclick={cancelDelete}
@@ -345,7 +343,9 @@
           class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
         >
           {#if isDeleting}
-            <div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+            <div
+              class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+            ></div>
             삭제 중...
           {:else}
             삭제
