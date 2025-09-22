@@ -74,7 +74,7 @@
       class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
     >
       <div>
-        <div class="mb-1 text-sm font-medium {groupColor.textClass}">🧪 Custom Test</div>
+        <div class="mb-1 text-sm font-medium {groupColor.textClass}">Custom Test</div>
         <div class="text-xs text-gray-600">Run custom test commands</div>
       </div>
       <button

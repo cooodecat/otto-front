@@ -56,7 +56,7 @@
       class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
     >
       <div>
-        <div class="mb-1 text-sm font-medium {groupColor.textClass}">🧪 Mocha Test</div>
+        <div class="mb-1 text-sm font-medium {groupColor.textClass}">Mocha Test</div>
         <div class="text-xs text-gray-600">Run tests using Mocha framework</div>
       </div>
       <button
