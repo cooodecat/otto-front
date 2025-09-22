@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
-	import type { ExecutionMetadata, PhaseInfo } from '$lib/types/log.types';
+	import { onMount, onDestroy } from 'svelte';
+	import type { ExecutionMetadata, PhaseInfo, LogEntry } from '$lib/types/log.types';
 	import PhaseTimeline from './PhaseTimeline.svelte';
 	import DrawerHeader from './DrawerHeader.svelte';
 	import DrawerTabs from './DrawerTabs.svelte';
 	import LogsTab from './tabs/LogsTab.svelte';
 	import PipelineTab from './tabs/PipelineTab.svelte';
 	import ArtifactsTab from './tabs/ArtifactsTab.svelte';
+	import { logApiService } from '$lib/services/log-api.service';
+	import { LogWebSocketService } from '$lib/services/log-websocket.service';
 	
 	interface Props {
 		executionId: string;
@@ -17,9 +20,71 @@
 	let { executionId, onClose }: Props = $props();
 	
 	let activeTab = $state<'logs' | 'pipeline' | 'artifacts'>('logs');
+	let loading = $state(true);
+	let execution = $state<ExecutionMetadata | null>(null);
+	let phases = $state<PhaseInfo[]>([]);
+	let logs = $state<LogEntry[]>([]);
 	
-	// Mock execution data - will be fetched from API
-	const execution: ExecutionMetadata = {
+	// WebSocket service
+	const wsService = new LogWebSocketService();
+	
+	// Load execution data from API
+	async function loadExecutionData() {
+		loading = true;
+		try {
+			execution = await logApiService.getExecutionById(executionId);
+			// TODO: Load phases from API when available
+			phases = getMockPhases();
+		} catch (error) {
+			console.error('Failed to load execution:', error);
+			// Fallback to mock data
+			execution = getMockExecution();
+			phases = getMockPhases();
+		} finally {
+			loading = false;
+		}
+	}
+	
+	// Setup WebSocket connection
+	async function setupWebSocket() {
+		try {
+			const token = localStorage.getItem('auth_token') || '';
+			await wsService.connect(token);
+			wsService.subscribe(executionId);
+			
+			// Subscribe to stores
+			wsService.logs.subscribe(value => {
+				logs = value;
+			});
+			
+			wsService.phases.subscribe(value => {
+				if (value.length > 0) {
+					phases = value;
+				}
+			});
+			
+			wsService.status.subscribe(value => {
+				if (execution) {
+					execution.status = value;
+				}
+			});
+		} catch (error) {
+			console.error('WebSocket connection failed:', error);
+		}
+	}
+	
+	onMount(() => {
+		loadExecutionData();
+		setupWebSocket();
+	});
+	
+	onDestroy(() => {
+		wsService.disconnect();
+	});
+	
+	// Mock data fallback
+	function getMockExecution(): ExecutionMetadata {
+		return {
 		executionId,
 		buildNumber: 124,
 		executionType: 'DEPLOY',
@@ -38,10 +103,12 @@
 			errorCount: 0,
 			warningCount: 3
 		}
-	};
+		};
+	}
 	
-	// Mock phase data
-	const phases: PhaseInfo[] = [
+	// Mock phase data fallback
+	function getMockPhases(): PhaseInfo[] {
+		return [
 		{
 			id: '1',
 			name: 'PREPARING',
@@ -78,7 +145,8 @@
 				{ name: 'Health check', completed: false }
 			]
 		}
-	];
+		];
+	}
 	
 	function handlePhaseClick(phaseId: string) {
 		activeTab = 'logs';
@@ -133,19 +201,27 @@
 		</button>
 		
 		<!-- Header -->
-		<DrawerHeader {execution} />
+		{#if loading}
+			<div class="p-6 flex justify-center">
+				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+			</div>
+		{:else if execution}
+			<DrawerHeader {execution} />
+		{/if}
 		
 		<!-- Tabs -->
 		<DrawerTabs bind:activeTab />
 		
 		<!-- Tab Content -->
 		<div class="flex-1 overflow-hidden">
-			{#if activeTab === 'logs'}
-				<LogsTab executionId={execution.executionId} phases={phases} />
-			{:else if activeTab === 'pipeline'}
-				<PipelineTab {execution} />
-			{:else if activeTab === 'artifacts'}
-				<ArtifactsTab executionId={execution.executionId} />
+			{#if execution}
+				{#if activeTab === 'logs'}
+					<LogsTab executionId={execution.executionId} phases={phases} {logs} {wsService} />
+				{:else if activeTab === 'pipeline'}
+					<PipelineTab {execution} />
+				{:else if activeTab === 'artifacts'}
+					<ArtifactsTab executionId={execution.executionId} />
+				{/if}
 			{/if}
 		</div>
 	</div>
