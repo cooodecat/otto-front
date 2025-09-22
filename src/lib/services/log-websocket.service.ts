@@ -87,9 +87,10 @@ export class LogWebSocketService {
 		});
 		
 		// Error handling
-		this.socket.on('error', (error: any) => {
+		this.socket.on('error', (error: Error | { message?: string }) => {
 			console.error('WebSocket error:', error);
-			this.error.set(error.message || 'WebSocket connection error');
+			const errorMessage = error instanceof Error ? error.message : (error.message || 'WebSocket connection error');
+			this.error.set(errorMessage);
 		});
 	}
 	

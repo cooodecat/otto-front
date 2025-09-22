@@ -48,7 +48,7 @@
 					class:bg-green-500={phase.status === 'completed'}
 					class:bg-blue-500={phase.status === 'running'}
 					class:bg-gray-300={phase.status === 'pending' || phase.status === 'failed'}
-				/>
+				></div>
 			{/if}
 			
 			<!-- Phase Icon -->
@@ -93,7 +93,7 @@
 						<div 
 							class="bg-blue-500 h-1.5 rounded-full transition-all"
 							style="width: {phase.progress}%"
-						/>
+						></div>
 					</div>
 				{/if}
 				

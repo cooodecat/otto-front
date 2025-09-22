@@ -99,11 +99,13 @@
 </script>
 
 <!-- Backdrop -->
-<div
+<button
 	class="fixed inset-0 bg-black/30 z-40"
 	transition:fade={{ duration: 200 }}
 	onclick={onClose}
-/>
+	aria-label="Close drawer"
+	tabindex="-1"
+></button>
 
 <!-- Drawer -->
 <div
