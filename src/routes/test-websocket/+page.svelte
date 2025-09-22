@@ -52,6 +52,12 @@
 	function subscribeToExecution() {
 		if (wsService && connected) {
 			wsService.subscribe(testExecutionId);
+			console.log('Subscribing to execution:', testExecutionId);
+			
+			// Also subscribe to phases to see phase updates
+			wsService.phases.subscribe(value => {
+				phases = value;
+			});
 		}
 	}
 	
@@ -110,6 +116,59 @@
 		
 		logs = [...logs, mockLog];
 	}
+
+	// Send log via server API
+	async function sendServerLog() {
+		if (!connected) return;
+		
+		try {
+			const response = await fetch(`http://localhost:4000/api/v1/test-logs/executions/${testExecutionId}/log`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					message: `Server test log at ${new Date().toISOString()}`,
+					level: ['info', 'warning', 'error'][Math.floor(Math.random() * 3)],
+					phase: 'BACKEND_TEST'
+				})
+			});
+			
+			if (!response.ok) {
+				console.error('Failed to send server log:', await response.text());
+			} else {
+				console.log('Server log sent successfully');
+			}
+		} catch (err) {
+			console.error('Error sending server log:', err);
+		}
+	}
+
+	// Send batch of logs
+	async function sendBatchLogs() {
+		if (!connected) return;
+		
+		try {
+			const response = await fetch(`http://localhost:4000/api/v1/test-logs/executions/${testExecutionId}/batch-logs`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					count: 10,
+					delay: 100 // 100ms delay between each log
+				})
+			});
+			
+			if (!response.ok) {
+				console.error('Failed to send batch logs:', await response.text());
+			} else {
+				console.log('Batch logs sent successfully');
+			}
+		} catch (err) {
+			console.error('Error sending batch logs:', err);
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-gray-50 p-8">
@@ -165,7 +224,7 @@
 					</label>
 				</div>
 				
-				<div class="flex gap-2">
+				<div class="flex gap-2 flex-wrap">
 					{#if !connected}
 						{#if useMockServer}
 							<button 
@@ -214,7 +273,19 @@
 							onclick={simulateLogMessage}
 							class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
 						>
-							Simulate Log
+							Simulate Log (Local)
+						</button>
+						<button 
+							onclick={sendServerLog}
+							class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+						>
+							Send Server Log
+						</button>
+						<button 
+							onclick={sendBatchLogs}
+							class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+						>
+							Send Batch (10 logs)
 						</button>
 					{/if}
 				</div>
