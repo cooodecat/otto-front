@@ -1,12 +1,13 @@
 <script lang="ts">
 	import type { ExecutionMetadata } from '$lib/types/log.types';
-	import { Calendar, GitBranch, User, Clock, Hammer, Rocket } from 'lucide-svelte';
+	import { Calendar, GitBranch, User, Clock, Hammer, Rocket, Wifi, WifiOff } from 'lucide-svelte';
 	
 	interface Props {
 		execution: ExecutionMetadata;
+		isConnected?: boolean;
 	}
 	
-	let { execution }: Props = $props();
+	let { execution, isConnected = false }: Props = $props();
 	
 	function formatDateTime(dateStr: string): string {
 		const date = new Date(dateStr);
@@ -74,6 +75,17 @@
 				<span class="px-2.5 py-1 text-xs font-semibold rounded-full {statusColors[execution.status]}">
 					{execution.status}
 				</span>
+				{#if execution.status === 'RUNNING'}
+					<div class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-full {isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">
+						{#if isConnected}
+							<Wifi class="w-3 h-3" />
+							<span>Live</span>
+						{:else}
+							<WifiOff class="w-3 h-3" />
+							<span>Disconnected</span>
+						{/if}
+					</div>
+				{/if}
 			</div>
 			
 			<!-- Metadata Grid -->

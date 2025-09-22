@@ -24,6 +24,7 @@
 	let execution = $state<ExecutionMetadata | null>(null);
 	let phases = $state<PhaseInfo[]>([]);
 	let logs = $state<LogEntry[]>([]);
+	let isConnected = $state(false);
 	
 	// WebSocket service
 	const wsService = new LogWebSocketService();
@@ -53,6 +54,10 @@
 			wsService.subscribe(executionId);
 			
 			// Subscribe to stores
+			wsService.connected.subscribe(value => {
+				isConnected = value;
+			});
+			
 			wsService.logs.subscribe(value => {
 				logs = value;
 			});
@@ -206,7 +211,7 @@
 				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
 			</div>
 		{:else if execution}
-			<DrawerHeader {execution} />
+			<DrawerHeader {execution} {isConnected} />
 		{/if}
 		
 		<!-- Tabs -->

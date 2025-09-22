@@ -9,25 +9,45 @@ import { PUBLIC_API_URL, PUBLIC_BACKEND_URL } from '$env/static/public';
 const API_BASE_URL = PUBLIC_API_URL || `${PUBLIC_BACKEND_URL}/api/v1` || 'http://localhost:4000/api/v1';
 
 export class LogApiService {
-	private async fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+	private async fetchWithAuth(url: string, options: RequestInit = {}, retries = 3): Promise<Response> {
 		// TODO: Get auth token from store/cookie
 		const token = localStorage.getItem('auth_token') || '';
 		
-		const response = await fetch(url, {
-			...options,
-			headers: {
-				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${token}`,
-				...options.headers
-			}
-		});
+		let lastError: Error | null = null;
 		
-		if (!response.ok) {
-			const error = await response.json().catch(() => ({ message: 'Request failed' }));
-			throw new Error(error.message || `HTTP ${response.status}: ${response.statusText}`);
+		for (let i = 0; i < retries; i++) {
+			try {
+				const response = await fetch(url, {
+					...options,
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token}`,
+						...options.headers
+					}
+				});
+				
+				if (!response.ok) {
+					const error = await response.json().catch(() => ({ message: 'Request failed' }));
+					throw new Error(error.message || `HTTP ${response.status}: ${response.statusText}`);
+				}
+				
+				return response;
+			} catch (error) {
+				lastError = error as Error;
+				
+				// Don't retry on 4xx errors (client errors)
+				if (error instanceof Error && error.message.includes('HTTP 4')) {
+					throw error;
+				}
+				
+				// Wait before retrying (exponential backoff)
+				if (i < retries - 1) {
+					await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+				}
+			}
 		}
 		
-		return response;
+		throw lastError || new Error('Request failed after retries');
 	}
 	
 	// Execution endpoints

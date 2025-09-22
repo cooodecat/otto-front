@@ -8,6 +8,7 @@ export class LogWebSocketService {
 	private executionId: string | null = null;
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 5;
+	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	
 	// Stores
 	public logs: Writable<LogEntry[]> = writable([]);
@@ -142,10 +143,17 @@ export class LogWebSocketService {
 	}
 	
 	disconnect(): void {
+		// Clear reconnection timer
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
+		
 		this.unsubscribe();
 		this.socket?.disconnect();
 		this.socket = null;
 		this.connected.set(false);
+		this.reconnectAttempts = 0;
 	}
 	
 	// Utility methods
