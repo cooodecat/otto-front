@@ -126,10 +126,12 @@ export class LogWebSocketService {
 		}
 		
 		this.executionId = executionId;
-		this.socket.emit('execution:subscribe', { executionId });
+		// Changed to match backend handler: 'subscribe' instead of 'execution:subscribe'
+		this.socket.emit('subscribe', { executionId });
+		console.log('Subscribing to execution:', executionId);
 		
-		// Request historical logs
-		this.socket.emit('logs:request-historical', { executionId, limit: 1000 });
+		// Request historical logs - this might not exist in backend yet
+		// this.socket.emit('logs:request-historical', { executionId, limit: 1000 });
 	}
 	
 	unsubscribe(): void {
