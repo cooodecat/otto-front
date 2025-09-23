@@ -7,7 +7,7 @@ export type GitHubWebhookPayload = {
         account: {
           login: string;
           id: number;
-          type: 'User' | 'Organization';
+          type: "User" | "Organization";
         };
       };
   repository?:
