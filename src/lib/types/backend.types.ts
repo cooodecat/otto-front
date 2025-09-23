@@ -26,6 +26,9 @@ export enum CICDBlockType {
   TEST_PLAYWRIGHT = 'test_playwright',
   TEST_CUSTOM = 'test_custom',
 
+  // DEPLOY 단계
+  DEPLOY = 'deploy',
+
   // 유틸리티 블록
   NOTIFICATION_SLACK = 'notification_slack',
   NOTIFICATION_EMAIL = 'notification_email',
@@ -40,6 +43,7 @@ export enum CICDBlockGroup {
   PREBUILD = 'prebuild',
   BUILD = 'build',
   TEST = 'test',
+  DEPLOY = 'deploy',
   NOTIFICATION = 'notification',
   UTILITY = 'utility'
 }
@@ -129,6 +133,11 @@ export interface NotificationEmailNodeForBackend extends BasePipelineNodeForBack
   config: NotificationEmailConfig;
 }
 
+export interface DeployNodeForBackend extends BasePipelineNodeForBackend {
+  blockType: CICDBlockType.DEPLOY;
+  config: DeployConfig;
+}
+
 export interface CustomCommandNodeForBackend extends BasePipelineNodeForBackend {
   blockType: CICDBlockType.CUSTOM_COMMAND;
   config: CustomCommandConfig;
@@ -148,6 +157,7 @@ export type PipelineNodeForBackend =
   | TestMochaNodeForBackend
   | TestVitestNodeForBackend
   | TestCustomNodeForBackend
+  | DeployNodeForBackend
   | NotificationSlackNodeForBackend
   | NotificationEmailNodeForBackend
   | CustomCommandNodeForBackend;
@@ -253,6 +263,12 @@ export interface NotificationEmailConfig {
   smtpPort: number;
   smtpUser: string;
   smtpPasswordEnv: string;
+}
+
+// Deploy 설정
+export interface DeployConfig {
+  commands: string[];
+  workingDirectory: string;
 }
 
 // Custom Command 설정

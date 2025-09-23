@@ -88,7 +88,7 @@
       </AnimatedSection>
 
       <!-- CTA Button -->
-      <AnimatedSection delay={200} class="mt-16">
+      <AnimatedSection  class="mt-16">
         <div class="group relative inline-block">
           <div
             class="absolute -inset-1 animate-pulse rounded-2xl bg-gradient-to-r from-purple-500 to-purple-700 opacity-50 blur-lg transition duration-1000 group-hover:opacity-100 group-hover:duration-200"

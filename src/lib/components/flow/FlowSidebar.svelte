@@ -37,6 +37,9 @@
       // CICDBlockType.TEST_PLAYWRIGHT,
       CICDBlockType.TEST_CUSTOM
     ],
+    [CICDBlockGroup.DEPLOY]: [
+      CICDBlockType.DEPLOY
+    ],
     [CICDBlockGroup.NOTIFICATION]: [
       CICDBlockType.NOTIFICATION_SLACK,
       CICDBlockType.NOTIFICATION_EMAIL
@@ -53,6 +56,7 @@
     CICDBlockGroup.PREBUILD,
     CICDBlockGroup.BUILD,
     CICDBlockGroup.TEST,
+    CICDBlockGroup.DEPLOY,
     CICDBlockGroup.NOTIFICATION,
     CICDBlockGroup.UTILITY
   ];
@@ -63,6 +67,7 @@
     [CICDBlockGroup.PREBUILD]: '사전 빌드',
     [CICDBlockGroup.BUILD]: '빌드',
     [CICDBlockGroup.TEST]: '테스트',
+    [CICDBlockGroup.DEPLOY]: '배포',
     [CICDBlockGroup.NOTIFICATION]: '알림',
     [CICDBlockGroup.UTILITY]: '유틸리티'
   };
@@ -140,9 +145,11 @@
                 class:opacity-50={isDragging && dragBlockType === blockType}
               >
                 <div
-                  class="h-8 w-8 flex-shrink-0 {groupColor.colorClass} flex items-center justify-center rounded-lg text-lg text-white"
+                  class="h-8 w-8 flex-shrink-0 {groupColor.colorClass} flex items-center justify-center rounded-lg text-white"
                 >
-                  {config.icon}
+                  {#if config.icon}
+                    <svelte:component this={config.icon} class="h-5 w-5" />
+                  {/if}
                 </div>
 
                 <div class="min-w-0 flex-1">
