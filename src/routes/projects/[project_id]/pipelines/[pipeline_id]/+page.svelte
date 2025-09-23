@@ -298,9 +298,13 @@
     try {
       const flowData = { nodes, edges };
 
+      // 노드들을 순회하면서 deploy 옵션과 환경변수 추출
+      const extractedData = extractDeployAndEnvFromNodes();
+
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
         pipelineName: pipeline.pipelineName,
-        data: flowData
+        data: flowData,
+        ...extractedData
       });
 
       // 성공 메시지
@@ -313,6 +317,48 @@
     }
 
     isSaving = false;
+  }
+
+  // 노드들을 순회하면서 deploy 옵션과 환경변수를 추출하는 함수
+  function extractDeployAndEnvFromNodes() {
+    let deployOption: { port: number; command: string } | undefined;
+    let env: Record<string, string> = {};
+
+    nodes.forEach((node) => {
+      // Deploy 노드에서 배포 옵션 추출
+      if (node.type === CICDBlockType.DEPLOY) {
+        // 기본값이 없는 경우 기본값 설정
+        const nodeDeployOption = node.data.deployOption || { port: 3000, command: 'npm start' };
+        deployOption = nodeDeployOption;
+        console.log('🚀 Deploy option found:', deployOption);
+      }
+
+      // Environment Setup 노드에서 환경변수 추출
+      if (node.type === CICDBlockType.ENVIRONMENT_SETUP) {
+        const environmentVariables = node.data.environmentVariables || {};
+        Object.entries(environmentVariables).forEach(([key, envVar]: [string, any]) => {
+          if (envVar && typeof envVar === 'object' && envVar.value) {
+            env[key] = envVar.value;
+          }
+        });
+        if (Object.keys(environmentVariables).length > 0) {
+          console.log('🌍 Environment variables found:', env);
+        }
+      }
+    });
+
+    const result: { deployOption?: { port: number; command: string }; env?: Record<string, string> } = {};
+    
+    if (deployOption) {
+      result.deployOption = deployOption;
+    }
+    
+    if (Object.keys(env).length > 0) {
+      result.env = env;
+    }
+
+    console.log('📦 Extracted pipeline data:', result);
+    return result;
   }
 
   async function handleRun() {
@@ -337,8 +383,13 @@
       if (!pipelineId) {
         throw new Error('Pipeline ID is required');
       }
+      
+      // 실행 시에도 deploy 옵션과 환경변수 추출
+      const extractedData = extractDeployAndEnvFromNodes();
+      
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
-        data: { nodes, edges, flowNodes }
+        data: { nodes, edges, flowNodes },
+        ...extractedData
       });
 
       console.log('파이프라인 실행 준비 완료');
