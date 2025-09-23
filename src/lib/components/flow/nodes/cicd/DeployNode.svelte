@@ -103,9 +103,7 @@
             </div>
           </div>
         {:else}
-          <div class="text-center text-gray-500 py-2">
-            No deploy commands configured
-          </div>
+          <div class="py-2 text-center text-gray-500">No deploy commands configured</div>
         {/if}
       </div>
     {/if}
@@ -125,7 +123,7 @@
 
         <div>
           <label class="mb-1 block text-sm font-medium text-gray-700">Deploy Commands</label>
-          
+
           {#if commands.length > 0}
             <div class="mb-2 space-y-1">
               {#each commands as command, index}

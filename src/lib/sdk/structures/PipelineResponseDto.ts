@@ -1,4 +1,4 @@
-import type { Format } from 'typia/lib/tags/Format';
+import type { Format } from "typia/lib/tags/Format";
 
 export type PipelineResponseDto = {
   /**
@@ -24,10 +24,10 @@ export type PipelineResponseDto = {
   /**
    * 생성일
    */
-  createdAt: string & Format<'date-time'>;
+  createdAt: string & Format<"date-time">;
 
   /**
    * 수정일
    */
-  updatedAt: string & Format<'date-time'>;
+  updatedAt: string & Format<"date-time">;
 };

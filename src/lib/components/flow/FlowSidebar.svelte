@@ -37,9 +37,7 @@
       // CICDBlockType.TEST_PLAYWRIGHT,
       CICDBlockType.TEST_CUSTOM
     ],
-    [CICDBlockGroup.DEPLOY]: [
-      CICDBlockType.DEPLOY
-    ],
+    [CICDBlockGroup.DEPLOY]: [CICDBlockType.DEPLOY],
     [CICDBlockGroup.NOTIFICATION]: [
       CICDBlockType.NOTIFICATION_SLACK,
       CICDBlockType.NOTIFICATION_EMAIL
