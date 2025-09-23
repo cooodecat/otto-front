@@ -10,7 +10,7 @@
     wsService?: LogWebSocketService;
   }
 
-  let { executionId, phases, logs = [], wsService }: Props = $props();
+  let { executionId, phases: _phases, logs = [], wsService: _wsService }: Props = $props();
 
   let autoScroll = $state(true);
   let logContainer: HTMLDivElement;

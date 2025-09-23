@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { LogWebSocketService } from '$lib/services/log-websocket.service';
   import type { LogEntry, PhaseInfo } from '$lib/types/log.types';
   import { MockLogServer } from '$lib/utils/mock-server';

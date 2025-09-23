@@ -26,8 +26,8 @@ export async function getExecutions(
   executionType?: undefined | "build" | "deploy",
   pipelineId?: undefined | string,
   projectId?: undefined | string,
-  limit: number,
-  offset: number,
+  limit?: undefined | number,
+  offset?: undefined | number,
 ): Promise<getExecutions.Output> {
   return PlainFetcher.fetch(connection, {
     ...getExecutions.METADATA,
@@ -61,8 +61,8 @@ export namespace getExecutions {
     executionType?: undefined | "build" | "deploy",
     pipelineId?: undefined | string,
     projectId?: undefined | string,
-    limit: number,
-    offset: number,
+    limit?: undefined | number,
+    offset?: undefined | number,
   ) => {
     const variables: URLSearchParams = new URLSearchParams();
     for (const [key, value] of Object.entries({

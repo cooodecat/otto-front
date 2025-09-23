@@ -8,7 +8,7 @@
     onPhaseClick?: (phaseId: string) => void;
   }
 
-  let { phases, currentPhase, onPhaseClick }: Props = $props();
+  let { phases, currentPhase: _currentPhase, onPhaseClick }: Props = $props();
 
   function formatDuration(seconds?: number): string {
     if (!seconds) return '';

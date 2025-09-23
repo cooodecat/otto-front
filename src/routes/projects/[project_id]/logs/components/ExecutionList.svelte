@@ -28,8 +28,8 @@
         page: 1,
         pageSize: 50
       });
-      // API returns array directly, not wrapped in object
-      executions = Array.isArray(response) ? response : response.executions || [];
+      // API returns ExecutionMetadata[] directly
+      executions = response;
     } catch (err) {
       console.error('Failed to load executions:', err);
       error = err instanceof Error ? err.message : 'Failed to load executions';

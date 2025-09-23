@@ -5,7 +5,7 @@
     executionId: string;
   }
 
-  let { executionId }: Props = $props();
+  let { executionId: _executionId }: Props = $props();
 
   // Mock artifacts - will be fetched from API
   const artifacts = [

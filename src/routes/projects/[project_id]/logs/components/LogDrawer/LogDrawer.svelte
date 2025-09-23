@@ -153,7 +153,7 @@
     ];
   }
 
-  function handlePhaseClick(phaseId: string) {
+  function handlePhaseClick(_phaseId: string) {
     activeTab = 'logs';
     // TODO: Scroll to phase logs
   }

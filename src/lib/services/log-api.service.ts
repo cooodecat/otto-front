@@ -3,8 +3,13 @@ import { makeFetch } from '$lib/utils/make-fetch';
 import type {
   ExecutionMetadata,
   ExecutionListResponse,
-  LogEntry
+  LogEntry,
+  PhaseName,
+  ExecutionType,
+  ExecutionStatus,
+  TriggerType
 } from '$lib/types/log.types';
+import type { ExecutionResponseDto } from '$lib/sdk/structures/ExecutionResponseDto';
 
 export class LogApiService {
   async getExecutions(params: {
@@ -13,45 +18,54 @@ export class LogApiService {
     pageSize?: number;
     type?: 'BUILD' | 'DEPLOY' | 'ALL';
     status?: string;
-  }): Promise<ExecutionListResponse> {
+  }): Promise<ExecutionMetadata[]> {
     // SDK를 사용하여 executions 가져오기
+    // makeFetch가 자동으로 credentials: 'include'를 설정하므로 쿠키가 전송됨
     const executions = await api.functional.logs.executions.getExecutions(
       makeFetch({ fetch: window.fetch }),
       params.status as 'pending' | 'running' | 'success' | 'failed' | undefined,
       params.type?.toLowerCase() as 'build' | 'deploy' | undefined,
       undefined, // pipelineId
       params.projectId,
-      params.pageSize || 20,
-      ((params.page || 1) - 1) * (params.pageSize || 20) // offset 계산
+      params.pageSize, // 이제 선택적 매개변수
+      params.page ? ((params.page - 1) * (params.pageSize || 20)) : undefined // offset 계산
     );
 
-    // ExecutionResponseDto[] to ExecutionListResponse 변환
-    const data: ExecutionMetadata[] = executions.map(exec => ({
-      id: exec.executionId,
-      projectId: exec.projectId,
-      pipelineId: exec.pipelineId,
-      type: exec.executionType.toUpperCase() as 'BUILD' | 'DEPLOY',
-      status: exec.status.toUpperCase() as 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED',
-      startTime: exec.startedAt,
-      endTime: exec.completedAt || null,
-      duration: exec.completedAt && exec.startedAt 
-        ? Math.floor((new Date(exec.completedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000)
-        : 0,
-      buildNumber: exec.awsBuildId?.split(':').pop() || '0',
+    // ExecutionResponseDto[] to ExecutionMetadata[] 변환
+    return executions.map((exec: ExecutionResponseDto) => ({
+      executionId: exec.executionId,
+      buildNumber: parseInt(exec.awsBuildId?.split(':').pop() || '0'),
+      executionType: exec.executionType.toUpperCase() as ExecutionType,
+      status: exec.status.toUpperCase() as ExecutionStatus,
+      startedAt: exec.startedAt,
+      completedAt: exec.completedAt,
+      duration:
+        exec.completedAt && exec.startedAt
+          ? Math.floor(
+              (new Date(exec.completedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000
+            )
+          : 0,
       branch: exec.metadata?.branch || 'main',
-      commit: exec.metadata?.commitId || '',
-      triggeredBy: exec.metadata?.triggeredBy || 'unknown',
-      logCount: exec.logCount || 0,
-      phases: [],
-      metadata: exec.metadata || {}
+      commitId: exec.metadata?.commitId || '',
+      commitMessage:
+        (exec.metadata && 'commitMessage' in exec.metadata
+          ? String(exec.metadata.commitMessage)
+          : '') || '',
+      author:
+        (exec.metadata && 'author' in exec.metadata ? String(exec.metadata.author) : '') ||
+        'Unknown',
+      pipelineId: exec.pipelineId,
+      pipelineName:
+        (exec.metadata && 'pipelineName' in exec.metadata
+          ? String(exec.metadata.pipelineName)
+          : '') || 'CI/CD Pipeline',
+      triggeredBy: (exec.metadata?.triggeredBy || 'manual') as TriggerType,
+      logStats: {
+        totalLines: exec.logCount || 0,
+        errorCount: 0,
+        warningCount: 0
+      }
     }));
-    
-    return {
-      executions: data,
-      total: executions.length,
-      page: params.page || 1,
-      pageSize: params.pageSize || 20
-    };
   }
 
   async getExecutionById(executionId: string): Promise<ExecutionMetadata> {
@@ -62,23 +76,41 @@ export class LogApiService {
     );
 
     return {
-      id: execution.executionId,
-      projectId: execution.projectId,
-      pipelineId: execution.pipelineId,
-      type: execution.executionType.toUpperCase() as 'BUILD' | 'DEPLOY',
-      status: execution.status.toUpperCase() as 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED',
-      startTime: execution.startedAt,
-      endTime: execution.completedAt || null,
-      duration: execution.completedAt && execution.startedAt 
-        ? Math.floor((new Date(execution.completedAt).getTime() - new Date(execution.startedAt).getTime()) / 1000)
-        : 0,
-      buildNumber: execution.awsBuildId?.split(':').pop() || '0',
+      executionId: execution.executionId,
+      buildNumber: parseInt(execution.awsBuildId?.split(':').pop() || '0'),
+      executionType: execution.executionType.toUpperCase() as ExecutionType,
+      status: execution.status.toUpperCase() as ExecutionStatus,
+      startedAt: execution.startedAt,
+      completedAt: execution.completedAt,
+      duration:
+        execution.completedAt && execution.startedAt
+          ? Math.floor(
+              (new Date(execution.completedAt).getTime() -
+                new Date(execution.startedAt).getTime()) /
+                1000
+            )
+          : 0,
       branch: execution.metadata?.branch || 'main',
-      commit: execution.metadata?.commitId || '',
-      triggeredBy: execution.metadata?.triggeredBy || 'unknown',
-      logCount: execution.logCount || 0,
-      phases: [],
-      metadata: execution.metadata || {}
+      commitId: execution.metadata?.commitId || '',
+      commitMessage:
+        (execution.metadata && 'commitMessage' in execution.metadata
+          ? String(execution.metadata.commitMessage)
+          : '') || '',
+      author:
+        (execution.metadata && 'author' in execution.metadata
+          ? String(execution.metadata.author)
+          : '') || 'Unknown',
+      pipelineId: execution.pipelineId,
+      pipelineName:
+        (execution.metadata && 'pipelineName' in execution.metadata
+          ? String(execution.metadata.pipelineName)
+          : '') || 'CI/CD Pipeline',
+      triggeredBy: (execution.metadata?.triggeredBy || 'manual') as TriggerType,
+      logStats: {
+        totalLines: execution.logCount || 0,
+        errorCount: 0,
+        warningCount: 0
+      }
     };
   }
 
@@ -96,23 +128,32 @@ export class LogApiService {
       connection,
       executionId,
       {
-        limit: params?.limit || 100,
-        offset: params?.offset || 0
+        limit: params?.limit || 100
       }
     );
 
-    // response는 any 타입이므로 적절히 처리
-    if (!response || !response.logs) {
+    // response 타입 체크
+    if (
+      !response ||
+      typeof response !== 'object' ||
+      !('logs' in response) ||
+      !Array.isArray(response.logs)
+    ) {
       return [];
     }
 
-    return response.logs.map((log: any) => ({
-      id: log.logId || log.id,
+    interface LogResponse {
+      timestamp: string;
+      level: string;
+      message: string;
+      metadata?: { phase?: string };
+    }
+
+    return response.logs.map((log: LogResponse) => ({
       timestamp: log.timestamp,
       level: log.level as 'info' | 'warning' | 'error',
       message: log.message,
-      phase: log.metadata?.phase || undefined,
-      metadata: log.metadata || {}
+      phase: log.metadata?.phase as PhaseName | undefined
     }));
   }
 
@@ -127,43 +168,55 @@ export class LogApiService {
 
   // Mock data generators for development
   generateMockExecution(id: string): ExecutionMetadata {
-    const types: Array<'BUILD' | 'DEPLOY'> = ['BUILD', 'DEPLOY'];
-    const statuses = ['SUCCESS', 'FAILED', 'RUNNING', 'PENDING'];
+    const types: Array<'BUILD' | 'DEPLOY' | 'PIPELINE'> = ['BUILD', 'DEPLOY', 'PIPELINE'];
+    const statuses: Array<'SUCCESS' | 'FAILED' | 'RUNNING' | 'PENDING'> = [
+      'SUCCESS',
+      'FAILED',
+      'RUNNING',
+      'PENDING'
+    ];
     const type = types[Math.floor(Math.random() * types.length)];
     const status = statuses[Math.floor(Math.random() * statuses.length)];
 
     return {
-      id,
-      projectId: 'test-project-123',
-      pipelineId: 'test-pipeline-456',
-      type,
+      executionId: id,
+      buildNumber: Math.floor(Math.random() * 1000),
+      executionType: type,
       status,
-      startTime: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-      endTime: status !== 'RUNNING' ? new Date().toISOString() : null,
+      startedAt: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+      completedAt: status !== 'RUNNING' ? new Date().toISOString() : undefined,
       duration: Math.floor(Math.random() * 300),
-      buildNumber: Math.floor(Math.random() * 1000).toString(),
       branch: 'main',
-      commit: 'abc123def456',
-      triggeredBy: 'john.doe',
-      logCount: Math.floor(Math.random() * 1000),
-      phases: [],
-      metadata: {}
+      commitId: 'abc123def456',
+      commitMessage: 'feat: add new feature',
+      author: 'John Doe',
+      pipelineId: 'test-pipeline-456',
+      pipelineName: 'CI/CD Pipeline',
+      triggeredBy: 'webhook',
+      logStats: {
+        totalLines: Math.floor(Math.random() * 1000),
+        errorCount: Math.floor(Math.random() * 10),
+        warningCount: Math.floor(Math.random() * 20)
+      }
     };
   }
 
   generateMockLogs(count: number = 50): LogEntry[] {
     const logs: LogEntry[] = [];
     const levels: Array<'info' | 'warning' | 'error'> = ['info', 'warning', 'error'];
-    const phases = ['PROVISIONING', 'DOWNLOAD_SOURCE', 'BUILD', 'POST_BUILD', 'UPLOAD_ARTIFACTS'];
+    const phases: Array<'PREPARING' | 'BUILDING' | 'TESTING' | 'FINALIZING'> = [
+      'PREPARING',
+      'BUILDING',
+      'TESTING',
+      'FINALIZING'
+    ];
 
     for (let i = 0; i < count; i++) {
       logs.push({
-        id: `log-${i}`,
         timestamp: new Date(Date.now() - (count - i) * 1000).toISOString(),
         level: levels[Math.floor(Math.random() * levels.length)],
         message: `Mock log message ${i}: Processing task...`,
-        phase: phases[Math.floor(i / (count / phases.length))],
-        metadata: {}
+        phase: phases[Math.floor(i / (count / phases.length))]
       });
     }
 
