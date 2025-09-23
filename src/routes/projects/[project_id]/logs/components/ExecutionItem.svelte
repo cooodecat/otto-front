@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ExecutionMetadata } from '$lib/types/log.types';
-  import { Hammer, Rocket, GitBranch, User, Clock, FileText } from 'lucide-svelte';
+  import { Hammer, Rocket, GitBranch, User, Clock, FileText, Copy } from 'lucide-svelte';
 
   interface Props {
     execution: ExecutionMetadata;
@@ -41,6 +41,16 @@
     return `${days} day${days > 1 ? 's' : ''} ago`;
   }
 
+  function elapsedSince(dateStr: string): string {
+    const start = new Date(dateStr).getTime();
+    const secs = Math.max(0, Math.floor((Date.now() - start) / 1000));
+    return formatDuration(secs);
+  }
+
+  async function copy(text: string) {
+    try { await navigator.clipboard.writeText(text); } catch {}
+  }
+
   const statusColors = {
     SUCCESS: 'bg-green-100 text-green-800 border-green-200',
     FAILED: 'bg-red-100 text-red-800 border-red-200',
@@ -51,7 +61,7 @@
 
 <button
   onclick={handleClick}
-  class="w-full rounded-lg border bg-white p-4 text-left transition-all hover:shadow-md {isSelected
+  class="w-full rounded-lg border bg-white p-4 text-left transition-all hover:shadow-md cursor-pointer {isSelected
     ? 'border-blue-500 shadow-md'
     : 'border-gray-200'} {isFocused ? 'ring-2 ring-blue-300' : ''}"
 >
@@ -72,7 +82,7 @@
           {execution.executionType}
         </span>
 
-        <span class="text-sm text-gray-500">• {formatTime(execution.startedAt)}</span>
+        <span class="text-sm text-gray-500" title={new Date(execution.startedAt).toLocaleString()}>• {formatTime(execution.startedAt)}</span>
 
         <span class="rounded-full px-2 py-1 text-xs font-medium {statusColors[execution.status]}">
           {execution.status}
@@ -80,9 +90,29 @@
       </div>
 
       <!-- Commit Info -->
-      <div class="mb-1 text-sm text-gray-600">
-        "{execution.commitMessage}"
-      </div>
+      {#if (execution.commitMessage && execution.commitMessage.trim() !== '') || execution.commitId}
+        <div class="mb-1 flex items-center gap-2 text-sm text-gray-600">
+          {#if execution.commitMessage && execution.commitMessage.trim() !== ''}
+            <span class="truncate" title={execution.commitMessage || ''}>"{execution.commitMessage}"</span>
+          {/if}
+          {#if execution.commitId}
+            <span class="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-[11px] text-gray-600">
+              <span class="font-mono">{execution.commitId.slice(0,7)}</span>
+              <span
+                role="button"
+                tabindex="0"
+                class="opacity-70 hover:opacity-100 inline-flex"
+                title="Copy full SHA"
+                onclick={(e) => { e.stopPropagation(); copy(execution.commitId); }}
+                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); copy(execution.commitId); } }}
+                aria-label="Copy full commit SHA"
+              >
+                <Copy class="h-3 w-3" />
+              </span>
+            </span>
+          {/if}
+        </div>
+      {/if}
 
       <!-- Meta Info -->
       <div class="flex items-center gap-4 text-xs text-gray-500">
@@ -99,14 +129,34 @@
             <Clock class="h-3 w-3" />
             {formatDuration(execution.duration)}
           </div>
+        {:else}
+          <div class="flex items-center gap-1">
+            <Clock class="h-3 w-3" />
+            {elapsedSince(execution.startedAt)}
+          </div>
         {/if}
       </div>
 
       <!-- Pipeline Info -->
-      <div class="mt-2 text-xs text-gray-500">
+      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
         <span class="inline-flex items-center gap-1">
           <FileText class="h-3 w-3" />
           Pipeline: {execution.pipelineName}
+        </span>
+        <span class="inline-flex items-center gap-1">
+          ID:
+          <span class="font-mono text-gray-700">{execution.executionId}</span>
+          <span
+            role="button"
+            tabindex="0"
+            class="opacity-60 hover:opacity-100 inline-flex"
+            title="Copy execution ID"
+            onclick={(e) => { e.stopPropagation(); copy(execution.executionId); }}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); copy(execution.executionId); } }}
+            aria-label="Copy execution ID"
+          >
+            <Copy class="h-3 w-3" />
+          </span>
         </span>
       </div>
     </div>

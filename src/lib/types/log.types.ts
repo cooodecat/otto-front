@@ -40,6 +40,21 @@ export interface ExecutionMetadata {
     errorCount: number;
     warningCount: number;
   };
+
+  // Additional metadata
+  metadata?: {
+    [key: string]: any;
+    steps?: Array<{
+      name: string;
+      command?: string;
+      duration?: number;
+      status?: 'pending' | 'running' | 'completed' | 'failed';
+    }>;
+    environment?: string;
+    nodeVersion?: string;
+    buildCommand?: string;
+    deployCommand?: string;
+  };
 }
 
 export interface PhaseInfo {
@@ -57,10 +72,13 @@ export interface PhaseInfo {
 }
 
 export interface LogEntry {
+  executionId?: string;
   timestamp: string;
   level: LogLevel;
   message: string;
-  phase?: PhaseName;
+  phase?: string;
+  step?: string;
+  stepOrder?: number;
 }
 
 export interface ExecutionLog {

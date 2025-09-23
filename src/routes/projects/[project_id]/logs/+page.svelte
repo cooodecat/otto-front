@@ -17,6 +17,11 @@
     isDrawerOpen = true;
   }
 
+  function handleExecutionChange(newExecutionId: string) {
+    // Update the selected execution ID when re-run happens
+    selectedExecutionId = newExecutionId;
+  }
+
   function handleDrawerClose() {
     isDrawerOpen = false;
     selectedExecutionId = null;
@@ -32,6 +37,7 @@
 
   // Keyboard navigation
   $effect(() => {
+    if (typeof window === 'undefined') return;
     function handleKeydown(e: KeyboardEvent) {
       if (e.key === 'Escape' && isDrawerOpen) {
         handleDrawerClose();
@@ -43,9 +49,9 @@
   });
 </script>
 
-<div class="flex h-full flex-col">
+<div class="h-screen flex flex-col overflow-hidden">
   <!-- Header -->
-  <div class="border-b bg-white px-6 py-4">
+  <div class="flex-shrink-0 border-b bg-white px-6 py-4">
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-gray-900">Pipeline Logs</h1>
@@ -55,7 +61,7 @@
       <button
         onclick={handleRefresh}
         disabled={isRefreshing}
-        class="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        class="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
       >
         <RefreshCw class="h-4 w-4 {isRefreshing ? 'animate-spin' : ''}" />
         Refresh
@@ -69,7 +75,7 @@
   </div>
 
   <!-- Execution List -->
-  <div class="flex-1 overflow-y-auto bg-gray-50">
+  <div class="flex-1 bg-gray-50 {isDrawerOpen ? 'overflow-hidden' : 'overflow-y-auto'}">
     <ExecutionList
       {projectId}
       {filterType}
@@ -81,11 +87,9 @@
 
 <!-- Log Drawer -->
 {#if isDrawerOpen && selectedExecutionId}
-  <LogDrawer executionId={selectedExecutionId} onClose={handleDrawerClose} />
+  <LogDrawer 
+    executionId={selectedExecutionId} 
+    onClose={handleDrawerClose}
+    onExecutionChange={handleExecutionChange}
+  />
 {/if}
-
-<style>
-  :global(body) {
-    overflow: hidden;
-  }
-</style>

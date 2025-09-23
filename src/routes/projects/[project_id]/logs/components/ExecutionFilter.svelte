@@ -22,7 +22,7 @@
     {#each filterOptions as option}
       <button
         onclick={() => (filterType = option.value)}
-        class="rounded-md px-4 py-2 text-sm font-medium transition-colors {filterType ===
+        class="rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer {filterType ===
         option.value
           ? 'bg-blue-500 text-white'
           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
