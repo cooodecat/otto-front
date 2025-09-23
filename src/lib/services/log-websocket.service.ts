@@ -59,15 +59,47 @@ export class LogWebSocketService {
 
     // Log events
     this.socket.on('logs:buffered', (data: LogEntry[]) => {
-      this.logs.update((logs) => [...data, ...logs]);
+      console.log('Received buffered logs:', data.length);
+      this.logs.update((logs) => {
+        // Merge and deduplicate
+        const allLogs = [...data, ...logs];
+        const uniqueLogs = Array.from(
+          new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
+        );
+        return uniqueLogs.sort((a, b) => 
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+      });
     });
 
     this.socket.on('logs:historical', (data: LogEntry[]) => {
-      this.logs.update((logs) => [...data, ...logs]);
+      console.log('Received historical logs:', data.length);
+      this.logs.update((logs) => {
+        // Merge and deduplicate
+        const allLogs = [...data, ...logs];
+        const uniqueLogs = Array.from(
+          new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
+        );
+        return uniqueLogs.sort((a, b) => 
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+      });
     });
 
     this.socket.on('logs:new', (data: LogEntry) => {
-      this.logs.update((logs) => [...logs, data]);
+      console.log('Received new log:', data.message);
+      this.logs.update((logs) => {
+        // Check if already exists
+        const exists = logs.some(
+          (l) => l.timestamp === data.timestamp && l.message === data.message
+        );
+        if (!exists) {
+          return [...logs, data].sort((a, b) => 
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+        }
+        return logs;
+      });
     });
 
     // Status and phase updates
@@ -138,7 +170,7 @@ export class LogWebSocketService {
   unsubscribe(): void {
     if (!this.socket || !this.executionId) return;
 
-    this.socket.emit('execution:unsubscribe', { executionId: this.executionId });
+    this.socket.emit('unsubscribe', { executionId: this.executionId });
     this.executionId = null;
     this.logs.set([]);
     this.phases.set([]);

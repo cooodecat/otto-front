@@ -57,10 +57,13 @@ export interface PhaseInfo {
 }
 
 export interface LogEntry {
+  executionId?: string;
   timestamp: string;
   level: LogLevel;
   message: string;
-  phase?: PhaseName;
+  phase?: string;
+  step?: string;
+  stepOrder?: number;
 }
 
 export interface ExecutionLog {

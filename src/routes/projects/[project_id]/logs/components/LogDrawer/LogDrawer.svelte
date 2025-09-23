@@ -28,6 +28,9 @@
 
   // WebSocket service
   const wsService = new LogWebSocketService();
+  
+  // Store unsubscribers
+  let unsubscribers: (() => void)[] = [];
 
   // Load execution data from API
   async function loadExecutionData() {
@@ -35,39 +38,14 @@
     try {
       execution = await logApiService.getExecutionById(executionId);
       
-      // Load actual logs from DB
-      const executionLogs = await logApiService.getExecutionLogs(executionId, {
-        limit: 1000 // Get more logs
-      });
-      logs = executionLogs;
-      
-      // Extract phases from logs if available
-      const phaseSet = new Set<string>();
-      executionLogs.forEach(log => {
-        if (log.phase) {
-          phaseSet.add(log.phase);
-        }
-      });
-      
-      // Create phase info from logs
-      if (phaseSet.size > 0) {
-        phases = Array.from(phaseSet).map((phaseName, index) => ({
-          id: String(index + 1),
-          name: phaseName as any,
-          status: 'completed' as const,
-          startTime: new Date().toISOString(),
-          endTime: new Date().toISOString(),
-          duration: 0
-        }));
-      } else {
-        phases = getMockPhases();
-      }
+      // Don't load logs here - WebSocket will provide them
+      // Just set up initial phases structure
+      phases = getMockPhases();
     } catch (error) {
       console.error('Failed to load execution:', error);
       // Fallback to mock data
       execution = getMockExecution();
       phases = getMockPhases();
-      logs = [];
     } finally {
       loading = false;
     }
@@ -80,26 +58,38 @@
       await wsService.connect(token);
       wsService.subscribe(executionId);
 
-      // Subscribe to stores
-      wsService.connected.subscribe((value) => {
-        isConnected = value;
-      });
+      // Subscribe to stores and track unsubscribers
+      unsubscribers.push(
+        wsService.connected.subscribe((value) => {
+          isConnected = value;
+        })
+      );
 
-      wsService.logs.subscribe((value) => {
-        logs = value;
-      });
+      unsubscribers.push(
+        wsService.logs.subscribe((value) => {
+          // WebSocket으로 받은 로그를 설정 (WebSocket 서비스에서 이미 중복 제거됨)
+          console.log('LogDrawer received logs from WebSocket:', value.length);
+          if (value.length > 0) {
+            logs = value;
+          }
+        })
+      );
 
-      wsService.phases.subscribe((value) => {
-        if (value.length > 0) {
-          phases = value;
-        }
-      });
+      unsubscribers.push(
+        wsService.phases.subscribe((value) => {
+          if (value.length > 0) {
+            phases = value;
+          }
+        })
+      );
 
-      wsService.status.subscribe((value) => {
-        if (execution) {
-          execution.status = value;
-        }
-      });
+      unsubscribers.push(
+        wsService.status.subscribe((value) => {
+          if (execution) {
+            execution.status = value;
+          }
+        })
+      );
     } catch (error) {
       console.error('WebSocket connection failed:', error);
     }
@@ -111,6 +101,8 @@
   });
 
   onDestroy(() => {
+    // Unsubscribe from all stores
+    unsubscribers.forEach(fn => fn());
     wsService.disconnect();
   });
 
@@ -248,7 +240,7 @@
     <div class="flex-1 overflow-hidden">
       {#if execution}
         {#if activeTab === 'logs'}
-          <LogsTab executionId={execution.executionId} {phases} {logs} {wsService} />
+          <LogsTab executionId={execution.executionId} {phases} {logs} {wsService} isLoading={loading} />
         {:else if activeTab === 'pipeline'}
           <PipelineTab {execution} />
         {:else if activeTab === 'artifacts'}
