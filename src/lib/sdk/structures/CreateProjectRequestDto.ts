@@ -1,3 +1,5 @@
+import type { AnyCICDNodeData } from "./AnyCICDNodeData";
+
 export type CreateProjectRequestDto = {
   /**
    * 프로젝트 이름
@@ -12,22 +14,22 @@ export type CreateProjectRequestDto = {
   /**
    * GitHub 저장소 이름
    */
-  githubRepositoryName?: undefined | string;
+  githubRepositoryName: string;
 
   /**
    * GitHub 저장소 ID
    */
-  githubRepositoryId?: undefined | string;
+  githubRepositoryId: string;
 
   /**
    * GitHub 소유자 이름
    */
-  githubOwner?: undefined | string;
+  githubOwner: string;
 
   /**
    * 선택된 브랜치
    */
-  selectedBranch?: undefined | string;
+  selectedBranch: string;
 
   /**
    * GitHub App 설치 ID
@@ -35,17 +37,22 @@ export type CreateProjectRequestDto = {
   installationId?: undefined | string;
 
   /**
-   * CodeBuild 프로젝트 이름
+   * CI/CD Flow 노드 데이터
    */
-  codebuildProjectName: string;
+  flowNodes?: undefined | AnyCICDNodeData[];
 
   /**
-   * CloudWatch 로그 그룹
+   * CodeBuild 프로젝트 이름 (Backend 자동 생성)
    */
-  cloudwatchLogGroup: string;
+  codebuildProjectName?: undefined | string;
 
   /**
-   * CodeBuild 프로젝트 ARN
+   * CloudWatch 로그 그룹 (Backend 자동 생성)
    */
-  codebuildProjectArn: string;
+  cloudwatchLogGroup?: undefined | string;
+
+  /**
+   * CodeBuild 프로젝트 ARN (Backend 자동 생성)
+   */
+  codebuildProjectArn?: undefined | string;
 };

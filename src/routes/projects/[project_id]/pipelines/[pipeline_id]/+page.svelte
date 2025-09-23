@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { RotateCcw, Play, Loader2, Save, ArrowLeft } from 'lucide-svelte';
+  import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft } from 'lucide-svelte';
   import { SvelteFlowProvider } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
@@ -12,6 +12,8 @@
   import FlowSidebar from '$lib/components/flow/FlowSidebar.svelte';
   import FlowCanvas from '$lib/components/flow/FlowCanvas.svelte';
   import { CICDBlockType } from '$lib/types/flow-node.types';
+  import BuildStatus from '$lib/components/BuildStatus.svelte';
+  import Toast from '$lib/components/Toast.svelte';
 
   const projectId = $page.params.project_id;
   const pipelineId = $page.params.pipeline_id;
@@ -21,6 +23,24 @@
   let error = $state('');
   let isSaving = $state(false);
   let isRunning = $state(false);
+  let isExecuting = $state(false);
+  let buildInfo = $state<{
+    buildId?: string;
+    buildNumber?: string;
+    imageTag?: string;
+    ecrImageUri?: string;
+  } | null>(null);
+  let buildStatus = $state<{
+    buildStatus?: string;
+    currentPhase?: string;
+    startTime?: string;
+    endTime?: string;
+    logs?: { groupName?: string; streamName?: string };
+  } | null>(null);
+  let statusPollingInterval: NodeJS.Timeout | null = null;
+  let toast = $state<{ type: 'success' | 'error' | 'warning' | 'info'; message: string } | null>(
+    null
+  );
 
   // Flow 관련 상태
   let nodes = $state<any[]>([]);
@@ -281,11 +301,13 @@
         data: flowData
       });
 
-      // 성공 메시지 (나중에 toast로 교체)
+      // 성공 메시지
       console.log('파이프라인이 저장되었습니다!');
+      showToast('success', '파이프라인이 저장되었습니다!');
     } catch (err) {
       console.error('저장 실패:', err);
       error = '저장에 실패했습니다';
+      showToast('error', '파이프라인 저장에 실패했습니다');
     }
 
     isSaving = false;
@@ -297,19 +319,131 @@
 
     isRunning = true;
     try {
-      // TODO: 빌드 실행 API 호출
-      console.log('파이프라인 실행:', { nodes, edges });
+      // Flow 노드 데이터를 백엔드 형식으로 변환
+      const flowNodes = nodes
+        .filter((node) => node.type !== CICDBlockType.PIPELINE_START)
+        .map((node) => ({
+          blockType: node.type,
+          groupType: node.data.groupType || node.type,
+          blockId: node.id,
+          onSuccess: edges.find((e) => e.source === node.id)?.target || null,
+          onFailed: null,
+          ...node.data
+        }));
 
-      // 임시: 2초 후 완료
-      setTimeout(() => {
-        isRunning = false;
-        console.log('빌드가 시작되었습니다!');
-      }, 2000);
+      // 파이프라인 업데이트 (Flow 노드 포함)
+      if (!pipelineId) {
+        throw new Error('Pipeline ID is required');
+      }
+      await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
+        data: { nodes, edges, flowNodes }
+      });
+
+      console.log('파이프라인 실행 준비 완료');
+      isRunning = false;
+      // 파이프라인 실행으로 전환
+      await executePipeline();
     } catch (err) {
       console.error('실행 실패:', err);
       error = '실행에 실패했습니다';
       isRunning = false;
     }
+  }
+
+  async function executePipeline() {
+    if (!pipelineId) return;
+
+    isExecuting = true;
+    buildInfo = null;
+    buildStatus = null;
+    error = '';
+
+    try {
+      // 파이프라인 실행 API 호출
+      const result = await api.functional.pipelines.execute.executePipeline(
+        makeFetch({ fetch }),
+        pipelineId
+      );
+
+      buildInfo = result;
+      console.log('파이프라인 실행 시작:', result);
+      showToast('info', '파이프라인 실행이 시작되었습니다. 상태를 확인하고 있습니다...');
+
+      // 실행 상태 폴링 시작
+      startStatusPolling(result.buildId);
+    } catch (err: any) {
+      console.error('파이프라인 실행 실패:', err);
+      error = err?.message || '파이프라인 실행에 실패했습니다';
+      showToast('error', error);
+      isExecuting = false;
+    }
+  }
+
+  async function startStatusPolling(buildId: string) {
+    if (!pipelineId || !buildId) return;
+
+    // 기존 폴링 중지
+    if (statusPollingInterval) {
+      clearInterval(statusPollingInterval);
+    }
+
+    // 즉시 상태 확인
+    await checkBuildStatus(buildId);
+
+    // 5초마다 상태 확인
+    statusPollingInterval = setInterval(async () => {
+      const status = await checkBuildStatus(buildId);
+
+      // 실행이 완료되면 폴링 중지
+      if (status && ['SUCCEEDED', 'FAILED', 'STOPPED'].includes(status.buildStatus || '')) {
+        if (statusPollingInterval) {
+          clearInterval(statusPollingInterval);
+          statusPollingInterval = null;
+        }
+        isExecuting = false;
+
+        // 실행 완료 알림
+        if (status.buildStatus === 'SUCCEEDED') {
+          showToast('success', '파이프라인이 성공적으로 완료되었습니다!');
+        } else if (status.buildStatus === 'FAILED') {
+          showToast('error', '파이프라인 실행이 실패했습니다. 로그를 확인해주세요.');
+        } else if (status.buildStatus === 'STOPPED') {
+          showToast('warning', '파이프라인 실행이 중단되었습니다.');
+        }
+      }
+    }, 5000);
+  }
+
+  async function checkBuildStatus(buildId: string) {
+    if (!pipelineId || !buildId) return null;
+
+    try {
+      const status = await api.functional.pipelines.builds.status.getBuildStatus(
+        makeFetch({ fetch }),
+        pipelineId,
+        buildId
+      );
+
+      buildStatus = status;
+      console.log('실행 상태:', status);
+      return status;
+    } catch (err) {
+      console.error('상태 확인 실패:', err);
+      return null;
+    }
+  }
+
+  // 컴포넌트 정리 시 폴링 중지
+  $effect(() => {
+    return () => {
+      if (statusPollingInterval) {
+        clearInterval(statusPollingInterval);
+      }
+    };
+  });
+
+  function showToast(type: 'success' | 'error' | 'warning' | 'info', message: string) {
+    toast = { type, message };
   }
 
   function handleBack() {
@@ -626,7 +760,7 @@
     <!-- 메인 영역 -->
     <div class="relative flex-1">
       <!-- 상단 헤더 -->
-      <div class="absolute top-0 right-0 left-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
+      <div class="absolute left-0 right-0 top-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <button
@@ -670,12 +804,12 @@
 
             <button
               onclick={handleRun}
-              disabled={isRunning}
+              disabled={isRunning || isExecuting}
               class="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
               title="파이프라인 실행"
             >
-              {#if isRunning}
-                <Loader2 class="h-4 w-4 animate-spin" />
+              {#if isRunning || isExecuting}
+                <LoaderCircle class="h-4 w-4 animate-spin" />
                 <span>실행 중...</span>
               {:else}
                 <Play class="h-4 w-4" />
@@ -685,6 +819,57 @@
           </div>
         </div>
       </div>
+
+      <!-- Build Status Panel -->
+      {#if buildInfo || buildStatus}
+        <div
+          class="absolute right-4 top-20 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+        >
+          <div class="mb-3">
+            <h3 class="text-sm font-semibold text-gray-700">실행 정보</h3>
+          </div>
+
+          {#if buildStatus}
+            <BuildStatus
+              status={buildStatus.buildStatus}
+              currentPhase={buildStatus.currentPhase}
+              startTime={buildStatus.startTime?.toString()}
+              endTime={buildStatus.endTime?.toString()}
+            />
+          {/if}
+
+          {#if buildInfo}
+            <div class="mt-3 space-y-2 text-xs">
+              <div class="flex justify-between">
+                <span class="text-gray-500">실행 ID:</span>
+                <span class="font-mono text-gray-700"
+                  >{buildInfo.buildId?.split(':')[1] || buildInfo.buildId}</span
+                >
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500">실행 번호:</span>
+                <span class="font-mono text-gray-700">{buildInfo.buildNumber}</span>
+              </div>
+              {#if buildInfo.imageTag}
+                <div class="flex justify-between">
+                  <span class="text-gray-500">이미지 태그:</span>
+                  <span class="ml-2 truncate font-mono text-gray-700" title={buildInfo.imageTag}>
+                    {buildInfo.imageTag}
+                  </span>
+                </div>
+              {/if}
+              {#if buildStatus?.logs?.groupName}
+                <div class="mt-2 border-t pt-2">
+                  <span class="text-gray-500">CloudWatch 로그:</span>
+                  <div class="mt-1 break-all font-mono text-xs text-gray-600">
+                    {buildStatus.logs.groupName}
+                  </div>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
 
       <!-- Flow Canvas -->
       <div class="absolute inset-0 top-[73px]">
@@ -733,4 +918,9 @@
       </div>
     </div>
   </div>
+{/if}
+
+<!-- Toast Notifications -->
+{#if toast}
+  <Toast type={toast.type} message={toast.message} onClose={() => (toast = null)} />
 {/if}
