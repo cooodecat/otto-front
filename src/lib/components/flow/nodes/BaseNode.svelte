@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Handle, Position } from '@xyflow/svelte';
-  import { Trash2, Settings } from 'lucide-svelte';
+  import { Trash2 } from 'lucide-svelte';
   import { getContext } from 'svelte';
   import type { AnyCICDNodeData } from '$lib/types/flow-node.types';
 
@@ -34,7 +34,7 @@
     id,
     data,
     colorClass = 'bg-blue-500',
-    icon = Settings,
+    icon = '🔧',
     minWidth = 200,
     deletable = true,
     showInput = true,

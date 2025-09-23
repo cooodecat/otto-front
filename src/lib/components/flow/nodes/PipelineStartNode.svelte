@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { Play } from 'lucide-svelte';
   import BaseNode from './BaseNode.svelte';
   import type { PipelineStartNodeData } from '$lib/types/flow-node.types';
 
@@ -15,7 +14,7 @@
   {id}
   {data}
   colorClass="bg-purple-500"
-  icon={Play}
+  icon="🚀"
   showInput={false}
   showOutput={true}
   deletable={false}

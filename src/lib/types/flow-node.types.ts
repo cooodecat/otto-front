@@ -3,20 +3,6 @@
  * 기본 타입 + 확장 방식으로 모든 블록 데이터 타입 정의
  */
 
-import {
-  Play,
-  Package,
-  Settings,
-  Zap,
-  TestTube,
-  Rocket,
-  MessageSquare,
-  Mail,
-  GitBranch,
-  Workflow,
-  Terminal
-} from 'lucide-svelte';
-
 // 기본 노드 데이터
 export interface BaseNodeData {
   label: string;
@@ -46,9 +32,6 @@ export enum CICDBlockType {
   TEST_PLAYWRIGHT = 'test_playwright',
   TEST_CUSTOM = 'test_custom',
 
-  // DEPLOY 단계
-  DEPLOY = 'deploy',
-
   // 유틸리티 블록
   NOTIFICATION_SLACK = 'notification_slack',
   NOTIFICATION_EMAIL = 'notification_email',
@@ -63,7 +46,6 @@ export enum CICDBlockGroup {
   PREBUILD = 'prebuild',
   BUILD = 'build',
   TEST = 'test',
-  DEPLOY = 'deploy',
   NOTIFICATION = 'notification',
   UTILITY = 'utility'
 }
@@ -104,13 +86,6 @@ export const CICD_GROUP_COLORS = {
     bgClass: 'bg-yellow-50',
     borderClass: 'border-yellow-200',
     textClass: 'text-yellow-700'
-  },
-  [CICDBlockGroup.DEPLOY]: {
-    colorClass: 'bg-orange-500',
-    colorHex: '#f97316',
-    bgClass: 'bg-orange-50',
-    borderClass: 'border-orange-200',
-    textClass: 'text-orange-700'
   },
   [CICDBlockGroup.UTILITY]: {
     colorClass: 'bg-gray-500',
@@ -271,16 +246,6 @@ export interface NotificationEmailNodeData extends BaseCICDNodeData {
 }
 
 // ============================================================================
-// DEPLOY 블록들
-// ============================================================================
-export interface DeployNodeData extends BaseCICDNodeData {
-  blockType: CICDBlockType.DEPLOY;
-  groupType: CICDBlockGroup.DEPLOY;
-  commands: string[];
-  workingDirectory: string;
-}
-
-// ============================================================================
 // UTILITY 블록들
 // ============================================================================
 export interface ConditionBranchNodeData extends BaseCICDNodeData {
@@ -319,7 +284,6 @@ export type AnyCICDNodeData =
   | TestVitestNodeData
   | TestPlaywrightNodeData
   | TestCustomNodeData
-  | DeployNodeData
   | NotificationSlackNodeData
   | NotificationEmailNodeData
   | ConditionBranchNodeData
@@ -333,7 +297,7 @@ export interface CICDBlockConfig {
   label: string;
   description: string;
   group: CICDBlockGroup;
-  icon?: any;
+  icon?: string;
   disabled?: boolean;
 }
 
@@ -341,118 +305,94 @@ export const CICD_BLOCK_CONFIGS: Record<CICDBlockType, CICDBlockConfig> = {
   [CICDBlockType.PIPELINE_START]: {
     label: 'Pipeline Start',
     description: 'Start your CI/CD pipeline',
-    group: CICDBlockGroup.START,
-    icon: Play
+    group: CICDBlockGroup.START
   },
   [CICDBlockType.OS_PACKAGE]: {
     label: 'OS Package',
     description: 'Install OS-level packages',
-    group: CICDBlockGroup.PREBUILD,
-    icon: Package
+    group: CICDBlockGroup.PREBUILD
   },
   [CICDBlockType.NODE_VERSION]: {
     label: 'Node Version',
     description: 'Set Node.js version',
-    group: CICDBlockGroup.PREBUILD,
-    icon: Package
+    group: CICDBlockGroup.PREBUILD
   },
   [CICDBlockType.ENVIRONMENT_SETUP]: {
     label: 'Environment Setup',
     description: 'Set environment variables',
-    group: CICDBlockGroup.PREBUILD,
-    icon: Settings
+    group: CICDBlockGroup.PREBUILD
   },
   [CICDBlockType.INSTALL_MODULE_NODE]: {
     label: 'Install Packages',
     description: 'Install Node.js packages',
-    group: CICDBlockGroup.BUILD,
-    icon: Package
+    group: CICDBlockGroup.BUILD
   },
   [CICDBlockType.BUILD_WEBPACK]: {
     label: 'Webpack Build',
     description: 'Build with Webpack',
-    group: CICDBlockGroup.BUILD,
-    icon: Package
+    group: CICDBlockGroup.BUILD
   },
   [CICDBlockType.BUILD_VITE]: {
     label: 'Vite Build',
     description: 'Build with Vite',
-    group: CICDBlockGroup.BUILD,
-    icon: Zap
+    group: CICDBlockGroup.BUILD
   },
   [CICDBlockType.BUILD_CUSTOM]: {
     label: 'Custom Build',
     description: 'Run custom build commands',
-    group: CICDBlockGroup.BUILD,
-    icon: Settings
+    group: CICDBlockGroup.BUILD
   },
   [CICDBlockType.TEST_JEST]: {
     label: 'Jest Test',
     description: 'Run Jest tests',
-    group: CICDBlockGroup.TEST,
-    icon: TestTube
+    group: CICDBlockGroup.TEST
   },
   [CICDBlockType.TEST_MOCHA]: {
     label: 'Mocha Test',
     description: 'Run Mocha tests',
-    group: CICDBlockGroup.TEST,
-    icon: TestTube
+    group: CICDBlockGroup.TEST
   },
   [CICDBlockType.TEST_VITEST]: {
     label: 'Vitest Test',
     description: 'Run Vitest tests',
-    group: CICDBlockGroup.TEST,
-    icon: TestTube
+    group: CICDBlockGroup.TEST
   },
   [CICDBlockType.TEST_PLAYWRIGHT]: {
     label: 'Playwright Test',
     description: 'Run Playwright tests',
     group: CICDBlockGroup.TEST,
-    icon: TestTube,
     disabled: true
   },
   [CICDBlockType.TEST_CUSTOM]: {
     label: 'Custom Test',
     description: 'Run custom test commands',
-    group: CICDBlockGroup.TEST,
-    icon: TestTube
+    group: CICDBlockGroup.TEST
   },
   [CICDBlockType.NOTIFICATION_SLACK]: {
     label: 'Slack Notify',
     description: 'Send Slack notifications',
-    group: CICDBlockGroup.NOTIFICATION,
-    icon: MessageSquare
+    group: CICDBlockGroup.NOTIFICATION
   },
   [CICDBlockType.NOTIFICATION_EMAIL]: {
     label: 'Email Notify',
     description: 'Send email notifications',
-    group: CICDBlockGroup.NOTIFICATION,
-    icon: Mail
+    group: CICDBlockGroup.NOTIFICATION
   },
   [CICDBlockType.CONDITION_BRANCH]: {
     label: 'Condition Branch',
     description: 'Conditional execution',
     group: CICDBlockGroup.UTILITY,
-    icon: GitBranch,
     disabled: true
   },
   [CICDBlockType.PARALLEL_EXECUTION]: {
     label: 'Parallel Execution',
     description: 'Run jobs in parallel',
     group: CICDBlockGroup.UTILITY,
-    icon: Workflow,
     disabled: true
-  },
-  [CICDBlockType.DEPLOY]: {
-    label: 'Deploy',
-    description: 'Deploy your application',
-    group: CICDBlockGroup.DEPLOY,
-    icon: Rocket
   },
   [CICDBlockType.CUSTOM_COMMAND]: {
     label: 'Custom Command',
     description: 'Run custom shell commands',
-    group: CICDBlockGroup.UTILITY,
-    icon: Terminal
+    group: CICDBlockGroup.UTILITY
   }
 };

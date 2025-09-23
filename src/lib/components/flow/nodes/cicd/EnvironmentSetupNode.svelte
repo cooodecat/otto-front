@@ -154,7 +154,7 @@
 			class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
 		>
 			<div>
-				<div class="mb-1 text-sm font-medium {groupColor.textClass}">Environment Setup</div>
+				<div class="mb-1 text-sm font-medium {groupColor.textClass}">🔧 Environment Setup</div>
 				<div class="text-xs text-gray-600">Configure environment variables and system settings</div>
 			</div>
 			<button
