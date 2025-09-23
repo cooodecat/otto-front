@@ -28,7 +28,7 @@ export class LogApiService {
       undefined, // pipelineId
       params.projectId,
       params.pageSize, // 이제 선택적 매개변수
-      params.page ? ((params.page - 1) * (params.pageSize || 20)) : undefined // offset 계산
+      params.page ? (params.page - 1) * (params.pageSize || 20) : undefined // offset 계산
     );
 
     // ExecutionResponseDto[] to ExecutionMetadata[] 변환

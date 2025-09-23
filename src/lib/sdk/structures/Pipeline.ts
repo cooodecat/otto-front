@@ -8,6 +8,8 @@ export type Pipeline = {
   project: Project;
   data: any;
   pipelineName: string;
+  ecrImageUri: null | string;
+  imageTag: null | string;
   createdAt: string & Format<"date-time">;
   updatedAt: string & Format<"date-time">;
 };

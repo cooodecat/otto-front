@@ -22,6 +22,16 @@ export type PipelineResponseDto = {
   data: any;
 
   /**
+   * ECR 이미지 URI (빌드된 이미지 전체 URI)
+   */
+  ecrImageUri?: null | undefined | string;
+
+  /**
+   * 이미지 태그 (빌드 번호 기반)
+   */
+  imageTag?: null | undefined | string;
+
+  /**
    * 생성일
    */
   createdAt: string & Format<"date-time">;

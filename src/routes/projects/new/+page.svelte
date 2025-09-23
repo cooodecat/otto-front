@@ -7,10 +7,10 @@
     X,
     ChevronLeft,
     ChevronRight,
-    AlertCircle,
+    CircleAlert,
     ExternalLink,
     Github,
-    Loader2,
+    LoaderCircle,
     GitBranch,
     Lock,
     Unlock,
@@ -369,10 +369,37 @@
         githubRepositoryId: selectedRepository.id.toString(),
         selectedBranch: selectedBranch,
         installationId: selectedInstallation?.id || '',
-        // 필수 필드들 - 실제 값으로 교체 필요
-        codebuildProjectName: `${projectConfig.name}-build`,
-        cloudwatchLogGroup: `/aws/codebuild/${projectConfig.name}`,
-        codebuildProjectArn: `arn:aws:codebuild:us-east-1:123456789012:project/${projectConfig.name}-build`
+        // 기본 Flow 노드 구성 - Node.js 프로젝트용
+        flowNodes: [
+          {
+            blockType: 'os_package',
+            groupType: 'prebuild',
+            blockId: 'os-package-1',
+            onSuccess: 'install-1',
+            onFailed: null,
+            packageManager: 'apt',
+            updatePackageList: true,
+            installPackages: ['curl']
+          },
+          {
+            blockType: 'install_module_node',
+            groupType: 'build',
+            blockId: 'install-1',
+            onSuccess: 'test-1',
+            onFailed: null,
+            packageManager: 'npm',
+            cleanInstall: true,
+            productionOnly: false
+          },
+          {
+            blockType: 'test_custom',
+            groupType: 'test',
+            blockId: 'test-1',
+            onSuccess: null,
+            onFailed: null,
+            testCommands: ['npx eslint .']
+          }
+        ]
       };
 
       const newProject = await api.functional.projects.createProject(
@@ -501,7 +528,7 @@
             {:else if !hasGithubApp}
               <div class="rounded-lg border border-red-200 bg-red-50 p-4">
                 <div class="flex items-start gap-3">
-                  <AlertCircle class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                  <CircleAlert class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
                   <div class="flex-1">
                     <p class="text-sm font-medium text-red-900">GitHub App 설치 필요</p>
                     <p class="mt-1 text-sm text-red-700">
@@ -513,7 +540,7 @@
                       class="mt-3 inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-400"
                     >
                       {#if isInstallingGitHub}
-                        <Loader2 class="h-4 w-4 animate-spin" />
+                        <LoaderCircle class="h-4 w-4 animate-spin" />
                         설치 중...
                       {:else}
                         <Github class="h-4 w-4" />
@@ -541,7 +568,7 @@
                       class="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-200 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
                     >
                       {#if loading}
-                        <Loader2 class="h-4 w-4 animate-spin" />
+                        <LoaderCircle class="h-4 w-4 animate-spin" />
                         새로고침 중...
                       {:else}
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -561,7 +588,7 @@
                       class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                     >
                       {#if isInstallingGitHub}
-                        <Loader2 class="h-4 w-4 animate-spin" />
+                        <LoaderCircle class="h-4 w-4 animate-spin" />
                         설치 중...
                       {:else}
                         <Github class="h-4 w-4" />
@@ -586,7 +613,7 @@
                     id="installation-select"
                     type="button"
                     onclick={() => (showInstallationDropdown = !showInstallationDropdown)}
-                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <div class="flex items-center gap-3">
                       {#if selectedInstallation}
@@ -653,11 +680,11 @@
                       type="button"
                       onclick={() => (showRepositoryDropdown = !showRepositoryDropdown)}
                       disabled={loadingRepositories}
-                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:cursor-not-allowed disabled:bg-gray-50"
                     >
                       <div class="flex items-center gap-3">
                         {#if loadingRepositories}
-                          <Loader2 class="h-4 w-4 animate-spin text-gray-400" />
+                          <LoaderCircle class="h-4 w-4 animate-spin text-gray-400" />
                           <span class="text-gray-500">저장소 불러오는 중...</span>
                         {:else if selectedRepository}
                           <div class="flex h-4 w-4 items-center justify-center">
@@ -725,7 +752,7 @@
                     <select
                       id="branch-select"
                       bind:value={selectedBranch}
-                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
                       {#if branches.length > 0}
                         {#each branches as branch}
@@ -764,7 +791,7 @@
                   bind:value={projectConfig.name}
                   oninput={() => validateProjectName(projectConfig.name)}
                   placeholder="my-awesome-project"
-                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none {validation.nameError
+                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 {validation.nameError
                     ? 'border-red-500'
                     : ''}"
                 />
@@ -789,7 +816,7 @@
                   bind:value={projectConfig.description}
                   placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
                   rows="3"
-                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
                 ></textarea>
               </div>
 
@@ -904,7 +931,7 @@
                   >
                     {#if isCreating}
                       <div class="flex items-center gap-2">
-                        <Loader2 class="h-4 w-4 animate-spin" />
+                        <LoaderCircle class="h-4 w-4 animate-spin" />
                         프로젝트 생성 중...
                       </div>
                     {:else}
