@@ -328,7 +328,10 @@
       // Deploy 노드에서 배포 옵션 추출
       if (node.type === CICDBlockType.DEPLOY) {
         // 기본값이 없는 경우 기본값 설정
-        const nodeDeployOption = node.data.deployOption || { port: 3000, command: 'npm start' };
+        const nodeDeployOption = (node.data as any).deployOption || {
+          port: 3000,
+          command: 'npm start'
+        };
         deployOption = nodeDeployOption;
         console.log('🚀 Deploy option found:', deployOption);
       }
@@ -347,12 +350,15 @@
       }
     });
 
-    const result: { deployOption?: { port: number; command: string }; env?: Record<string, string> } = {};
-    
+    const result: {
+      deployOption?: { port: number; command: string };
+      env?: Record<string, string>;
+    } = {};
+
     if (deployOption) {
       result.deployOption = deployOption;
     }
-    
+
     if (Object.keys(env).length > 0) {
       result.env = env;
     }
@@ -383,10 +389,10 @@
       if (!pipelineId) {
         throw new Error('Pipeline ID is required');
       }
-      
+
       // 실행 시에도 deploy 옵션과 환경변수 추출
       const extractedData = extractDeployAndEnvFromNodes();
-      
+
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
         data: { nodes, edges, flowNodes },
         ...extractedData
