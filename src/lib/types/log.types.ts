@@ -79,6 +79,8 @@ export interface LogEntry {
   phase?: string;
   step?: string;
   stepOrder?: number;
+  duration?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface ExecutionLog {

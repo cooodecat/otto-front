@@ -67,7 +67,7 @@
 
 {#if show}
   <div
-    class="fixed bottom-4 right-4 z-50 flex items-start gap-3 rounded-lg border p-4 shadow-lg transition-all {style.bg} {style.border} {style.text}"
+    class="fixed right-4 bottom-4 z-50 flex items-start gap-3 rounded-lg border p-4 shadow-lg transition-all {style.bg} {style.border} {style.text}"
     class:opacity-0={!show}
     class:translate-y-2={!show}
   >

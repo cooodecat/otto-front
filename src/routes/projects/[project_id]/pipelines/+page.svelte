@@ -156,12 +156,12 @@
 
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="파이프라인 검색..."
             bind:value={searchTerm}
-            class="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 sm:w-64"
+            class="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none sm:w-64"
           />
         </div>
 
@@ -230,7 +230,7 @@
           <button
             type="button"
             onclick={handleCreatePipeline}
-            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
           >
             <div class="text-center">
               <div
@@ -328,7 +328,7 @@
                   <button
                     type="button"
                     onclick={() => handlePipelineClick(pipeline.pipelineId)}
-                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
                   >
                     상세 보기 →
                   </button>
@@ -346,10 +346,11 @@
 {#if deleteModal.show}
   <div class="fixed inset-0 z-50 flex items-center justify-center">
     <!-- Backdrop with glass effect -->
-    <div
-      class="absolute inset-0 bg-opacity-20 backdrop-blur-sm transition-opacity"
+    <button
+      class="bg-opacity-20 absolute inset-0 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
-    ></div>
+      aria-label="Cancel delete"
+    ></button>
 
     <!-- Modal Content -->
     <div class="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">

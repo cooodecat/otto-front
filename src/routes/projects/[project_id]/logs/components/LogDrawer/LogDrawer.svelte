@@ -31,7 +31,7 @@
 
   // WebSocket service
   const wsService = new LogWebSocketService();
-  
+
   // Store unsubscribers
   let unsubscribers: (() => void)[] = [];
 
@@ -41,11 +41,11 @@
     try {
       console.log('Loading execution data for ID:', currentExecutionId);
       execution = await logApiService.getExecutionById(currentExecutionId);
-      
+
       // Log the actual data to see what we're getting
       console.log('Loaded execution data:', execution);
       console.log('Metadata:', execution?.metadata);
-      
+
       // Don't load logs here - WebSocket will provide them
       // Just set up initial phases structure
       phases = getMockPhases();
@@ -67,27 +67,27 @@
   // Handle new execution from re-run
   async function handleNewExecution(newExecutionId: string) {
     console.log('Switching to new execution:', newExecutionId);
-    
+
     // Disconnect from current WebSocket
     wsService.disconnect();
-    
+
     // Clear current data
     logs = [];
     phases = [];
     execution = null;
-    
+
     // Update execution ID and reload
     currentExecutionId = newExecutionId;
-    
+
     // Notify parent component about the change
     if (onExecutionChange) {
       onExecutionChange(newExecutionId);
     }
-    
+
     // Load new execution data and reconnect WebSocket
     await loadExecutionData();
     await setupWebSocket();
-    
+
     // Switch to logs tab to show the new execution
     activeTab = 'logs';
   }
@@ -143,7 +143,7 @@
 
   onDestroy(() => {
     // Unsubscribe from all stores
-    unsubscribers.forEach(fn => fn());
+    unsubscribers.forEach((fn) => fn());
     wsService.disconnect();
   });
 
@@ -213,7 +213,6 @@
     ];
   }
 
-
   // React to prop changes
   $effect(() => {
     if (executionId !== currentExecutionId) {
@@ -236,7 +235,7 @@
 
 <!-- Backdrop -->
 <button
-  class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm cursor-pointer"
+  class="fixed inset-0 z-40 cursor-pointer bg-black/30 backdrop-blur-sm"
   transition:fade={{ duration: 200 }}
   onclick={onClose}
   aria-label="Close drawer"
@@ -244,97 +243,107 @@
 ></button>
 
 <!-- Floating Drawer Container -->
-<div class="fixed inset-0 z-50 pointer-events-none p-6">
+<div class="pointer-events-none fixed inset-0 z-50 p-6">
   <!-- Drawer with Floating Style (Full Width) -->
   <div
-    class="ml-auto h-full min-h-0 w-[85%] max-w-7xl pointer-events-auto rounded-2xl bg-white shadow-2xl overflow-hidden ring-1 ring-gray-200/50 flex flex-col relative"
+    class="pointer-events-auto relative ml-auto flex h-full min-h-0 w-[85%] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200/50"
     transition:fly={{ x: '100%', duration: 300 }}
   >
-  <!-- Main Content Panel -->
-  <div class="flex flex-1 min-h-0 flex-col">
-    <!-- Close Button -->
-    <button
-      onclick={onClose}
-      class="absolute top-4 right-4 z-10 rounded-full p-2 bg-gray-100 hover:bg-gray-200 transition-all hover:rotate-90 cursor-pointer"
-      aria-label="Close drawer"
-    >
-      <X class="h-5 w-5 text-gray-700" />
-    </button>
+    <!-- Main Content Panel -->
+    <div class="flex min-h-0 flex-1 flex-col">
+      <!-- Close Button -->
+      <button
+        onclick={onClose}
+        class="absolute top-4 right-4 z-10 cursor-pointer rounded-full bg-gray-100 p-2 transition-all hover:rotate-90 hover:bg-gray-200"
+        aria-label="Close drawer"
+      >
+        <X class="h-5 w-5 text-gray-700" />
+      </button>
 
-    <!-- Header -->
-    {#if loading}
-      <div class="flex justify-center p-6">
-        <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-      </div>
-    {:else if execution}
-      <DrawerHeader {execution} {isConnected} />
-      
-      <!-- Compact Phase Progress Indicator -->
-      {#if phases.length > 0}
-        <div class="px-6 py-3 border-b border-gray-200 bg-gray-50/50">
-          <div class="flex items-center gap-3">
-            <span class="text-xs font-medium text-gray-600">Progress:</span>
-            <div class="flex-1 flex items-center gap-2">
-              {#each phases as phase, index}
-                <button
-                  type="button"
-                  class="flex-1 group relative cursor-pointer"
-                  onclick={async () => {
-                    activeTab = 'logs';
-                    // Wait for LogsTab to mount/bind
-                    await tick();
-                    // Give the child a moment if switching tabs
-                    setTimeout(() => {
-                      logsTabRef?.scrollToPhaseIndex?.(index);
-                    }, 0);
-                  }}
-                >
-                  <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      class="h-full transition-all duration-300 {
-                        phase.status === 'completed' ? 'bg-green-500' : 
-                        phase.status === 'running' ? 'bg-blue-500 animate-pulse' : 
-                        phase.status === 'failed' ? 'bg-red-500' : 
-                        'bg-gray-300'
-                      }"
-                      style="width: {
-                        phase.status === 'completed' ? '100%' : 
-                        phase.status === 'running' ? `${phase.progress || 50}%` : 
-                        '0%'
-                      }"
-                    />
-                  </div>
-                  <!-- Tooltip -->
-                  <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none transition-opacity whitespace-nowrap z-20">
-                    {phase.name}
-                  </div>
-                </button>
-              {/each}
-            </div>
-            <span class="text-xs text-gray-500">
-              {phases.filter(p => p.status === 'completed').length}/{phases.length} completed
-            </span>
-          </div>
+      <!-- Header -->
+      {#if loading}
+        <div class="flex justify-center p-6">
+          <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
         </div>
-      {/if}
-    {/if}
+      {:else if execution}
+        <DrawerHeader {execution} {isConnected} />
 
-    <!-- Tabs -->
-    <DrawerTabs bind:activeTab />
-
-    <!-- Tab Content -->
-    <div class="flex flex-1 min-h-0 flex-col">
-      {#if execution}
-        {#if activeTab === 'logs'}
-          <LogsTab bind:this={logsTabRef} executionId={execution.executionId} {phases} {logs} {wsService} isLoading={loading} />
-        {:else if activeTab === 'pipeline'}
-          <PipelineTab {execution} onNewExecution={handleNewExecution} />
-        {:else if activeTab === 'artifacts'}
-          <ArtifactsTab executionId={execution.executionId} />
+        <!-- Compact Phase Progress Indicator -->
+        {#if phases.length > 0}
+          <div class="border-b border-gray-200 bg-gray-50/50 px-6 py-3">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-medium text-gray-600">Progress:</span>
+              <div class="flex flex-1 items-center gap-2">
+                {#each phases as phase, index}
+                  <button
+                    type="button"
+                    class="group relative flex-1 cursor-pointer"
+                    onclick={async () => {
+                      activeTab = 'logs';
+                      // Wait for LogsTab to mount/bind
+                      await tick();
+                      // Give the child a moment if switching tabs
+                      setTimeout(() => {
+                        logsTabRef?.scrollToPhaseIndex?.(index);
+                      }, 0);
+                    }}
+                  >
+                    <div class="h-1.5 overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        class="h-full transition-all duration-300 {phase.status === 'completed'
+                          ? 'bg-green-500'
+                          : phase.status === 'running'
+                            ? 'animate-pulse bg-blue-500'
+                            : phase.status === 'failed'
+                              ? 'bg-red-500'
+                              : 'bg-gray-300'}"
+                        style="width: {phase.status === 'completed'
+                          ? '100%'
+                          : phase.status === 'running'
+                            ? `${phase.progress || 50}%`
+                            : '0%'}"
+                      ></div>
+                    </div>
+                    <!-- Tooltip -->
+                    <div
+                      class="pointer-events-none absolute -top-8 left-1/2 z-20 -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      {phase.name}
+                    </div>
+                  </button>
+                {/each}
+              </div>
+              <span class="text-xs text-gray-500">
+                {phases.filter((p) => p.status === 'completed').length}/{phases.length} completed
+              </span>
+            </div>
+          </div>
         {/if}
       {/if}
+
+      <!-- Tabs -->
+      <DrawerTabs bind:activeTab />
+
+      <!-- Tab Content -->
+      <div class="flex min-h-0 flex-1 flex-col">
+        {#if execution}
+          {#if activeTab === 'logs'}
+            <LogsTab
+              bind:this={logsTabRef}
+              executionId={execution.executionId}
+              {phases}
+              {logs}
+              {wsService}
+              isLoading={loading}
+            />
+          {:else if activeTab === 'pipeline'}
+            <PipelineTab {execution} onNewExecution={handleNewExecution} />
+          {:else if activeTab === 'artifacts'}
+            <ArtifactsTab executionId={execution.executionId} />
+          {/if}
+        {/if}
+      </div>
     </div>
-  </div>
   </div>
 </div>
 
@@ -342,7 +351,7 @@
   :global(.highlight-phase) {
     animation: highlight 2s ease-in-out;
   }
-  
+
   @keyframes highlight {
     0% {
       background-color: transparent;

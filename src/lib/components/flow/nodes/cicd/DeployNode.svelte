@@ -111,8 +111,11 @@
     {#if isEditing}
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Working Directory</label>
+          <label for="deploy-workdir" class="mb-1 block text-sm font-medium text-gray-700"
+            >Working Directory</label
+          >
           <input
+            id="deploy-workdir"
             type="text"
             bind:value={workingDirectory}
             onchange={saveNodeData}
@@ -122,7 +125,7 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Deploy Commands</label>
+          <div class="mb-1 block text-sm font-medium text-gray-700">Deploy Commands</div>
 
           {#if commands.length > 0}
             <div class="mb-2 space-y-1">

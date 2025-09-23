@@ -154,13 +154,13 @@
       if (dateB === 'Today') return 1;
       if (dateA === 'Yesterday') return -1;
       if (dateB === 'Yesterday') return 1;
-      
+
       // For other dates, parse and compare
       const parsedA = new Date(dateA);
       const parsedB = new Date(dateB);
       return parsedB.getTime() - parsedA.getTime(); // Newer dates first
     });
-    
+
     return sortedGroups.map(([date, items]) => ({
       date,
       items: items.sort((a, b) => {

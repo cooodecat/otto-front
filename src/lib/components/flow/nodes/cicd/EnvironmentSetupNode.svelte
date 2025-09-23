@@ -22,8 +22,12 @@
   let loadFromFile = $state(data.loadFromFile || '');
   let newKey = $state('');
   let newValue = $state('');
-  let hiddenValues = $state<Set<string>>(new Set(Object.keys(environmentVariables || {})));
+  let hiddenValues = $state<Set<string>>(new Set());
   let _editingValues = $state<Set<string>>(new Set());
+
+  $effect(() => {
+    hiddenValues = new Set(Object.keys(environmentVariables || {}));
+  });
   let newInputVisible = $state(false);
 
   // 데이터 저장 헬퍼 함수
@@ -238,7 +242,7 @@
 
         <!-- Environment Variables -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Environment Variables</label>
+          <div class="mb-1 block text-sm font-medium text-gray-700">Environment Variables</div>
 
           <!-- Add new variable -->
           <div class="mb-2 flex gap-2">
@@ -246,6 +250,7 @@
               type="text"
               bind:value={newKey}
               placeholder="Variable name"
+              aria-label="Variable name"
               class="flex-1 rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
             <div class="relative flex-1">

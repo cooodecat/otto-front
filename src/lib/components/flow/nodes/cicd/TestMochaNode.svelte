@@ -101,8 +101,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Test Directory -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Test Directory</label>
+          <label for="mocha-test-dir" class="mb-1 block text-sm font-medium text-gray-700"
+            >Test Directory</label
+          >
           <input
+            id="mocha-test-dir"
             type="text"
             bind:value={testDir}
             onchange={saveNodeData}
@@ -113,8 +116,11 @@
 
         <!-- Reporter -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Reporter</label>
+          <label for="mocha-reporter" class="mb-1 block text-sm font-medium text-gray-700"
+            >Reporter</label
+          >
           <select
+            id="mocha-reporter"
             bind:value={reporter}
             onchange={saveNodeData}
             class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -131,8 +137,11 @@
 
         <!-- Timeout -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Timeout (ms)</label>
+          <label for="mocha-timeout" class="mb-1 block text-sm font-medium text-gray-700"
+            >Timeout (ms)</label
+          >
           <input
+            id="mocha-timeout"
             type="number"
             bind:value={timeout}
             onchange={saveNodeData}

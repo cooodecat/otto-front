@@ -146,7 +146,8 @@
                   class="h-8 w-8 flex-shrink-0 {groupColor.colorClass} flex items-center justify-center rounded-lg text-white"
                 >
                   {#if config.icon}
-                    <svelte:component this={config.icon} class="h-5 w-5" />
+                    {@const Icon = config.icon}
+                    <Icon class="h-5 w-5" />
                   {/if}
                 </div>
 

@@ -201,8 +201,11 @@
 
       <div class="space-y-4">
         <div>
-          <label class="mb-1 block text-sm font-medium">Auth Token (Optional)</label>
+          <label for="ws-auth-token" class="mb-1 block text-sm font-medium"
+            >Auth Token (Optional)</label
+          >
           <input
+            id="ws-auth-token"
             type="text"
             bind:value={token}
             placeholder="Enter auth token or leave empty"
@@ -212,8 +215,9 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium">Execution ID</label>
+          <label for="ws-execution-id" class="mb-1 block text-sm font-medium">Execution ID</label>
           <input
+            id="ws-execution-id"
             type="text"
             bind:value={testExecutionId}
             class="w-full rounded-lg border px-3 py-2"

@@ -613,7 +613,7 @@
                     id="installation-select"
                     type="button"
                     onclick={() => (showInstallationDropdown = !showInstallationDropdown)}
-                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   >
                     <div class="flex items-center gap-3">
                       {#if selectedInstallation}
@@ -680,7 +680,7 @@
                       type="button"
                       onclick={() => (showRepositoryDropdown = !showRepositoryDropdown)}
                       disabled={loadingRepositories}
-                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:cursor-not-allowed disabled:bg-gray-50"
+                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
                     >
                       <div class="flex items-center gap-3">
                         {#if loadingRepositories}
@@ -752,7 +752,7 @@
                     <select
                       id="branch-select"
                       bind:value={selectedBranch}
-                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     >
                       {#if branches.length > 0}
                         {#each branches as branch}
@@ -791,7 +791,7 @@
                   bind:value={projectConfig.name}
                   oninput={() => validateProjectName(projectConfig.name)}
                   placeholder="my-awesome-project"
-                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 {validation.nameError
+                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none {validation.nameError
                     ? 'border-red-500'
                     : ''}"
                 />
@@ -816,7 +816,7 @@
                   bind:value={projectConfig.description}
                   placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
                   rows="3"
-                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 ></textarea>
               </div>
 

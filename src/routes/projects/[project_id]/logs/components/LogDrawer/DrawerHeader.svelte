@@ -1,6 +1,16 @@
 <script lang="ts">
   import type { ExecutionMetadata } from '$lib/types/log.types';
-  import { Calendar, GitBranch, User, Clock, Hammer, Rocket, Wifi, WifiOff, Copy } from 'lucide-svelte';
+  import {
+    Calendar,
+    GitBranch,
+    User,
+    Clock,
+    Hammer,
+    Rocket,
+    Wifi,
+    WifiOff,
+    Copy
+  } from 'lucide-svelte';
 
   interface Props {
     execution: ExecutionMetadata;
@@ -169,12 +179,14 @@
       <!-- Commit / IDs / Trigger Row -->
       <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
         {#if execution.commitMessage}
-          <span class="inline-flex items-center gap-1 max-w-full">
+          <span class="inline-flex max-w-full items-center gap-1">
             Commit:
-            <span class="truncate text-gray-700" title={execution.commitMessage}>"{execution.commitMessage}"</span>
+            <span class="truncate text-gray-700" title={execution.commitMessage}
+              >"{execution.commitMessage}"</span
+            >
             {#if execution.commitId}
               <span class="mx-1 text-gray-400">•</span>
-              <span class="font-mono text-gray-700">{execution.commitId.slice(0,7)}</span>
+              <span class="font-mono text-gray-700">{execution.commitId.slice(0, 7)}</span>
               <button
                 class="inline-flex items-center rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50"
                 title="Copy full SHA"
@@ -186,7 +198,9 @@
           </span>
         {/if}
 
-        <span>Triggered by: <span class="font-medium">{execution.triggeredBy || 'manual'}</span></span>
+        <span
+          >Triggered by: <span class="font-medium">{execution.triggeredBy || 'manual'}</span></span
+        >
         {#if execution.pipelineName && !execution.pipelineName.includes('Unknown')}
           <span>• Pipeline: <span class="font-medium">{execution.pipelineName}</span></span>
         {/if}

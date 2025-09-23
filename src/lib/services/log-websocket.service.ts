@@ -64,10 +64,10 @@ export class LogWebSocketService {
         // Merge and deduplicate
         const allLogs = [...data, ...logs];
         const uniqueLogs = Array.from(
-          new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
+          new Map(allLogs.map((l) => [`${l.timestamp}-${l.message}`, l])).values()
         );
-        return uniqueLogs.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        return uniqueLogs.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
       });
     });
@@ -78,10 +78,10 @@ export class LogWebSocketService {
         // Merge and deduplicate
         const allLogs = [...data, ...logs];
         const uniqueLogs = Array.from(
-          new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
+          new Map(allLogs.map((l) => [`${l.timestamp}-${l.message}`, l])).values()
         );
-        return uniqueLogs.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        return uniqueLogs.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
       });
     });
@@ -94,8 +94,8 @@ export class LogWebSocketService {
           (l) => l.timestamp === data.timestamp && l.message === data.message
         );
         if (!exists) {
-          return [...logs, data].sort((a, b) => 
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          return [...logs, data].sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
         }
         return logs;

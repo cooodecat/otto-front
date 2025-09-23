@@ -119,10 +119,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Working Directory -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700"
+          <label for="custom-test-workdir" class="mb-1 block text-sm font-medium text-gray-700"
             >Working Directory (optional)</label
           >
           <input
+            id="custom-test-workdir"
             type="text"
             bind:value={workingDirectory}
             onchange={saveNodeData}
@@ -133,13 +134,14 @@
 
         <!-- Test Commands -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Test Commands</label>
+          <div class="mb-1 block text-sm font-medium text-gray-700">Test Commands</div>
 
           <!-- Add new command -->
           <div class="mb-2 flex gap-2">
             <input
               type="text"
               bind:value={newCommand}
+              aria-label="New test command"
               onkeypress={handleKeyPress}
               placeholder="Enter test command (e.g., npm test)"
               class="flex-1 rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"

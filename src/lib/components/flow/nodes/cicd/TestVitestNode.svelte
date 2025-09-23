@@ -100,8 +100,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Config File -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Config File</label>
+          <label for="vitest-config-file" class="mb-1 block text-sm font-medium text-gray-700"
+            >Config File</label
+          >
           <input
+            id="vitest-config-file"
             type="text"
             bind:value={configFile}
             onchange={saveNodeData}
@@ -112,8 +115,11 @@
 
         <!-- Environment -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Environment</label>
+          <label for="vitest-environment" class="mb-1 block text-sm font-medium text-gray-700"
+            >Environment</label
+          >
           <select
+            id="vitest-environment"
             bind:value={environment}
             onchange={saveNodeData}
             class="w-full rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"

@@ -61,7 +61,7 @@ export class LogApiService {
     // ExecutionResponseDto[] to ExecutionMetadata[] 변환
     return executions.map((exec: ExecutionResponseDto, index: number) => ({
       executionId: exec.executionId,
-      buildNumber: parseInt(exec.metadata?.buildNumber as string) || (executions.length - index),
+      buildNumber: parseInt(exec.metadata?.buildNumber as string) || executions.length - index,
       executionType: exec.executionType.toUpperCase() as ExecutionType,
       status: exec.status.toUpperCase() as ExecutionStatus,
       startedAt: exec.startedAt,
@@ -76,8 +76,7 @@ export class LogApiService {
       commitId: this.extractCommitId(exec) || '',
       commitMessage: this.extractCommitMessage(exec) || '',
       author:
-        (exec.metadata && 'author' in exec.metadata ? String(exec.metadata.author) : '') ||
-        '',
+        (exec.metadata && 'author' in exec.metadata ? String(exec.metadata.author) : '') || '',
       pipelineId: exec.pipelineId,
       pipelineName:
         (exec.metadata && 'pipelineName' in exec.metadata
@@ -97,17 +96,18 @@ export class LogApiService {
     const connection = makeFetch();
     console.log('API Call - Getting execution by ID:', executionId);
     console.log('API Connection:', connection);
-    
+
     const execution = await api.functional.logs.executions.getExecutionById(
       connection,
       executionId
     );
-    
+
     console.log('API Response - Raw execution data:', execution);
 
     return {
       executionId: execution.executionId,
-      buildNumber: parseInt(execution.metadata?.buildNumber as string) || Math.floor(Math.random() * 1000) + 1,
+      buildNumber:
+        parseInt(execution.metadata?.buildNumber as string) || Math.floor(Math.random() * 1000) + 1,
       executionType: execution.executionType.toUpperCase() as ExecutionType,
       status: execution.status.toUpperCase() as ExecutionStatus,
       startedAt: execution.startedAt,

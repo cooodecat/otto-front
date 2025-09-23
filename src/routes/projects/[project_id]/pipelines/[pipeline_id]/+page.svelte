@@ -760,7 +760,7 @@
     <!-- 메인 영역 -->
     <div class="relative flex-1">
       <!-- 상단 헤더 -->
-      <div class="absolute left-0 right-0 top-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
+      <div class="absolute top-0 right-0 left-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <button
@@ -823,7 +823,7 @@
       <!-- Build Status Panel -->
       {#if buildInfo || buildStatus}
         <div
-          class="absolute right-4 top-20 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+          class="absolute top-20 right-4 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
         >
           <div class="mb-3">
             <h3 class="text-sm font-semibold text-gray-700">실행 정보</h3>
@@ -861,7 +861,7 @@
               {#if buildStatus?.logs?.groupName}
                 <div class="mt-2 border-t pt-2">
                   <span class="text-gray-500">CloudWatch 로그:</span>
-                  <div class="mt-1 break-all font-mono text-xs text-gray-600">
+                  <div class="mt-1 font-mono text-xs break-all text-gray-600">
                     {buildStatus.logs.groupName}
                   </div>
                 </div>

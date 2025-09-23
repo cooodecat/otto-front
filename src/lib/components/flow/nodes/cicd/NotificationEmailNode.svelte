@@ -105,8 +105,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Recipients -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Recipients</label>
+          <label for="email-recipients" class="mb-1 block text-sm font-medium text-gray-700"
+            >Recipients</label
+          >
           <input
+            id="email-recipients"
             type="text"
             bind:value={recipients}
             onchange={saveNodeData}
@@ -117,8 +120,11 @@
 
         <!-- Subject -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Subject</label>
+          <label for="email-subject" class="mb-1 block text-sm font-medium text-gray-700"
+            >Subject</label
+          >
           <input
+            id="email-subject"
             type="text"
             bind:value={subject}
             onchange={saveNodeData}
@@ -129,8 +135,11 @@
 
         <!-- Message Template -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Message Template</label>
+          <label for="email-message" class="mb-1 block text-sm font-medium text-gray-700"
+            >Message Template</label
+          >
           <textarea
+            id="email-message"
             bind:value={messageTemplate}
             onchange={saveNodeData}
             rows="3"
@@ -144,7 +153,7 @@
 
         <!-- SMTP Configuration -->
         <div class="space-y-2">
-          <label class="text-sm font-medium text-gray-700">SMTP Configuration</label>
+          <div class="text-sm font-medium text-gray-700">SMTP Configuration</div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
