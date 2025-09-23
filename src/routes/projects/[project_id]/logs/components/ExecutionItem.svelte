@@ -50,7 +50,9 @@
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {}
+    } catch {
+      // Clipboard API not available or permission denied
+    }
   }
 
   const statusColors = {

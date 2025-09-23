@@ -228,7 +228,7 @@
       <div class="rounded-lg bg-gray-50 p-4">
         <h4 class="mb-3 font-medium text-gray-700">Executed Steps:</h4>
         <div class="space-y-2">
-          {#each pipelineSteps as step}
+          {#each pipelineSteps as step (step.id)}
             <div
               class="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2 {step.status ===
               'failed'

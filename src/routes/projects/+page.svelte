@@ -225,7 +225,7 @@
           </button>
 
           <!-- Existing Project Cards -->
-          {#each filteredProjects as project}
+          {#each filteredProjects as project (project)}
             <article
               class="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >

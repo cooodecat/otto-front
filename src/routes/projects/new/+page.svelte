@@ -91,7 +91,7 @@
         installations = [];
         hasGithubApp = false;
       }
-    } catch (err: any) {
+    } catch (err) {
       error = 'GitHub App 설치 정보를 불러오는데 실패했습니다';
       console.error('Error loading installations:', err);
       installations = [];
@@ -123,7 +123,7 @@
         repositories = [];
         console.log('❌ No repositories found');
       }
-    } catch (err: any) {
+    } catch (err) {
       error = '리포지토리 목록을 불러오는데 실패했습니다';
       console.error('❌ Error loading repositories:', err);
       repositories = [];
@@ -305,7 +305,7 @@
         hasGithubApp = true;
         error = 'GitHub App이 설치되어 있지만 접근 가능한 저장소가 없습니다.';
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error loading repositories:', err);
 
       // 401 에러인 경우 GitHub App이 설치되지 않은 것
@@ -490,7 +490,7 @@
     <!-- Progress Indicator -->
     <div class="mb-8 flex items-center justify-center">
       <div class="flex items-center space-x-4">
-        {#each [1, 2, 3] as step}
+        {#each [1, 2, 3] as step (step)}
           <div class="flex items-center">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-full {currentStep >= step
@@ -639,7 +639,7 @@
                     <div
                       class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
                     >
-                      {#each installations as installation}
+                      {#each installations as installation (installation.id)}
                         <button
                           onclick={() => selectInstallation(installation)}
                           class="flex w-full items-center gap-3 px-4 py-3 transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-gray-50"
@@ -713,7 +713,7 @@
                             접근 가능한 저장소가 없습니다
                           </div>
                         {:else}
-                          {#each repositories as repository}
+                          {#each repositories as repository (repository.id)}
                             <button
                               onclick={() => selectRepository(repository)}
                               class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-gray-50"
@@ -755,7 +755,7 @@
                       class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     >
                       {#if branches.length > 0}
-                        {#each branches as branch}
+                        {#each branches as branch (branch.name)}
                           <option value={branch.name}>
                             {branch.name}
                             {#if branch.name === selectedRepository.default_branch}

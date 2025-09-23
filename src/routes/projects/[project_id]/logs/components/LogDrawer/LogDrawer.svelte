@@ -274,7 +274,7 @@
             <div class="flex items-center gap-3">
               <span class="text-xs font-medium text-gray-600">Progress:</span>
               <div class="flex flex-1 items-center gap-2">
-                {#each phases as phase, index}
+                {#each phases as phase, index (phase.name)}
                   <button
                     type="button"
                     class="group relative flex-1 cursor-pointer"

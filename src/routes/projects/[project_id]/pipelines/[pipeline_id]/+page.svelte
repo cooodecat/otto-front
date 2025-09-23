@@ -5,7 +5,9 @@
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
   import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft } from 'lucide-svelte';
-  import { SvelteFlowProvider } from '@xyflow/svelte';
+  import { SvelteFlowProvider, type Node, type Edge, type Connection } from '@xyflow/svelte';
+  import type { AnyCICDNodeData } from '$lib/types/flow-node.types';
+  import type { PipelineResponseDto } from '$lib/sdk/structures/PipelineResponseDto';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
   import { edgeTypes } from '$lib/components/flow/edgeTypes';
@@ -18,7 +20,7 @@
   const projectId = $page.params.project_id;
   const pipelineId = $page.params.pipeline_id;
 
-  let pipeline = $state<any>(null);
+  let pipeline = $state<PipelineResponseDto | null>(null);
   let loading = $state(true);
   let error = $state('');
   let isSaving = $state(false);
@@ -43,10 +45,10 @@
   );
 
   // Flow 관련 상태
-  let nodes = $state<any[]>([]);
-  let edges = $state<any[]>([]);
+  let nodes = $state<Node[]>([]);
+  let edges = $state<Edge[]>([]);
   let initialized = $state(false);
-  let _flowInstance = $state<any>(null);
+  let _flowInstance = $state<unknown>(null);
   let showResetConfirm = $state(false);
 
   onMount(async () => {
@@ -226,7 +228,7 @@
         console.log(`✅ CONFIRMED SAVED TO LOCALSTORAGE:`, {
           savedNodeCount: parsed.nodes?.length,
           savedEdgeCount: parsed.edges?.length,
-          savedNodePositions: parsed.nodes?.map((n: any) => ({ id: n.id, position: n.position }))
+          savedNodePositions: parsed.nodes?.map((n: Node) => ({ id: n.id, position: n.position }))
         });
       } else {
         console.error('❌ FAILED TO SAVE TO LOCALSTORAGE');
@@ -371,9 +373,9 @@
 
       // 실행 상태 폴링 시작
       startStatusPolling(result.buildId);
-    } catch (err: any) {
+    } catch (err) {
       console.error('파이프라인 실행 실패:', err);
-      error = err?.message || '파이프라인 실행에 실패했습니다';
+      error = (err as Error)?.message || '파이프라인 실행에 실패했습니다';
       showToast('error', error);
       isExecuting = false;
     }
@@ -513,7 +515,7 @@
     );
   }
 
-  function onConnect(connection: any) {
+  function onConnect(connection: Connection) {
     console.log('🔗 Connection attempt:', connection);
 
     // 1:1 연결 제한 - 이미 같은 source handle에서 나가는 연결이 있으면 삭제
@@ -555,14 +557,22 @@
   }
 
   // 노드 드래그 종료 핸들러 - onnodedragstop 이벤트 사용
-  function onNodeDragStop(event: any) {
+  function onNodeDragStop({
+    targetNode,
+    nodes,
+    event
+  }: {
+    targetNode: Node | null;
+    nodes: Node[];
+    event: MouseEvent | TouchEvent;
+  }) {
     console.log('🎯 Raw drag stop event:', event);
-    console.log('🎯 Event detail:', event.detail);
-    console.log('🎯 Event targetNode:', event.targetNode);
-    console.log('🎯 Event nodes:', event.nodes);
+    console.log('🎯 Event detail:', (event as any).detail);
+    console.log('🎯 Event targetNode:', targetNode);
+    console.log('🎯 Event nodes:', nodes);
 
     // SvelteFlow의 onnodedragstop 이벤트에서 노드 정보 추출
-    const draggedNode = event.targetNode || event.detail?.node || (event.nodes && event.nodes[0]);
+    const draggedNode = targetNode || (event as any).detail?.node || (nodes && nodes[0]);
 
     if (!draggedNode || !draggedNode.id) {
       console.log('🚫 No dragged node found in event');
@@ -590,7 +600,7 @@
 
   // 엣지 변경 핸들러 (현재 미사용 - SvelteFlow에서 직접 지원하지 않음)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function _onEdgesChange(changes: any[]) {
+  function _onEdgesChange(changes: unknown[]) {
     console.log('🔗 Edges changed:', changes);
 
     let hasChanges = false;
@@ -667,7 +677,7 @@
   }
 
   // 노드 데이터 업데이트 핸들러
-  function updateNodeData(nodeId: string, newData: any) {
+  function updateNodeData(nodeId: string, newData: AnyCICDNodeData) {
     console.log('🔄 Updating node data:', nodeId, newData);
 
     const nodeIndex = nodes.findIndex((node) => node.id === nodeId);

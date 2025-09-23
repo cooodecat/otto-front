@@ -66,7 +66,7 @@
 
   <!-- Floating Particles -->
   <div class="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-    {#each Array(6) as _, i}
+    {#each Array(6) as _, i (i)}
       <div
         class="animate-float absolute h-2 w-2 rounded-full bg-gradient-to-r from-purple-400 to-blue-400 opacity-30"
         style="
@@ -85,7 +85,7 @@
   >
     <!-- Desktop Grid -->
     <div class="mb-8 hidden items-center gap-4 lg:grid lg:grid-cols-7">
-      {#each steps as step, index}
+      {#each steps as step, index (step.id)}
         <!-- Step Card -->
         <div class="col-span-1">
           <div
@@ -150,7 +150,7 @@
 
     <!-- Mobile/Tablet Grid -->
     <div class="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:hidden">
-      {#each steps as step, index}
+      {#each steps as step, index (step.id)}
         <div
           class="group relative transition-all duration-500"
           class:scale-105={activeStep === index}
@@ -201,7 +201,7 @@
 
     <!-- Mobile Flow Indicator -->
     <div class="mb-8 flex justify-center space-x-2 lg:hidden">
-      {#each steps as _, index}
+      {#each steps as _, index (index)}
         <div
           class="h-3 w-3 rounded-full transition-all duration-500"
           class:bg-purple-500={activeStep === index}

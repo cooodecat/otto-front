@@ -320,7 +320,7 @@
       <div class="mb-6 rounded-lg bg-white p-6 shadow">
         <h2 class="mb-4 text-lg font-semibold">Execution Phases</h2>
         <div class="grid grid-cols-4 gap-4">
-          {#each phases as phase}
+          {#each phases as phase (phase.name)}
             <div
               class="rounded-lg border p-3
 							{phase.status === 'completed' ? 'border-green-200 bg-green-50' : ''}
@@ -347,7 +347,7 @@
         {#if logs.length === 0}
           <div class="text-gray-500">No logs received yet...</div>
         {:else}
-          {#each logs as log}
+          {#each logs as log (log.timestamp + log.message)}
             <div class="mb-1">
               <span class="text-gray-500">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
               <span

@@ -19,7 +19,7 @@
 <div class="flex items-center gap-4">
   <!-- Filter Tabs -->
   <div class="flex rounded-lg border border-gray-200 bg-white p-1">
-    {#each filterOptions as option}
+    {#each filterOptions as option (option)}
       <button
         onclick={() => (filterType = option.value)}
         class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition-colors {filterType ===

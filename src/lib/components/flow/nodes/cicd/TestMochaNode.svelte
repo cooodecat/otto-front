@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.TEST];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: TestMochaNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let testDir = $state(data?.testDir || 'test');

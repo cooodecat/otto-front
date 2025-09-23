@@ -1,17 +1,29 @@
 <script lang="ts">
-  import { SvelteFlow, Background, Controls, MiniMap, useSvelteFlow } from '@xyflow/svelte';
+  import {
+    SvelteFlow,
+    Background,
+    Controls,
+    MiniMap,
+    useSvelteFlow,
+    type Node,
+    type Edge,
+    type NodeTypes,
+    type EdgeTypes,
+    type Connection,
+    type NodeTargetEventWithPointer
+  } from '@xyflow/svelte';
   import { CICDBlockType } from '$lib/types/flow-node.types';
 
   interface Props {
-    nodes: any[];
-    edges: any[];
-    nodeTypes: any;
-    edgeTypes: any;
-    onConnect: (connection: any) => void;
+    nodes: Node[];
+    edges: Edge[];
+    nodeTypes: NodeTypes;
+    edgeTypes: EdgeTypes;
+    onConnect: (connection: Connection) => void;
     handleFlowInit: () => void;
     onDragOver: (event: DragEvent) => void;
     handleAddNode: (blockType: CICDBlockType, position: { x: number; y: number }) => void;
-    onNodeDragStop?: (event: any) => void;
+    onNodeDragStop?: NodeTargetEventWithPointer<MouseEvent | TouchEvent>;
   }
 
   const {

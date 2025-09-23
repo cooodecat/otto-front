@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Clock, AlertCircle, Copy, Maximize2 } from 'lucide-svelte';
+  import { X, Clock, Copy } from 'lucide-svelte';
   import { fly, fade } from 'svelte/transition';
   import type { LogEntry } from '$lib/types/log.types';
 
@@ -39,7 +39,7 @@
         const parsed = JSON.parse(jsonMatch[0]);
         return { isJson: true, formatted: JSON.stringify(parsed, null, 2) };
       }
-    } catch (e) {
+    } catch (_e) {
       // Not JSON
     }
     return { isJson: false };
@@ -201,7 +201,7 @@
       <div>
         <div class="mb-2 text-xs text-gray-500">Context (nearby logs)</div>
         <div class="space-y-1 rounded-lg bg-gray-50 p-3">
-          {#each relatedLogs as relatedLog}
+          {#each relatedLogs as relatedLog (relatedLog.timestamp)}
             <div
               class="flex items-start gap-3 font-mono text-xs {relatedLog.timestamp ===
               log.timestamp

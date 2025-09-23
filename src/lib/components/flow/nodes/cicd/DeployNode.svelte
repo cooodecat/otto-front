@@ -13,9 +13,9 @@
   const { id, data }: Props = $props();
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.DEPLOY];
 
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: DeployNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let commands = $state<string[]>(data?.commands || []);
@@ -95,7 +95,7 @@
           <div>
             <div class="font-medium text-gray-700">Commands</div>
             <div class="mt-1 space-y-1">
-              {#each commands as command}
+              {#each commands as command (command)}
                 <div class="rounded border bg-gray-100 px-2 py-1 font-mono text-xs">
                   {command}
                 </div>
@@ -129,7 +129,7 @@
 
           {#if commands.length > 0}
             <div class="mb-2 space-y-1">
-              {#each commands as command, index}
+              {#each commands as command, index (index)}
                 <div class="flex items-center gap-2">
                   <div class="flex-1 rounded border bg-white px-2 py-1 font-mono text-xs">
                     {command}

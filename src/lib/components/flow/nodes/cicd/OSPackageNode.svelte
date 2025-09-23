@@ -13,9 +13,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.PREBUILD];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: OSPackageNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let packages = $state<string[]>(data.installPackages || []);
@@ -92,7 +92,7 @@
       <!-- 패키지 목록 미리보기 -->
       {#if !isEditing}
         <div class="space-y-1">
-          {#each packages.slice(0, 3) as pkg, _idx}
+          {#each packages.slice(0, 3) as pkg, _idx (_idx)}
             <div class="rounded bg-white px-2 py-1 font-mono text-xs text-gray-600">
               {pkg}
             </div>
@@ -176,7 +176,7 @@
             Packages ({packages.length})
           </span>
           <div class="max-h-32 space-y-1 overflow-y-auto">
-            {#each packages as pkg, idx}
+            {#each packages as pkg, idx (idx)}
               <div class="flex items-center justify-between rounded border bg-white px-2 py-1">
                 <span class="font-mono text-sm text-gray-700">
                   {pkg}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteMap } from 'svelte/reactivity';
   import type { PhaseInfo, LogEntry } from '$lib/types/log.types';
   import type { LogWebSocketService } from '$lib/services/log-websocket.service';
   import {
@@ -7,13 +8,11 @@
     ChevronDown,
     ChevronUp,
     Search,
-    Filter,
     Copy,
     Terminal,
     Layers
   } from 'lucide-svelte';
   import LogGroup from '../LogGroup.svelte';
-  import VirtualScroll from '../VirtualScroll.svelte';
 
   interface Props {
     executionId: string;
@@ -23,7 +22,13 @@
     isLoading?: boolean;
   }
 
-  let { executionId, phases, logs = [], wsService, isLoading = false }: Props = $props();
+  let {
+    executionId,
+    phases: _phases,
+    logs = [],
+    wsService: _wsService,
+    isLoading = false
+  }: Props = $props();
 
   let autoScroll = $state(true);
   let showGrouped = $state(true);
@@ -64,7 +69,7 @@
 
   // Group logs by phase
   const logsByPhase = $derived.by(() => {
-    const groups = new Map<string, LogEntry[]>();
+    const groups = new SvelteMap<string, LogEntry[]>();
 
     // Initialize with known phases
     const knownPhases = [
@@ -174,12 +179,17 @@
   };
 
   // Highlight search query in terminal view
-  function highlightSearchQuery(text: string): string {
-    if (!searchQuery || !searchQuery.trim()) return text;
+  function splitBySearchQuery(text: string): { text: string; highlight: boolean }[] {
+    if (!searchQuery || !searchQuery.trim()) return [{ text, highlight: false }];
 
     const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escapedQuery})`, 'gi');
-    return text.replace(regex, '<mark class="bg-yellow-300 text-black px-0.5 rounded">$1</mark>');
+    const parts = text.split(regex);
+
+    return parts.map((part, index) => ({
+      text: part,
+      highlight: index % 2 === 1 // Every odd index is a match
+    }));
   }
 
   // Expose scroll method for parent (LogDrawer) to navigate to a phase by index
@@ -371,7 +381,7 @@
     {:else if showGrouped}
       <!-- Grouped View with Floating Cards -->
       <div class="px-4 pb-4">
-        {#each logsByPhase as [phase, phaseLogs], index}
+        {#each logsByPhase as [phase, phaseLogs], index (phase)}
           <LogGroup
             {phase}
             logs={phaseLogs}
@@ -394,7 +404,7 @@
         class="m-4 mt-2 rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm text-gray-100 shadow-lg"
       >
         <div bind:this={logContainer}>
-          {#each logsByPhase as [phase, phaseLogs]}
+          {#each logsByPhase as [phase, phaseLogs] (phase)}
             <div class="phase-section">
               <!-- Phase Header (Sticky in scrollable container) -->
               <div
@@ -433,7 +443,13 @@
                       class="flex-1 break-all whitespace-pre-wrap {levelColors[log.level] ||
                         'text-gray-300'}"
                     >
-                      {@html highlightSearchQuery(log.message)}
+                      {#each splitBySearchQuery(log.message) as part (part.text + part.highlight)}
+                        {#if part.highlight}
+                          <mark class="rounded bg-yellow-300 px-0.5 text-black">{part.text}</mark>
+                        {:else}
+                          {part.text}
+                        {/if}
+                      {/each}
                     </span>
                   </div>
                 {/each}

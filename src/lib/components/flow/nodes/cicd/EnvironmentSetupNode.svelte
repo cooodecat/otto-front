@@ -13,21 +13,17 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.PREBUILD];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: EnvironmentSetupNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let environmentVariables = $state(data.environmentVariables || {});
   let loadFromFile = $state(data.loadFromFile || '');
   let newKey = $state('');
   let newValue = $state('');
-  let hiddenValues = $state<Set<string>>(new Set());
+  let hiddenValues = $derived(new Set(Object.keys(environmentVariables || {})));
   let _editingValues = $state<Set<string>>(new Set());
-
-  $effect(() => {
-    hiddenValues = new Set(Object.keys(environmentVariables || {}));
-  });
   let newInputVisible = $state(false);
 
   // 데이터 저장 헬퍼 함수
@@ -178,7 +174,7 @@
               Environment Variables ({Object.keys(environmentVariables).length})
             </div>
             <div class="mt-1 max-h-20 space-y-1 overflow-y-auto">
-              {#each Object.entries(environmentVariables) as [key, value]}
+              {#each Object.entries(environmentVariables) as [key, value] (key)}
                 <div class="flex items-center justify-between text-gray-600">
                   <div class="flex min-w-0 flex-1 items-center">
                     <span class="font-mono text-xs"
@@ -284,7 +280,7 @@
           <!-- Existing variables -->
           {#if Object.keys(environmentVariables).length > 0}
             <div class="max-h-32 space-y-1 overflow-y-auto">
-              {#each Object.entries(environmentVariables) as [key, value]}
+              {#each Object.entries(environmentVariables) as [key, value] (key)}
                 <div class="flex items-center justify-between rounded bg-white px-2 py-1 text-sm">
                   <span class="font-mono">{key}={value.value}</span>
                   <button

@@ -229,7 +229,7 @@
     isExpanded = !isExpanded;
   }
 
-  function handleLogClick(log: LogEntry, index: number) {
+  function handleLogClick(log: LogEntry, _index: number) {
     selectedLog = log;
     selectedIndex = indexMap.get(keyForLog(log)) ?? null;
   }
@@ -267,7 +267,9 @@
   // Parse ANSI colors and highlight keywords
   function formatLogMessage(message: string): string {
     // Remove ANSI codes for now but highlight keywords
-    let formatted = message.replace(/\x1b\[[0-9;]*m/g, ''); // Remove ANSI codes
+    // Remove ANSI codes - using unicode escape for control character
+    // eslint-disable-next-line no-control-regex
+    let formatted = message.replace(/\u001b\[[0-9;]*m/g, '');
 
     // Highlight search query if present
     if (searchQuery && searchQuery.trim()) {
@@ -282,10 +284,7 @@
     // Syntax highlighting for code patterns
     formatted = formatted
       // File paths and directories
-      .replace(
-        /(\/?[a-zA-Z0-9_\-\.]+\/[a-zA-Z0-9_\-\.\/]+)/g,
-        '<span class="text-cyan-400">$1</span>'
-      )
+      .replace(/(\/?[a-zA-Z0-9_\-.]+\/[a-zA-Z0-9_\-./]+)/g, '<span class="text-cyan-400">$1</span>')
       // URLs
       .replace(/(https?:\/\/[^\s]+)/g, '<span class="text-blue-400 underline">$1</span>')
       // JSON-like structures
@@ -294,7 +293,7 @@
       .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="text-orange-400">$1</span>')
       // Commands (npm, yarn, pnpm, etc.)
       .replace(
-        /\b(npm|yarn|pnpm|node|git|docker|kubectl)\s+([a-z\-]+)/gi,
+        /\b(npm|yarn|pnpm|node|git|docker|kubectl)\s+([a-z-]+)/gi,
         '<span class="text-green-400">$1</span> <span class="text-blue-400">$2</span>'
       )
       // Environment variables
@@ -455,7 +454,7 @@
   <!-- Phase Content -->
   {#if isExpanded}
     <div class="border-t border-gray-200">
-      {#each logsByStep as [stepName, stepLogs]}
+      {#each logsByStep as [stepName, stepLogs] (stepName)}
         <div class="border-t border-gray-200">
           {#if stepName !== 'General'}
             <div class="border-b border-gray-100 bg-gray-50 px-6 py-2">
@@ -464,7 +463,7 @@
           {/if}
 
           <div class="overflow-x-auto bg-gray-900/95">
-            {#each stepLogs as log, logIndex}
+            {#each stepLogs as log, logIndex (log.timestamp + logIndex)}
               <button
                 onclick={() => handleLogClick(log, logIndex)}
                 class="group w-full cursor-pointer px-6 py-1 text-left transition-colors hover:bg-gray-800/50 {getLogLevelClass(
@@ -476,6 +475,7 @@
                     {new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false })}
                   </span>
                   <div class="flex-1 break-all whitespace-pre-wrap">
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                     {@html formatLogMessage(log.message)}
                   </div>
                   <div class="opacity-0 transition-opacity group-hover:opacity-100">

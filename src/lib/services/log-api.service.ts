@@ -2,7 +2,7 @@ import api from '$lib/sdk';
 import { makeFetch } from '$lib/utils/make-fetch';
 import type {
   ExecutionMetadata,
-  ExecutionListResponse,
+  ExecutionListResponse as _ExecutionListResponse,
   LogEntry,
   PhaseName,
   ExecutionType,
@@ -13,7 +13,7 @@ import type { ExecutionResponseDto } from '$lib/sdk/structures/ExecutionResponse
 
 export class LogApiService {
   // Helpers to extract commit info from varying backend schemas
-  private pickString(obj: any, keys: string[]): string | undefined {
+  private pickString(obj: unknown, keys: string[]): string | undefined {
     if (!obj) return undefined;
     for (const k of keys) {
       if (k in obj && typeof obj[k] === 'string' && obj[k]) return String(obj[k]);
@@ -21,7 +21,10 @@ export class LogApiService {
     return undefined;
   }
 
-  private extractFromMetadataLike(exec: any): { commitId?: string; commitMessage?: string } {
+  private extractFromMetadataLike(exec: Record<string, unknown>): {
+    commitId?: string;
+    commitMessage?: string;
+  } {
     const meta = exec?.metadata ?? exec?.meta ?? {};
     const commitId =
       this.pickString(meta, ['commitId', 'commit_id', 'commitSha', 'commitSHA', 'sha', 'commit']) ||
@@ -33,10 +36,10 @@ export class LogApiService {
   }
 
   // Standalone helpers for use below
-  extractCommitId(exec: any): string | undefined {
+  extractCommitId(exec: Record<string, unknown>): string | undefined {
     return this.extractFromMetadataLike(exec).commitId;
   }
-  extractCommitMessage(exec: any): string | undefined {
+  extractCommitMessage(exec: Record<string, unknown>): string | undefined {
     return this.extractFromMetadataLike(exec).commitMessage;
   }
   async getExecutions(params: {

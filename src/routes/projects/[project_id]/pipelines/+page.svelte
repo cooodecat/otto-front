@@ -4,17 +4,7 @@
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import {
-    Plus,
-    Search,
-    Filter,
-    Calendar,
-    Settings,
-    Activity,
-    Play,
-    ArrowLeft,
-    Trash2
-  } from 'lucide-svelte';
+  import { Plus, Search, Filter, Calendar, Settings, Play, ArrowLeft, Trash2 } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
 
@@ -54,7 +44,7 @@
       } else {
         pipelines = [];
       }
-    } catch (err: any) {
+    } catch (err) {
       error = '파이프라인을 불러오는데 실패했습니다';
       console.error('Error loading pipelines:', err);
       pipelines = [];
@@ -246,7 +236,7 @@
           </button>
 
           <!-- Existing Pipeline Cards -->
-          {#each filteredPipelines as pipeline}
+          {#each filteredPipelines as pipeline (pipeline.pipelineId)}
             <article
               class="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >

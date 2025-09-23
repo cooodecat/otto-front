@@ -1,10 +1,15 @@
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { writable, type Writable } from 'svelte/store';
-import type { LogEntry, ExecutionStatus, PhaseInfo, WebSocketEvents } from '$lib/types/log.types';
+import type {
+  LogEntry,
+  ExecutionStatus,
+  PhaseInfo,
+  WebSocketEvents as _WebSocketEvents
+} from '$lib/types/log.types';
 import { PUBLIC_BACKEND_URL } from '$env/static/public';
 
 export class LogWebSocketService {
-  private socket: Socket | null = null;
+  private socket: ReturnType<typeof io> | null = null;
   private executionId: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
