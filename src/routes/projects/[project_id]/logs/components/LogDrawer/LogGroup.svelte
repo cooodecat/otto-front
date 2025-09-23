@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, CheckCircle, XCircle, Loader2, AlertCircle, Clock, FileText } from 'lucide-svelte';
+  import { ChevronDown, ChevronRight, CheckCircle, XCircle, Loader2, AlertCircle, Clock, FileText, Activity, Maximize2 } from 'lucide-svelte';
   import type { LogEntry } from '$lib/types/log.types';
+  import LogDetailPopover from './LogDetailPopover.svelte';
   
   interface Props {
     phase: string;
@@ -11,6 +12,9 @@
     initialExpanded?: boolean;
     phaseIndex?: number;
     totalPhases?: number;
+    searchQuery?: string;
+    estimatedDuration?: number; // in seconds
+    forceExpand?: boolean;
   }
 
   let { 
@@ -21,10 +25,18 @@
     endTime,
     initialExpanded = false,
     phaseIndex = 0,
-    totalPhases = 0
+    totalPhases = 0,
+    searchQuery = '',
+    estimatedDuration = 60,
+    forceExpand = false
   }: Props = $props();
 
   let isExpanded = $state(initialExpanded);
+  let selectedLog = $state<LogEntry | null>(null);
+  let selectedIndex = $state<number | null>(null);
+  let showProgressBar = $state(false);
+  let hideTimer: ReturnType<typeof setTimeout> | null = null;
+  let prevStatus = $state<'pending' | 'running' | 'success' | 'failed' | null>(null);
   
   // Format phase name for display
   const formatPhaseName = (phase: string): string => {
@@ -61,9 +73,25 @@
     });
   });
 
-  // Calculate duration
-  const duration = $derived.by(() => {
-    if (!startTime) return '';
+  // Flatten logs in display order for keyboard navigation
+  const flatLogs = $derived.by(() => {
+    const arr: LogEntry[] = [];
+    logsByStep.forEach(([_, stepLogs]) => {
+      stepLogs.forEach((l) => arr.push(l));
+    });
+    return arr;
+  });
+
+  const keyForLog = (l: LogEntry) => `${l.timestamp}|${l.message}`;
+  const indexMap = $derived.by(() => {
+    const m = new Map<string, number>();
+    flatLogs.forEach((l, i) => m.set(keyForLog(l), i));
+    return m;
+  });
+
+  // Calculate duration and progress
+  const durationInfo = $derived.by(() => {
+    if (!startTime) return { duration: '', progress: 0, elapsedSeconds: 0 };
     const start = new Date(startTime).getTime();
     const end = endTime ? new Date(endTime).getTime() : Date.now();
     const durationMs = end - start;
@@ -72,13 +100,68 @@
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     
+    let duration = '';
     if (hours > 0) {
-      return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+      duration = `${hours}h ${minutes % 60}m ${seconds % 60}s`;
     } else if (minutes > 0) {
-      return `${minutes}m ${seconds % 60}s`;
+      duration = `${minutes}m ${seconds % 60}s`;
     } else {
-      return `${seconds}s`;
+      duration = `${seconds}s`;
     }
+    
+    // Calculate progress percentage
+    const progress = status === 'success' ? 100 : 
+                    status === 'failed' ? 100 :
+                    status === 'running' ? Math.min(95, (seconds / estimatedDuration) * 100) :
+                    0;
+    
+    return { duration, progress, elapsedSeconds: seconds };
+  });
+
+  // Progress bar visibility with transition awareness
+  // - On first mount: do not replay success fade; show only if running/failed
+  // - On transition running->success: show then fade after short delay
+  $effect(() => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+
+    if (prevStatus === null) {
+      // Initial mount behavior
+      if (status === 'running') showProgressBar = true;
+      else if (status === 'failed') showProgressBar = true;
+      else if (status === 'success') showProgressBar = false; // already completed, no replay
+      else showProgressBar = false;
+      prevStatus = status;
+      return;
+    }
+
+    if (prevStatus !== status) {
+      // Handle meaningful transitions
+      if (status === 'running') {
+        showProgressBar = true;
+      } else if (status === 'success') {
+        // Came to success from non-success: show then fade
+        showProgressBar = true;
+        hideTimer = setTimeout(() => {
+          showProgressBar = false;
+        }, 400);
+      } else if (status === 'failed') {
+        showProgressBar = true;
+      } else {
+        showProgressBar = false;
+      }
+    }
+
+    prevStatus = status;
+
+    return () => {
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+    };
   });
 
   // Status icon and color with enhanced styling
@@ -88,7 +171,7 @@
         return { 
           icon: CheckCircle, 
           iconClass: 'text-green-500',
-          bgClass: 'bg-gradient-to-r from-green-50 to-transparent hover:from-green-100',
+          bgClass: 'bg-gradient-to-r from-green-50/80 to-white hover:from-green-50',
           borderClass: 'border-l-4 border-green-500',
           textClass: 'text-green-700'
         };
@@ -96,7 +179,7 @@
         return { 
           icon: XCircle, 
           iconClass: 'text-red-500',
-          bgClass: 'bg-gradient-to-r from-red-50 to-transparent hover:from-red-100',
+          bgClass: 'bg-gradient-to-r from-red-50/80 to-white hover:from-red-50',
           borderClass: 'border-l-4 border-red-500',
           textClass: 'text-red-700'
         };
@@ -104,7 +187,7 @@
         return { 
           icon: Loader2, 
           iconClass: 'text-blue-500 animate-spin',
-          bgClass: 'bg-gradient-to-r from-blue-50 to-transparent hover:from-blue-100 animate-pulse',
+          bgClass: 'bg-gradient-to-r from-blue-50/80 to-white hover:from-blue-50',
           borderClass: 'border-l-4 border-blue-500',
           textClass: 'text-blue-700'
         };
@@ -112,7 +195,7 @@
         return { 
           icon: Clock, 
           iconClass: 'text-gray-400',
-          bgClass: 'bg-gradient-to-r from-gray-50 to-transparent hover:from-gray-100',
+          bgClass: 'bg-gradient-to-r from-gray-50/80 to-white hover:from-gray-50',
           borderClass: 'border-l-4 border-gray-300',
           textClass: 'text-gray-600'
         };
@@ -129,10 +212,38 @@
   function toggleExpanded() {
     isExpanded = !isExpanded;
   }
+  
+  function handleLogClick(log: LogEntry, index: number) {
+    selectedLog = log;
+    selectedIndex = indexMap.get(keyForLog(log)) ?? null;
+  }
+
+  function navigate(delta: number) {
+    if (selectedIndex === null) return;
+    const next = Math.min(Math.max(0, selectedIndex + delta), flatLogs.length - 1);
+    selectedIndex = next;
+    selectedLog = flatLogs[next];
+  }
+  
+  function getRelatedLogs(log: LogEntry, allLogs: LogEntry[]): LogEntry[] {
+    const index = allLogs.findIndex(l => l.timestamp === log.timestamp);
+    if (index === -1) return [];
+    
+    const start = Math.max(0, index - 3);
+    const end = Math.min(allLogs.length, index + 4);
+    return allLogs.slice(start, end);
+  }
 
   // Auto-expand if running or failed
   $effect(() => {
     if (status === 'running' || status === 'failed') {
+      isExpanded = true;
+    }
+  });
+
+  // Expand when externally requested (do not auto-collapse)
+  $effect(() => {
+    if (forceExpand) {
       isExpanded = true;
     }
   });
@@ -141,14 +252,52 @@
   function formatLogMessage(message: string): string {
     // Remove ANSI codes for now but highlight keywords
     let formatted = message
-      .replace(/\x1b\[[0-9;]*m/g, '') // Remove ANSI codes
+      .replace(/\x1b\[[0-9;]*m/g, ''); // Remove ANSI codes
+      
+    // Highlight search query if present
+    if (searchQuery && searchQuery.trim()) {
+      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escapedQuery})`, 'gi');
+      formatted = formatted.replace(regex, '<mark class="bg-yellow-300 text-black px-0.5 rounded">$1</mark>');
+    }
+    
+    // Syntax highlighting for code patterns
+    formatted = formatted
+      // File paths and directories
+      .replace(/(\/?[a-zA-Z0-9_\-\.]+\/[a-zA-Z0-9_\-\.\/]+)/g, '<span class="text-cyan-400">$1</span>')
+      // URLs
+      .replace(/(https?:\/\/[^\s]+)/g, '<span class="text-blue-400 underline">$1</span>')
+      // JSON-like structures
+      .replace(/(\{[^}]+\})/g, '<span class="text-purple-400 font-mono">$1</span>')
+      // Numbers (standalone)
+      .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="text-orange-400">$1</span>')
+      // Commands (npm, yarn, pnpm, etc.)
+      .replace(/\b(npm|yarn|pnpm|node|git|docker|kubectl)\s+([a-z\-]+)/gi, 
+        '<span class="text-green-400">$1</span> <span class="text-blue-400">$2</span>')
+      // Environment variables
+      .replace(/\$([A-Z_]+)/g, '<span class="text-purple-400">$$1</span>')
+      // Quoted strings
+      .replace(/"([^"]+)"/g, '<span class="text-yellow-300">"$1"</span>')
+      .replace(/'([^']+)'/g, '<span class="text-yellow-300">\'$1\'</span>')
+      // IP addresses
+      .replace(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g, '<span class="text-cyan-400">$1</span>')
+      // Ports
+      .replace(/:(\d{2,5})\b/g, ':<span class="text-orange-400">$1</span>');
+    
+    // Apply keyword highlighting after syntax highlighting
+    formatted = formatted
       .replace(/(\[Container\])/g, '<span class="text-blue-400">$1</span>')
-      .replace(/(ERROR|FAILED|Failed|error)/gi, '<span class="text-red-400 font-bold">$1</span>')
-      .replace(/(WARNING|WARN|Warning)/gi, '<span class="text-yellow-400 font-bold">$1</span>')
-      .replace(/(SUCCESS|SUCCEEDED|Succeeded|success)/gi, '<span class="text-green-400 font-bold">$1</span>')
+      .replace(/(ERROR|FAILED|Failed|error)/gi, '<span class="text-red-400 font-bold bg-red-900/30 px-1 rounded">$1</span>')
+      .replace(/(WARNING|WARN|Warning)/gi, '<span class="text-yellow-400 font-bold bg-yellow-900/30 px-1 rounded">$1</span>')
+      .replace(/(SUCCESS|SUCCEEDED|Succeeded|success|completed?|done|finished)/gi, '<span class="text-green-400 font-bold">$1</span>')
       .replace(/(Phase complete:)/g, '<span class="text-green-400">$1</span>')
       .replace(/(Entering phase)/g, '<span class="text-blue-400">$1</span>')
-      .replace(/(Running command)/g, '<span class="text-purple-400">$1</span>');
+      .replace(/(Running command|Executing|Starting|Building|Installing|Downloading)/gi, '<span class="text-purple-400">$1</span>')
+      // Timing information
+      .replace(/(\d+(?:\.\d+)?)\s*(ms|s|sec|seconds?|minutes?|hours?)/gi, 
+        '<span class="text-orange-300">$1 $2</span>')
+      // Percentages
+      .replace(/(\d+(?:\.\d+)?%)/g, '<span class="text-cyan-300">$1</span>');
     
     return formatted;
   }
@@ -163,13 +312,13 @@
   }
 </script>
 
-<div id="phase-{phaseIndex}" class="border-b border-gray-200 {statusConfig.borderClass} transition-all duration-300">
+<div id="phase-{phaseIndex}" class="mb-3 rounded-lg bg-white shadow-sm border border-gray-200 transition-all duration-300 hover:shadow-md relative">
   <!-- Phase Header -->
   <button
     onclick={toggleExpanded}
-    class="w-full px-4 py-3 flex items-center justify-between transition-all duration-200 {statusConfig.bgClass}"
+    class="sticky top-0 z-10 w-full px-4 py-3 flex items-center justify-between transition-all duration-200 bg-white/95 backdrop-blur cursor-pointer {statusConfig.bgClass} {statusConfig.borderClass}"
   >
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 flex-1">
       {#if isExpanded}
         <ChevronDown class="h-4 w-4 text-gray-500 transition-transform" />
       {:else}
@@ -178,13 +327,30 @@
       
       <svelte:component this={statusConfig.icon} class="h-5 w-5 {statusConfig.iconClass}" />
       
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-1">
         {#if totalPhases > 0}
           <span class="text-xs px-2 py-1 rounded-full bg-gray-200 text-gray-600 font-mono">
             {phaseIndex + 1}/{totalPhases}
           </span>
         {/if}
         <span class="font-semibold {statusConfig.textClass}">{formatPhaseName(phase)}</span>
+        
+        {#if status === 'running' || status === 'success' || status === 'failed'}
+          <div class="flex-1 max-w-xs ml-4">
+            <!-- Progress track; keep height to avoid layout shift -->
+            <div class="relative h-2 bg-gray-200 rounded-full overflow-hidden transition-opacity duration-300 {showProgressBar ? 'opacity-100' : 'opacity-0'}">
+              <div
+                class="absolute inset-y-0 left-0 transition-[width] duration-500 ease-out rounded-full {status === 'running' ? 'bg-blue-500 animate-pulse' : status === 'success' ? 'bg-green-500' : 'bg-red-500'}"
+                style="width: {durationInfo.progress}%"
+              />
+            </div>
+            {#if status === 'running'}
+              <div class="text-xs text-gray-500 mt-1">
+                {Math.round(durationInfo.progress)}% • Est. {Math.max(0, estimatedDuration - durationInfo.elapsedSeconds)}s remaining
+              </div>
+            {/if}
+          </div>
+        {/if}
       </div>
       
       <div class="flex items-center gap-2">
@@ -212,29 +378,35 @@
     </div>
     
     <div class="flex items-center gap-2">
-      {#if duration}
+      {#if durationInfo.duration}
         <span class="flex items-center gap-1 text-sm text-gray-600">
           <Clock class="h-3 w-3" />
-          {duration}
+          {durationInfo.duration}
         </span>
+      {/if}
+      {#if status === 'running'}
+        <Activity class="h-4 w-4 text-blue-500 animate-pulse" />
       {/if}
     </div>
   </button>
 
   <!-- Phase Content -->
   {#if isExpanded}
-    <div class="bg-gray-50">
+    <div class="border-t border-gray-200">
       {#each logsByStep as [stepName, stepLogs]}
         <div class="border-t border-gray-200">
           {#if stepName !== 'General'}
-            <div class="px-6 py-2 bg-gray-100">
-              <span class="text-sm font-medium text-gray-700">{stepName}</span>
+            <div class="px-6 py-2 bg-gray-50 border-b border-gray-100">
+              <span class="text-sm font-medium text-gray-600">{stepName}</span>
             </div>
           {/if}
           
-          <div class="bg-gray-900 overflow-x-auto">
-            {#each stepLogs as log, index}
-              <div class="px-6 py-1 hover:bg-gray-800/50 transition-colors {getLogLevelClass(log.level)} {index === 0 ? 'pt-2' : ''} {index === stepLogs.length - 1 ? 'pb-2' : ''}">
+          <div class="bg-gray-900/95 overflow-x-auto">
+            {#each stepLogs as log, logIndex}
+              <button
+                onclick={() => handleLogClick(log, logIndex)}
+                class="w-full text-left px-6 py-1 hover:bg-gray-800/50 transition-colors cursor-pointer group {getLogLevelClass(log.level)} {logIndex === 0 ? 'pt-2' : ''} {logIndex === stepLogs.length - 1 ? 'pb-2' : ''}"
+              >
                 <div class="flex items-start gap-3 font-mono text-xs">
                   <span class="text-gray-500 select-none shrink-0 w-20">
                     {new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false })}
@@ -242,8 +414,11 @@
                   <div class="flex-1 whitespace-pre-wrap break-all">
                     {@html formatLogMessage(log.message)}
                   </div>
+                  <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Maximize2 class="h-3 w-3 text-gray-400" />
+                  </div>
                 </div>
-              </div>
+              </button>
             {/each}
           </div>
         </div>
@@ -251,3 +426,16 @@
     </div>
   {/if}
 </div>
+
+<!-- Log Detail Popover -->
+{#if selectedLog}
+  <LogDetailPopover 
+    log={selectedLog}
+    onClose={() => selectedLog = null}
+    relatedLogs={getRelatedLogs(selectedLog, flatLogs)}
+    onPrev={() => navigate(-1)}
+    onNext={() => navigate(1)}
+    currentIndex={selectedIndex ?? 0}
+    totalCount={flatLogs.length}
+  />
+{/if}

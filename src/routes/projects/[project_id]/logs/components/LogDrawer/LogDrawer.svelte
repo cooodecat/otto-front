@@ -3,7 +3,6 @@
   import { fade, fly } from 'svelte/transition';
   import { onMount, onDestroy } from 'svelte';
   import type { ExecutionMetadata, PhaseInfo, LogEntry } from '$lib/types/log.types';
-  import PhaseTimeline from './PhaseTimeline.svelte';
   import DrawerHeader from './DrawerHeader.svelte';
   import DrawerTabs from './DrawerTabs.svelte';
   import LogsTab from './tabs/LogsTab.svelte';
@@ -11,13 +10,15 @@
   import ArtifactsTab from './tabs/ArtifactsTab.svelte';
   import { logApiService } from '$lib/services/log-api.service';
   import { LogWebSocketService } from '$lib/services/log-websocket.service';
+  import { tick } from 'svelte';
 
   interface Props {
     executionId: string;
     onClose: () => void;
+    onExecutionChange?: (newExecutionId: string) => void;
   }
 
-  let { executionId, onClose }: Props = $props();
+  let { executionId, onClose, onExecutionChange }: Props = $props();
 
   let activeTab = $state<'logs' | 'pipeline' | 'artifacts'>('logs');
   let loading = $state(true);
@@ -25,6 +26,8 @@
   let phases = $state<PhaseInfo[]>([]);
   let logs = $state<LogEntry[]>([]);
   let isConnected = $state(false);
+  let logsTabRef = $state<any>(null);
+  let currentExecutionId = $state(executionId);
 
   // WebSocket service
   const wsService = new LogWebSocketService();
@@ -36,13 +39,23 @@
   async function loadExecutionData() {
     loading = true;
     try {
-      execution = await logApiService.getExecutionById(executionId);
+      console.log('Loading execution data for ID:', currentExecutionId);
+      execution = await logApiService.getExecutionById(currentExecutionId);
+      
+      // Log the actual data to see what we're getting
+      console.log('Loaded execution data:', execution);
+      console.log('Metadata:', execution?.metadata);
       
       // Don't load logs here - WebSocket will provide them
       // Just set up initial phases structure
       phases = getMockPhases();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load execution:', error);
+      console.error('Error details:', {
+        message: error?.message || 'Unknown error',
+        stack: error?.stack || '',
+        executionId: currentExecutionId
+      });
       // Fallback to mock data
       execution = getMockExecution();
       phases = getMockPhases();
@@ -51,12 +64,40 @@
     }
   }
 
+  // Handle new execution from re-run
+  async function handleNewExecution(newExecutionId: string) {
+    console.log('Switching to new execution:', newExecutionId);
+    
+    // Disconnect from current WebSocket
+    wsService.disconnect();
+    
+    // Clear current data
+    logs = [];
+    phases = [];
+    execution = null;
+    
+    // Update execution ID and reload
+    currentExecutionId = newExecutionId;
+    
+    // Notify parent component about the change
+    if (onExecutionChange) {
+      onExecutionChange(newExecutionId);
+    }
+    
+    // Load new execution data and reconnect WebSocket
+    await loadExecutionData();
+    await setupWebSocket();
+    
+    // Switch to logs tab to show the new execution
+    activeTab = 'logs';
+  }
+
   // Setup WebSocket connection
   async function setupWebSocket() {
     try {
       const token = localStorage.getItem('auth_token') || '';
       await wsService.connect(token);
-      wsService.subscribe(executionId);
+      wsService.subscribe(currentExecutionId);
 
       // Subscribe to stores and track unsubscribers
       unsubscribers.push(
@@ -109,7 +150,7 @@
   // Mock data fallback
   function getMockExecution(): ExecutionMetadata {
     return {
-      executionId,
+      executionId: currentExecutionId,
       buildNumber: 124,
       executionType: 'DEPLOY',
       status: 'RUNNING',
@@ -172,21 +213,13 @@
     ];
   }
 
-  function handlePhaseClick(phaseId: string) {
-    activeTab = 'logs';
-    // Scroll to phase in logs
-    setTimeout(() => {
-      const phaseElement = document.getElementById(`phase-${phaseId}`);
-      if (phaseElement) {
-        phaseElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // Add a highlight effect
-        phaseElement.classList.add('highlight-phase');
-        setTimeout(() => {
-          phaseElement.classList.remove('highlight-phase');
-        }, 2000);
-      }
-    }, 100);
-  }
+
+  // React to prop changes
+  $effect(() => {
+    if (executionId !== currentExecutionId) {
+      currentExecutionId = executionId;
+    }
+  });
 
   // Keyboard shortcut for tabs
   $effect(() => {
@@ -203,36 +236,29 @@
 
 <!-- Backdrop -->
 <button
-  class="fixed inset-0 z-40 bg-black/30"
+  class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm cursor-pointer"
   transition:fade={{ duration: 200 }}
   onclick={onClose}
   aria-label="Close drawer"
   tabindex="-1"
 ></button>
 
-<!-- Drawer -->
-<div
-  class="fixed top-0 right-0 z-50 flex h-full w-[80%] max-w-6xl bg-white shadow-2xl"
-  transition:fly={{ x: '100%', duration: 300 }}
->
-  <!-- Left Panel - Phase Timeline (30%) -->
-  <div class="flex w-[30%] flex-col border-r border-gray-200 bg-gray-50">
-    <div class="border-b border-gray-200 p-4">
-      <h3 class="font-semibold text-gray-900">Execution Phases</h3>
-    </div>
-    <div class="flex-1 overflow-y-auto">
-      <PhaseTimeline {phases} onPhaseClick={handlePhaseClick} />
-    </div>
-  </div>
-
-  <!-- Right Panel - Details (70%) -->
-  <div class="flex flex-1 flex-col">
+<!-- Floating Drawer Container -->
+<div class="fixed inset-0 z-50 pointer-events-none p-6">
+  <!-- Drawer with Floating Style (Full Width) -->
+  <div
+    class="ml-auto h-full min-h-0 w-[85%] max-w-7xl pointer-events-auto rounded-2xl bg-white shadow-2xl overflow-hidden ring-1 ring-gray-200/50 flex flex-col relative"
+    transition:fly={{ x: '100%', duration: 300 }}
+  >
+  <!-- Main Content Panel -->
+  <div class="flex flex-1 min-h-0 flex-col">
     <!-- Close Button -->
     <button
       onclick={onClose}
-      class="absolute top-4 right-4 z-10 rounded-lg p-2 transition-colors hover:bg-gray-100"
+      class="absolute top-4 right-4 z-10 rounded-full p-2 bg-gray-100 hover:bg-gray-200 transition-all hover:rotate-90 cursor-pointer"
+      aria-label="Close drawer"
     >
-      <X class="h-5 w-5 text-gray-500" />
+      <X class="h-5 w-5 text-gray-700" />
     </button>
 
     <!-- Header -->
@@ -242,23 +268,73 @@
       </div>
     {:else if execution}
       <DrawerHeader {execution} {isConnected} />
+      
+      <!-- Compact Phase Progress Indicator -->
+      {#if phases.length > 0}
+        <div class="px-6 py-3 border-b border-gray-200 bg-gray-50/50">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-medium text-gray-600">Progress:</span>
+            <div class="flex-1 flex items-center gap-2">
+              {#each phases as phase, index}
+                <button
+                  type="button"
+                  class="flex-1 group relative cursor-pointer"
+                  onclick={async () => {
+                    activeTab = 'logs';
+                    // Wait for LogsTab to mount/bind
+                    await tick();
+                    // Give the child a moment if switching tabs
+                    setTimeout(() => {
+                      logsTabRef?.scrollToPhaseIndex?.(index);
+                    }, 0);
+                  }}
+                >
+                  <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      class="h-full transition-all duration-300 {
+                        phase.status === 'completed' ? 'bg-green-500' : 
+                        phase.status === 'running' ? 'bg-blue-500 animate-pulse' : 
+                        phase.status === 'failed' ? 'bg-red-500' : 
+                        'bg-gray-300'
+                      }"
+                      style="width: {
+                        phase.status === 'completed' ? '100%' : 
+                        phase.status === 'running' ? `${phase.progress || 50}%` : 
+                        '0%'
+                      }"
+                    />
+                  </div>
+                  <!-- Tooltip -->
+                  <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none transition-opacity whitespace-nowrap z-20">
+                    {phase.name}
+                  </div>
+                </button>
+              {/each}
+            </div>
+            <span class="text-xs text-gray-500">
+              {phases.filter(p => p.status === 'completed').length}/{phases.length} completed
+            </span>
+          </div>
+        </div>
+      {/if}
     {/if}
 
     <!-- Tabs -->
     <DrawerTabs bind:activeTab />
 
     <!-- Tab Content -->
-    <div class="flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 flex-col">
       {#if execution}
         {#if activeTab === 'logs'}
-          <LogsTab executionId={execution.executionId} {phases} {logs} {wsService} isLoading={loading} />
+          <LogsTab bind:this={logsTabRef} executionId={execution.executionId} {phases} {logs} {wsService} isLoading={loading} />
         {:else if activeTab === 'pipeline'}
-          <PipelineTab {execution} />
+          <PipelineTab {execution} onNewExecution={handleNewExecution} />
         {:else if activeTab === 'artifacts'}
           <ArtifactsTab executionId={execution.executionId} />
         {/if}
       {/if}
     </div>
+  </div>
   </div>
 </div>
 

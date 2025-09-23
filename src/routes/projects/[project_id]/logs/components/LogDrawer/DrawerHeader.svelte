@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ExecutionMetadata } from '$lib/types/log.types';
-  import { Calendar, GitBranch, User, Clock, Hammer, Rocket, Wifi, WifiOff } from 'lucide-svelte';
+  import { Calendar, GitBranch, User, Clock, Hammer, Rocket, Wifi, WifiOff, Copy } from 'lucide-svelte';
 
   interface Props {
     execution: ExecutionMetadata;
@@ -18,6 +18,18 @@
       minute: '2-digit',
       second: '2-digit'
     });
+  }
+
+  function formatRelative(dateStr: string): string {
+    const date = new Date(dateStr);
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
   }
 
   function calculateDuration(): string {
@@ -53,6 +65,14 @@
     RUNNING: 'bg-blue-100 text-blue-800',
     PENDING: 'bg-gray-100 text-gray-800'
   };
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      console.error('Copy failed', e);
+    }
+  }
 </script>
 
 <div class="border-b border-gray-200 px-6 py-4 pr-16">
@@ -99,10 +119,16 @@
         <!-- Time Info -->
         <div class="flex items-center gap-2 text-gray-600">
           <Calendar class="h-4 w-4 text-gray-400" />
-          <span>{formatDateTime(execution.startedAt)}</span>
+          <span title={formatDateTime(execution.startedAt)}>
+            {formatDateTime(execution.startedAt)}
+            <span class="ml-1 text-gray-400">({formatRelative(execution.startedAt)})</span>
+          </span>
           {#if execution.completedAt}
             <span class="text-gray-400">→</span>
-            <span>{formatDateTime(execution.completedAt)}</span>
+            <span title={formatDateTime(execution.completedAt)}>
+              {formatDateTime(execution.completedAt)}
+              <span class="ml-1 text-gray-400">({formatRelative(execution.completedAt)})</span>
+            </span>
           {/if}
         </div>
 
@@ -115,26 +141,74 @@
         <!-- Git Info -->
         <div class="flex items-center gap-2 text-gray-600">
           <GitBranch class="h-4 w-4 text-gray-400" />
-          <span>{execution.branch} • {execution.commitId}</span>
+          <span class="truncate">
+            {execution.branch || 'N/A'}
+            {#if execution.commitId}
+              <span class="mx-1 text-gray-400">•</span>
+              <span class="font-mono">{execution.commitId.slice(0, 7)}</span>
+              <button
+                class="inline-flex items-center rounded border border-gray-200 px-1.5 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50"
+                title="Copy full SHA"
+                onclick={() => copy(execution.commitId)}
+              >
+                <Copy class="h-3 w-3" />
+              </button>
+            {/if}
+          </span>
         </div>
 
         <!-- Author -->
-        <div class="flex items-center gap-2 text-gray-600">
-          <User class="h-4 w-4 text-gray-400" />
-          <span>{execution.author}</span>
-        </div>
+        {#if execution.author && execution.author !== 'Unknown'}
+          <div class="flex items-center gap-2 text-gray-600">
+            <User class="h-4 w-4 text-gray-400" />
+            <span>{execution.author}</span>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Commit / IDs / Trigger Row -->
+      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+        {#if execution.commitMessage}
+          <span class="inline-flex items-center gap-1 max-w-full">
+            Commit:
+            <span class="truncate text-gray-700" title={execution.commitMessage}>"{execution.commitMessage}"</span>
+            {#if execution.commitId}
+              <span class="mx-1 text-gray-400">•</span>
+              <span class="font-mono text-gray-700">{execution.commitId.slice(0,7)}</span>
+              <button
+                class="inline-flex items-center rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50"
+                title="Copy full SHA"
+                onclick={() => copy(execution.commitId)}
+              >
+                <Copy class="h-3 w-3" />
+              </button>
+            {/if}
+          </span>
+        {/if}
+
+        <span>Triggered by: <span class="font-medium">{execution.triggeredBy || 'manual'}</span></span>
+        {#if execution.pipelineName && !execution.pipelineName.includes('Unknown')}
+          <span>• Pipeline: <span class="font-medium">{execution.pipelineName}</span></span>
+        {/if}
+        <span class="inline-flex items-center gap-1">
+          • Exec ID:
+          <span class="font-mono text-gray-700">{execution.executionId}</span>
+          <button
+            class="ml-1 inline-flex items-center rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50"
+            title="Copy execution ID"
+            onclick={() => copy(execution.executionId)}
+          >
+            <Copy class="h-3 w-3" />
+          </button>
+        </span>
       </div>
 
       <!-- Commit Message -->
-      <div class="mt-3 rounded bg-gray-50 p-2 text-sm text-gray-700">
-        "{execution.commitMessage}"
-      </div>
-
-      <!-- Trigger Info -->
-      <div class="mt-2 text-xs text-gray-500">
-        Triggered by: <span class="font-medium">{execution.triggeredBy}</span> • Pipeline:
-        <span class="font-medium">{execution.pipelineName}</span>
-      </div>
+      {#if execution.commitMessage && execution.commitMessage.trim() !== ''}
+        <div class="mt-3 rounded bg-gray-50 p-2 text-sm text-gray-700">
+          {execution.commitMessage}
+        </div>
+      {/if}
     </div>
   </div>
 </div>

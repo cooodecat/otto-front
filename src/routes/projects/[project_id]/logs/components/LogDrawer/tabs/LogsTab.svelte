@@ -3,6 +3,7 @@
   import type { LogWebSocketService } from '$lib/services/log-websocket.service';
   import { Download, Loader2, ChevronDown, ChevronUp, Search, Filter, Copy, Terminal, Layers } from 'lucide-svelte';
   import LogGroup from '../LogGroup.svelte';
+  import VirtualScroll from '../VirtualScroll.svelte';
 
   interface Props {
     executionId: string;
@@ -17,7 +18,9 @@
   let autoScroll = $state(true);
   let showGrouped = $state(true);
   let allExpanded = $state(false);
-  let logContainer: HTMLDivElement;
+  let logContainer: HTMLDivElement; // terminal view container
+  let scrollArea: HTMLDivElement; // shared scrollable content area (grouped/terminal wrapper)
+  let scrollTargetIndex = $state<number | null>(null); // target group to expand/scroll
   let searchQuery = $state('');
   let selectedLevel = $state<'all' | 'error' | 'warning' | 'info'>('all');
   
@@ -158,11 +161,50 @@
     warning: 'text-yellow-400',
     error: 'text-red-400'
   };
+  
+  // Highlight search query in terminal view
+  function highlightSearchQuery(text: string): string {
+    if (!searchQuery || !searchQuery.trim()) return text;
+    
+    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return text.replace(regex, '<mark class="bg-yellow-300 text-black px-0.5 rounded">$1</mark>');
+  }
+
+  // Expose scroll method for parent (LogDrawer) to navigate to a phase by index
+  export function scrollToPhaseIndex(index: number) {
+    showGrouped = true; // ensure grouped view
+    // Clamp index to available groups
+    const maxIndex = Math.max(0, logsByPhase.length - 1);
+    const targetIndex = Math.min(Math.max(0, index), maxIndex);
+    scrollTargetIndex = targetIndex; // request expansion
+    // Wait for DOM update after toggling view
+    requestAnimationFrame(() => {
+      const target = document.getElementById(`phase-${targetIndex}`);
+      if (!target || !scrollArea) return;
+      // Use two rAF ticks to ensure layout after expansion
+      requestAnimationFrame(() => {
+        const areaRect = scrollArea.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const offset = targetRect.top - areaRect.top + scrollArea.scrollTop - 8; // small padding
+        scrollArea.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
+        // After a short delay (approximate scroll end), trigger highlight animation
+        setTimeout(() => {
+          target.classList.remove('highlight-phase');
+          // retrigger animation by forcing reflow
+          void target.offsetWidth;
+          target.classList.add('highlight-phase');
+          // clean up after animation ends
+          setTimeout(() => target.classList.remove('highlight-phase'), 2000);
+        }, 500);
+      });
+    });
+  }
 </script>
 
-<div class="flex h-full flex-col">
-  <!-- Enhanced Toolbar -->
-  <div class="border-b border-gray-200 bg-white">
+<div class="flex flex-1 min-h-0 flex-col bg-gray-50/50">
+  <!-- Fixed Toolbar -->
+  <div class="m-4 mb-3 rounded-xl bg-white shadow-sm border border-gray-200 shrink-0">
     <!-- Search and Filter Bar -->
     <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-2">
       <!-- Search Input -->
@@ -180,25 +222,25 @@
       <div class="flex items-center gap-2 rounded-lg border border-gray-300 p-1">
         <button
           onclick={() => selectedLevel = 'all'}
-          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'all' ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+          class="px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer {selectedLevel === 'all' ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
         >
           All
         </button>
         <button
           onclick={() => selectedLevel = 'error'}
-          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'error' ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-red-50'}"
+          class="px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer {selectedLevel === 'error' ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-red-50'}"
         >
           Errors ({logStats.errors})
         </button>
         <button
           onclick={() => selectedLevel = 'warning'}
-          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'warning' ? 'bg-yellow-600 text-white' : 'text-gray-600 hover:bg-yellow-50'}"
+          class="px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer {selectedLevel === 'warning' ? 'bg-yellow-600 text-white' : 'text-gray-600 hover:bg-yellow-50'}"
         >
           Warnings ({logStats.warnings})
         </button>
         <button
           onclick={() => selectedLevel = 'info'}
-          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'info' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-blue-50'}"
+          class="px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer {selectedLevel === 'info' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-blue-50'}"
         >
           Info
         </button>
@@ -219,14 +261,14 @@
         <div class="flex items-center gap-1 rounded-lg border border-gray-300 p-1">
           <button
             onclick={() => showGrouped = true}
-            class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors {showGrouped ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+            class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer {showGrouped ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
           >
             <Layers class="h-3.5 w-3.5" />
             Grouped
           </button>
           <button
             onclick={() => showGrouped = false}
-            class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors {!showGrouped ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+            class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer {!showGrouped ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
           >
             <Terminal class="h-3.5 w-3.5" />
             Terminal
@@ -236,7 +278,7 @@
         {#if showGrouped}
           <button
             onclick={toggleAllGroups}
-            class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 cursor-pointer"
           >
             {#if allExpanded}
               <ChevronUp class="h-3.5 w-3.5" />
@@ -253,7 +295,7 @@
             type="checkbox"
             bind:checked={autoScroll}
             disabled={showGrouped}
-            class="rounded border-gray-300 text-blue-500 focus:ring-blue-500 disabled:opacity-50"
+            class="rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           />
           Auto-scroll
         </label>
@@ -264,7 +306,7 @@
         <button
           onclick={copyLogs}
           disabled={filteredLogs.length === 0}
-          class="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Copy class="h-3.5 w-3.5" />
           Copy
@@ -272,7 +314,7 @@
         <button
           onclick={downloadLogs}
           disabled={filteredLogs.length === 0}
-          class="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Download class="h-3.5 w-3.5" />
           Download
@@ -281,20 +323,26 @@
     </div>
   </div>
 
-  <!-- Content -->
-  {#if isLoading}
-    <div class="flex flex-1 flex-col items-center justify-center bg-gray-50">
-      <Loader2 class="mb-4 h-8 w-8 animate-spin text-gray-400" />
-      <p class="text-gray-500">Loading logs...</p>
+  <!-- Scrollable Content Area -->
+  <div class="flex-1 min-h-0 overflow-y-auto" bind:this={scrollArea}>
+    {#if isLoading}
+    <div class="flex flex-col items-center justify-center p-8">
+      <div class="rounded-lg bg-white shadow-sm border border-gray-200 p-8">
+        <Loader2 class="mb-4 h-8 w-8 animate-spin text-gray-400 mx-auto" />
+        <p class="text-gray-500">Loading logs...</p>
+      </div>
     </div>
   {:else if logs.length === 0}
-    <div class="flex flex-1 flex-col items-center justify-center bg-gray-50 p-8">
-      <p class="mb-2 text-gray-500">No logs available yet</p>
-      <p class="text-sm text-gray-400">Logs will appear here as the execution progresses</p>
+    <div class="flex flex-col items-center justify-center p-8">
+      <div class="rounded-lg bg-white shadow-sm border border-gray-200 p-8">
+        <Terminal class="mb-4 h-12 w-12 text-gray-300 mx-auto" />
+        <p class="mb-2 text-gray-500">No logs available yet</p>
+        <p class="text-sm text-gray-400">Logs will appear here as the execution progresses</p>
+      </div>
     </div>
   {:else if showGrouped}
-    <!-- Grouped View -->
-    <div class="flex-1 overflow-y-auto bg-white">
+    <!-- Grouped View with Floating Cards -->
+    <div class="px-4 pb-4">
       {#each logsByPhase as [phase, phaseLogs], index}
         <LogGroup 
           {phase}
@@ -305,25 +353,60 @@
           initialExpanded={allExpanded || getPhaseStatus(phaseLogs) === 'running' || getPhaseStatus(phaseLogs) === 'failed'}
           phaseIndex={index}
           totalPhases={logsByPhase.length}
+          {searchQuery}
+          forceExpand={scrollTargetIndex === index}
         />
       {/each}
     </div>
   {:else}
-    <!-- Terminal View -->
-    <div
-      bind:this={logContainer}
-      class="flex-1 overflow-y-auto bg-gray-900 p-4 font-mono text-sm text-gray-100"
-    >
-      {#each filteredLogs as log (log.timestamp + log.message)}
-        <div class="group flex hover:bg-gray-800/50">
-          <span class="mr-3 select-none text-gray-500">
-            {new Date(log.timestamp).toLocaleTimeString()}
-          </span>
-          <span class="flex-1 whitespace-pre-wrap break-all {levelColors[log.level] || 'text-gray-300'}">
-            {log.message}
-          </span>
-        </div>
-      {/each}
+    <!-- Terminal View with Phase Headers -->
+    <div class="m-4 mt-2 rounded-lg bg-gray-900 shadow-lg border border-gray-800 font-mono text-sm text-gray-100">
+      <div
+        bind:this={logContainer}
+      >
+        {#each logsByPhase as [phase, phaseLogs]}
+          <div class="phase-section">
+            <!-- Phase Header (Sticky in scrollable container) -->
+            <div class="sticky top-0 z-10 bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between backdrop-blur-sm bg-gray-800/95">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  {phase.replace(/_/g, ' ')}
+                </span>
+                <span class="text-xs text-gray-500">
+                  ({phaseLogs.length} logs)
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                {#if phaseLogs.some(l => l.level === 'error')}
+                  <span class="text-xs text-red-400">
+                    {phaseLogs.filter(l => l.level === 'error').length} errors
+                  </span>
+                {/if}
+                {#if phaseLogs.some(l => l.level === 'warning')}
+                  <span class="text-xs text-yellow-400">
+                    {phaseLogs.filter(l => l.level === 'warning').length} warnings
+                  </span>
+                {/if}
+              </div>
+            </div>
+            
+            <!-- Phase Logs -->
+            <div class="px-4 py-2">
+              {#each phaseLogs as log (log.timestamp + log.message)}
+                <div class="group flex hover:bg-gray-800/50 py-0.5">
+                  <span class="mr-3 select-none text-gray-500">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                  <span class="flex-1 whitespace-pre-wrap break-all {levelColors[log.level] || 'text-gray-300'}">
+                    {@html highlightSearchQuery(log.message)}
+                  </span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </div>
     </div>
   {/if}
+  </div>
 </div>

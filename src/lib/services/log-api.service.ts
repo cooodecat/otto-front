@@ -12,6 +12,33 @@ import type {
 import type { ExecutionResponseDto } from '$lib/sdk/structures/ExecutionResponseDto';
 
 export class LogApiService {
+  // Helpers to extract commit info from varying backend schemas
+  private pickString(obj: any, keys: string[]): string | undefined {
+    if (!obj) return undefined;
+    for (const k of keys) {
+      if (k in obj && typeof obj[k] === 'string' && obj[k]) return String(obj[k]);
+    }
+    return undefined;
+  }
+
+  private extractFromMetadataLike(exec: any): { commitId?: string; commitMessage?: string } {
+    const meta = exec?.metadata ?? exec?.meta ?? {};
+    const commitId =
+      this.pickString(meta, ['commitId', 'commit_id', 'commitSha', 'commitSHA', 'sha', 'commit']) ||
+      this.pickString(exec, ['commitId', 'commit_id', 'commitSha', 'commitSHA', 'sha', 'commit']);
+    const commitMessage =
+      this.pickString(meta, ['commitMessage', 'commit_message', 'message']) ||
+      this.pickString(exec, ['commitMessage', 'commit_message', 'message']);
+    return { commitId, commitMessage };
+  }
+
+  // Standalone helpers for use below
+  extractCommitId(exec: any): string | undefined {
+    return this.extractFromMetadataLike(exec).commitId;
+  }
+  extractCommitMessage(exec: any): string | undefined {
+    return this.extractFromMetadataLike(exec).commitMessage;
+  }
   async getExecutions(params: {
     projectId: string;
     page?: number;
@@ -22,7 +49,7 @@ export class LogApiService {
     // SDK를 사용하여 executions 가져오기
     // makeFetch가 자동으로 credentials: 'include'를 설정하므로 쿠키가 전송됨
     const executions = await api.functional.logs.executions.getExecutions(
-      makeFetch({ fetch: window.fetch }),
+      makeFetch(),
       params.status as 'pending' | 'running' | 'success' | 'failed' | undefined,
       params.type?.toLowerCase() as 'build' | 'deploy' | undefined,
       undefined, // pipelineId
@@ -45,35 +72,38 @@ export class LogApiService {
               (new Date(exec.completedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000
             )
           : 0,
-      branch: exec.metadata?.branch || 'main',
-      commitId: exec.metadata?.commitId || '',
-      commitMessage:
-        (exec.metadata && 'commitMessage' in exec.metadata
-          ? String(exec.metadata.commitMessage)
-          : '') || '',
+      branch: (exec.metadata?.branch as string) || 'main',
+      commitId: this.extractCommitId(exec) || '',
+      commitMessage: this.extractCommitMessage(exec) || '',
       author:
         (exec.metadata && 'author' in exec.metadata ? String(exec.metadata.author) : '') ||
-        'Unknown',
+        '',
       pipelineId: exec.pipelineId,
       pipelineName:
         (exec.metadata && 'pipelineName' in exec.metadata
           ? String(exec.metadata.pipelineName)
-          : '') || 'CI/CD Pipeline',
+          : '') || '',
       triggeredBy: (exec.metadata?.triggeredBy || 'manual') as TriggerType,
       logStats: {
         totalLines: exec.logCount || 0,
         errorCount: 0,
         warningCount: 0
-      }
+      },
+      metadata: exec.metadata
     }));
   }
 
   async getExecutionById(executionId: string): Promise<ExecutionMetadata> {
-    const connection = makeFetch({ fetch: window.fetch });
+    const connection = makeFetch();
+    console.log('API Call - Getting execution by ID:', executionId);
+    console.log('API Connection:', connection);
+    
     const execution = await api.functional.logs.executions.getExecutionById(
       connection,
       executionId
     );
+    
+    console.log('API Response - Raw execution data:', execution);
 
     return {
       executionId: execution.executionId,
@@ -90,27 +120,25 @@ export class LogApiService {
                 1000
             )
           : 0,
-      branch: execution.metadata?.branch || 'main',
-      commitId: execution.metadata?.commitId || '',
-      commitMessage:
-        (execution.metadata && 'commitMessage' in execution.metadata
-          ? String(execution.metadata.commitMessage)
-          : '') || '',
+      branch: (execution.metadata?.branch as string) || 'main',
+      commitId: this.extractCommitId(execution) || '',
+      commitMessage: this.extractCommitMessage(execution) || '',
       author:
         (execution.metadata && 'author' in execution.metadata
           ? String(execution.metadata.author)
-          : '') || 'Unknown',
+          : '') || '',
       pipelineId: execution.pipelineId,
       pipelineName:
         (execution.metadata && 'pipelineName' in execution.metadata
           ? String(execution.metadata.pipelineName)
-          : '') || 'CI/CD Pipeline',
+          : '') || '',
       triggeredBy: (execution.metadata?.triggeredBy || 'manual') as TriggerType,
       logStats: {
         totalLines: execution.logCount || 0,
         errorCount: 0,
         warningCount: 0
-      }
+      },
+      metadata: execution.metadata
     };
   }
 
@@ -123,7 +151,7 @@ export class LogApiService {
       phase?: string;
     }
   ): Promise<LogEntry[]> {
-    const connection = makeFetch({ fetch: window.fetch });
+    const connection = makeFetch();
     const response = await api.functional.logs.executions.logs.getExecutionLogs(
       connection,
       executionId,
@@ -158,7 +186,7 @@ export class LogApiService {
   }
 
   async getArchivedLogUrl(executionId: string): Promise<string> {
-    const connection = makeFetch({ fetch: window.fetch });
+    const connection = makeFetch();
     const response = await api.functional.logs.executions.archive_url.getArchiveUrl(
       connection,
       executionId

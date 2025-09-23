@@ -175,6 +175,7 @@
   const allExecutions = $derived(executionGroups.flatMap((g) => g.items));
 
   $effect(() => {
+    if (typeof window === 'undefined') return;
     function handleKeydown(e: KeyboardEvent) {
       if (e.key === 'ArrowUp') {
         e.preventDefault();
