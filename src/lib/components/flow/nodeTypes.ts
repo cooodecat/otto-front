@@ -16,6 +16,7 @@ import NotificationEmailNode from './nodes/cicd/NotificationEmailNode.svelte';
 import ConditionBranchNode from './nodes/cicd/ConditionBranchNode.svelte';
 import ParallelExecutionNode from './nodes/cicd/ParallelExecutionNode.svelte';
 import CustomCommandNode from './nodes/cicd/CustomCommandNode.svelte';
+import DeployNode from './nodes/cicd/DeployNode.svelte';
 import {
   CICDBlockType,
   CICDBlockGroup,
@@ -43,7 +44,8 @@ export const nodeTypes = {
   [CICDBlockType.NOTIFICATION_EMAIL]: NotificationEmailNode,
   [CICDBlockType.CONDITION_BRANCH]: ConditionBranchNode,
   [CICDBlockType.PARALLEL_EXECUTION]: ParallelExecutionNode,
-  [CICDBlockType.CUSTOM_COMMAND]: CustomCommandNode
+  [CICDBlockType.CUSTOM_COMMAND]: CustomCommandNode,
+  [CICDBlockType.DEPLOY]: DeployNode
 };
 
 // 노드 생성 헬퍼 함수
@@ -204,6 +206,16 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
         data: {
           ...baseNode.data,
           groupType: CICDBlockGroup.UTILITY,
+          commands: [],
+          workingDirectory: ''
+        }
+      };
+    case CICDBlockType.DEPLOY:
+      return {
+        ...baseNode,
+        data: {
+          ...baseNode.data,
+          groupType: CICDBlockGroup.DEPLOY,
           commands: [],
           workingDirectory: ''
         }

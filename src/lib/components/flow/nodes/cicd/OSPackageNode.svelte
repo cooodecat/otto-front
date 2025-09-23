@@ -70,7 +70,8 @@
   icon={Package}
   minWidth={280}
   deletable={true}
-  showOutput={true}
+  showInput={true}
+  useCICDOutputs={true}
 >
   <div class="space-y-3">
     <!-- 기본 정보 -->
