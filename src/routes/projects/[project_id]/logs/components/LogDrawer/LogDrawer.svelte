@@ -172,9 +172,20 @@
     ];
   }
 
-  function handlePhaseClick(_phaseId: string) {
+  function handlePhaseClick(phaseId: string) {
     activeTab = 'logs';
-    // TODO: Scroll to phase logs
+    // Scroll to phase in logs
+    setTimeout(() => {
+      const phaseElement = document.getElementById(`phase-${phaseId}`);
+      if (phaseElement) {
+        phaseElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Add a highlight effect
+        phaseElement.classList.add('highlight-phase');
+        setTimeout(() => {
+          phaseElement.classList.remove('highlight-phase');
+        }, 2000);
+      }
+    }, 100);
   }
 
   // Keyboard shortcut for tabs
@@ -250,3 +261,26 @@
     </div>
   </div>
 </div>
+
+<style>
+  :global(.highlight-phase) {
+    animation: highlight 2s ease-in-out;
+  }
+  
+  @keyframes highlight {
+    0% {
+      background-color: transparent;
+    }
+    25% {
+      background-color: rgb(59 130 246 / 0.1);
+      box-shadow: 0 0 20px rgb(59 130 246 / 0.3);
+    }
+    75% {
+      background-color: rgb(59 130 246 / 0.1);
+      box-shadow: 0 0 20px rgb(59 130 246 / 0.3);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+</style>

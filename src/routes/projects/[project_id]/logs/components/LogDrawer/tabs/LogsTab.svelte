@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PhaseInfo, LogEntry } from '$lib/types/log.types';
   import type { LogWebSocketService } from '$lib/services/log-websocket.service';
-  import { Download, Loader2, ChevronDown, ChevronUp } from 'lucide-svelte';
+  import { Download, Loader2, ChevronDown, ChevronUp, Search, Filter, Copy, Terminal, Layers } from 'lucide-svelte';
   import LogGroup from '../LogGroup.svelte';
 
   interface Props {
@@ -18,12 +18,36 @@
   let showGrouped = $state(true);
   let allExpanded = $state(false);
   let logContainer: HTMLDivElement;
+  let searchQuery = $state('');
+  let selectedLevel = $state<'all' | 'error' | 'warning' | 'info'>('all');
   
   // Debug log count
   $effect(() => {
     console.log('LogsTab - logs length:', logs?.length || 0);
   });
 
+  // Filter logs based on search and level
+  const filteredLogs = $derived.by(() => {
+    let filtered = logs;
+    
+    // Filter by level
+    if (selectedLevel !== 'all') {
+      filtered = filtered.filter(log => log.level === selectedLevel);
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(log => 
+        log.message.toLowerCase().includes(query) ||
+        log.phase?.toLowerCase().includes(query) ||
+        log.step?.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  });
+  
   // Group logs by phase
   const logsByPhase = $derived.by(() => {
     const groups = new Map<string, LogEntry[]>();
@@ -43,8 +67,8 @@
       groups.set(phase, []);
     });
     
-    // Group logs
-    logs.forEach(log => {
+    // Group filtered logs
+    filteredLogs.forEach(log => {
       const phase = log.phase || 'OTHER';
       if (!groups.has(phase)) {
         groups.set(phase, []);
@@ -80,7 +104,7 @@
   }
 
   function downloadLogs() {
-    const logText = logs
+    const logText = filteredLogs
       .map(
         (log) =>
           `[${new Date(log.timestamp).toLocaleTimeString()}] [${log.level.toUpperCase()}] ${log.phase ? `[${log.phase}]` : ''} ${log.message}`
@@ -95,10 +119,33 @@
     a.click();
     URL.revokeObjectURL(url);
   }
+  
+  async function copyLogs() {
+    const logText = filteredLogs
+      .map(
+        (log) =>
+          `[${new Date(log.timestamp).toLocaleTimeString()}] [${log.level.toUpperCase()}] ${log.phase ? `[${log.phase}]` : ''} ${log.message}`
+      )
+      .join('\n');
+    
+    await navigator.clipboard.writeText(logText);
+    // TODO: Add toast notification
+  }
 
   function toggleAllGroups() {
     allExpanded = !allExpanded;
   }
+  
+  // Stats for display
+  const logStats = $derived.by(() => {
+    const stats = {
+      total: logs.length,
+      filtered: filteredLogs.length,
+      errors: logs.filter(l => l.level === 'error').length,
+      warnings: logs.filter(l => l.level === 'warning').length
+    };
+    return stats;
+  });
 
   $effect(() => {
     if (autoScroll && logContainer && !showGrouped) {
@@ -114,52 +161,124 @@
 </script>
 
 <div class="flex h-full flex-col">
-  <!-- Toolbar -->
-  <div class="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-    <div class="flex items-center gap-4">
-      <label class="flex items-center gap-2 text-sm text-gray-600">
+  <!-- Enhanced Toolbar -->
+  <div class="border-b border-gray-200 bg-white">
+    <!-- Search and Filter Bar -->
+    <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-2">
+      <!-- Search Input -->
+      <div class="relative flex-1 max-w-md">
+        <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
-          type="checkbox"
-          bind:checked={showGrouped}
-          class="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+          type="text"
+          bind:value={searchQuery}
+          placeholder="Search logs..."
+          class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
-        Group by phase
-      </label>
+      </div>
       
-      {#if showGrouped}
+      <!-- Level Filter -->
+      <div class="flex items-center gap-2 rounded-lg border border-gray-300 p-1">
         <button
-          onclick={toggleAllGroups}
-          class="flex items-center gap-1 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+          onclick={() => selectedLevel = 'all'}
+          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'all' ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
         >
-          {#if allExpanded}
-            <ChevronUp class="h-4 w-4" />
-            Collapse all
-          {:else}
-            <ChevronDown class="h-4 w-4" />
-            Expand all
-          {/if}
+          All
         </button>
-      {/if}
+        <button
+          onclick={() => selectedLevel = 'error'}
+          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'error' ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-red-50'}"
+        >
+          Errors ({logStats.errors})
+        </button>
+        <button
+          onclick={() => selectedLevel = 'warning'}
+          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'warning' ? 'bg-yellow-600 text-white' : 'text-gray-600 hover:bg-yellow-50'}"
+        >
+          Warnings ({logStats.warnings})
+        </button>
+        <button
+          onclick={() => selectedLevel = 'info'}
+          class="px-3 py-1 rounded text-xs font-medium transition-colors {selectedLevel === 'info' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-blue-50'}"
+        >
+          Info
+        </button>
+      </div>
       
-      <label class="flex items-center gap-2 text-sm text-gray-600">
-        <input
-          type="checkbox"
-          bind:checked={autoScroll}
-          disabled={showGrouped}
-          class="rounded border-gray-300 text-blue-500 focus:ring-blue-500 disabled:opacity-50"
-        />
-        Auto-scroll
-      </label>
+      <!-- Stats -->
+      {#if searchQuery || selectedLevel !== 'all'}
+        <div class="text-xs text-gray-500">
+          Showing {logStats.filtered} of {logStats.total} logs
+        </div>
+      {/if}
     </div>
+    
+    <!-- View Options Bar -->
+    <div class="flex items-center justify-between px-4 py-2">
+      <div class="flex items-center gap-3">
+        <!-- View Toggle -->
+        <div class="flex items-center gap-1 rounded-lg border border-gray-300 p-1">
+          <button
+            onclick={() => showGrouped = true}
+            class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors {showGrouped ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+          >
+            <Layers class="h-3.5 w-3.5" />
+            Grouped
+          </button>
+          <button
+            onclick={() => showGrouped = false}
+            class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors {!showGrouped ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+          >
+            <Terminal class="h-3.5 w-3.5" />
+            Terminal
+          </button>
+        </div>
+        
+        {#if showGrouped}
+          <button
+            onclick={toggleAllGroups}
+            class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+          >
+            {#if allExpanded}
+              <ChevronUp class="h-3.5 w-3.5" />
+              Collapse all
+            {:else}
+              <ChevronDown class="h-3.5 w-3.5" />
+              Expand all
+            {/if}
+          </button>
+        {/if}
+        
+        <label class="flex items-center gap-1.5 text-xs text-gray-600">
+          <input
+            type="checkbox"
+            bind:checked={autoScroll}
+            disabled={showGrouped}
+            class="rounded border-gray-300 text-blue-500 focus:ring-blue-500 disabled:opacity-50"
+          />
+          Auto-scroll
+        </label>
+      </div>
 
-    <button
-      onclick={downloadLogs}
-      disabled={logs.length === 0}
-      class="flex items-center gap-2 rounded px-3 py-1 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-    >
-      <Download class="h-4 w-4" />
-      Download
-    </button>
+      <!-- Actions -->
+      <div class="flex items-center gap-2">
+        <button
+          onclick={copyLogs}
+          disabled={filteredLogs.length === 0}
+          class="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Copy class="h-3.5 w-3.5" />
+          Copy
+        </button>
+        <button
+          onclick={downloadLogs}
+          disabled={filteredLogs.length === 0}
+          class="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Download class="h-3.5 w-3.5" />
+          Download
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Content -->
@@ -176,7 +295,7 @@
   {:else if showGrouped}
     <!-- Grouped View -->
     <div class="flex-1 overflow-y-auto bg-white">
-      {#each logsByPhase as [phase, phaseLogs]}
+      {#each logsByPhase as [phase, phaseLogs], index}
         <LogGroup 
           {phase}
           logs={phaseLogs}
@@ -184,6 +303,8 @@
           startTime={phaseLogs[0]?.timestamp}
           endTime={phaseLogs[phaseLogs.length - 1]?.timestamp}
           initialExpanded={allExpanded || getPhaseStatus(phaseLogs) === 'running' || getPhaseStatus(phaseLogs) === 'failed'}
+          phaseIndex={index}
+          totalPhases={logsByPhase.length}
         />
       {/each}
     </div>
@@ -193,7 +314,7 @@
       bind:this={logContainer}
       class="flex-1 overflow-y-auto bg-gray-900 p-4 font-mono text-sm text-gray-100"
     >
-      {#each logs as log (log.timestamp + log.message)}
+      {#each filteredLogs as log (log.timestamp + log.message)}
         <div class="group flex hover:bg-gray-800/50">
           <span class="mr-3 select-none text-gray-500">
             {new Date(log.timestamp).toLocaleTimeString()}
