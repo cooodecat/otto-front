@@ -511,7 +511,7 @@
     </div>
 
     <!-- Content Card -->
-    <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
       <!-- Step Content -->
       <div class="p-8">
         <!-- Step 1: Repository Selection -->
@@ -638,7 +638,7 @@
 
                   {#if showInstallationDropdown}
                     <div
-                      class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
+                      class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
                     >
                       {#each installations as installation (installation.id)}
                         <button
@@ -707,7 +707,7 @@
 
                     {#if showRepositoryDropdown && !loadingRepositories}
                       <div
-                        class="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+                        class="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
                       >
                         {#if repositories.length === 0}
                           <div class="px-4 py-6 text-center text-gray-500">

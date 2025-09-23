@@ -163,6 +163,16 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
           packageManager: 'npm'
         }
       };
+    case CICDBlockType.ENVIRONMENT_SETUP:
+      return {
+        ...baseNode,
+        data: {
+          ...baseNode.data,
+          groupType: CICDBlockGroup.PREBUILD,
+          environmentVariables: {},
+          loadFromFile: ''
+        }
+      };
     case CICDBlockType.BUILD_VITE:
       return {
         ...baseNode,
@@ -217,7 +227,8 @@ export function createNodeInstance(type: string, position: { x: number; y: numbe
           ...baseNode.data,
           groupType: CICDBlockGroup.DEPLOY,
           commands: [],
-          workingDirectory: ''
+          workingDirectory: '',
+          deployOption: { port: 3000, command: 'npm start' }
         }
       };
     default:

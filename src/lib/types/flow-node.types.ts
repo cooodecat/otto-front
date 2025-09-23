@@ -278,6 +278,7 @@ export interface DeployNodeData extends BaseCICDNodeData {
   groupType: CICDBlockGroup.DEPLOY;
   commands: string[];
   workingDirectory: string;
+  deployOption: { port: number; command: string };
 }
 
 // ============================================================================
