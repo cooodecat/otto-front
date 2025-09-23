@@ -44,7 +44,8 @@
 	icon={Package}
 	minWidth={320}
 	deletable={true}
-	showOutput={true}
+	showInput={true}
+	useCICDOutputs={true}
 >
 	<div class="space-y-3">
 		<div class="rounded border {groupColor.borderClass} {groupColor.bgClass} p-3">
