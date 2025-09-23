@@ -178,7 +178,7 @@
 								<div class="flex items-center justify-between text-gray-600">
 									<div class="flex min-w-0 flex-1 items-center">
 										<span class="font-mono text-xs"
-											>{key} = {hiddenValues.has(key) ? '••••••••' : value}</span
+											>{key} = {hiddenValues.has(key) ? '••••••••' : value.value}</span
 										>
 									</div>
 									<button
@@ -281,7 +281,7 @@
 						<div class="max-h-32 space-y-1 overflow-y-auto">
 							{#each Object.entries(environmentVariables) as [key, value]}
 								<div class="flex items-center justify-between rounded bg-white px-2 py-1 text-sm">
-									<span class="font-mono">{key}={value}</span>
+									<span class="font-mono">{key}={value.value}</span>
 									<button
 										onclick={() => removeEnvVar(key)}
 										class="text-red-500 hover:text-red-600 focus:outline-none"
