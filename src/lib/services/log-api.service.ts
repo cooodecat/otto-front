@@ -32,9 +32,9 @@ export class LogApiService {
     );
 
     // ExecutionResponseDto[] to ExecutionMetadata[] 변환
-    return executions.map((exec: ExecutionResponseDto) => ({
+    return executions.map((exec: ExecutionResponseDto, index: number) => ({
       executionId: exec.executionId,
-      buildNumber: parseInt(exec.awsBuildId?.split(':').pop() || '0'),
+      buildNumber: parseInt(exec.metadata?.buildNumber as string) || (executions.length - index),
       executionType: exec.executionType.toUpperCase() as ExecutionType,
       status: exec.status.toUpperCase() as ExecutionStatus,
       startedAt: exec.startedAt,
@@ -77,7 +77,7 @@ export class LogApiService {
 
     return {
       executionId: execution.executionId,
-      buildNumber: parseInt(execution.awsBuildId?.split(':').pop() || '0'),
+      buildNumber: parseInt(execution.metadata?.buildNumber as string) || Math.floor(Math.random() * 1000) + 1,
       executionType: execution.executionType.toUpperCase() as ExecutionType,
       status: execution.status.toUpperCase() as ExecutionStatus,
       startedAt: execution.startedAt,

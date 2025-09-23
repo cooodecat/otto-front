@@ -15,7 +15,7 @@
   let autoScroll = $state(true);
   let logContainer: HTMLDivElement;
 
-  // Use provided logs or fallback to mock data
+  // Mock data for fallback only
   const mockLogs: LogEntry[] = [
     {
       timestamp: new Date().toISOString(),

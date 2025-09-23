@@ -148,9 +148,25 @@
       groups.get(groupKey)!.push(execution);
     });
 
-    return Array.from(groups.entries()).map(([date, items]) => ({
+    // Sort groups with "Today" first, then "Yesterday", then by date (newest first)
+    const sortedGroups = Array.from(groups.entries()).sort(([dateA], [dateB]) => {
+      if (dateA === 'Today') return -1;
+      if (dateB === 'Today') return 1;
+      if (dateA === 'Yesterday') return -1;
+      if (dateB === 'Yesterday') return 1;
+      
+      // For other dates, parse and compare
+      const parsedA = new Date(dateA);
+      const parsedB = new Date(dateB);
+      return parsedB.getTime() - parsedA.getTime(); // Newer dates first
+    });
+    
+    return sortedGroups.map(([date, items]) => ({
       date,
-      items
+      items: items.sort((a, b) => {
+        // Sort items within each group by startedAt (newest first)
+        return new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime();
+      })
     }));
   });
 

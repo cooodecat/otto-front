@@ -34,13 +34,40 @@
     loading = true;
     try {
       execution = await logApiService.getExecutionById(executionId);
-      // TODO: Load phases from API when available
-      phases = getMockPhases();
+      
+      // Load actual logs from DB
+      const executionLogs = await logApiService.getExecutionLogs(executionId, {
+        limit: 1000 // Get more logs
+      });
+      logs = executionLogs;
+      
+      // Extract phases from logs if available
+      const phaseSet = new Set<string>();
+      executionLogs.forEach(log => {
+        if (log.phase) {
+          phaseSet.add(log.phase);
+        }
+      });
+      
+      // Create phase info from logs
+      if (phaseSet.size > 0) {
+        phases = Array.from(phaseSet).map((phaseName, index) => ({
+          id: String(index + 1),
+          name: phaseName as any,
+          status: 'completed' as const,
+          startTime: new Date().toISOString(),
+          endTime: new Date().toISOString(),
+          duration: 0
+        }));
+      } else {
+        phases = getMockPhases();
+      }
     } catch (error) {
       console.error('Failed to load execution:', error);
       // Fallback to mock data
       execution = getMockExecution();
       phases = getMockPhases();
+      logs = [];
     } finally {
       loading = false;
     }
