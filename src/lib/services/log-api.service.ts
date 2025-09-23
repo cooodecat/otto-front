@@ -14,9 +14,10 @@ import type { ExecutionResponseDto } from '$lib/sdk/structures/ExecutionResponse
 export class LogApiService {
   // Helpers to extract commit info from varying backend schemas
   private pickString(obj: unknown, keys: string[]): string | undefined {
-    if (!obj) return undefined;
+    if (!obj || typeof obj !== 'object') return undefined;
+    const record = obj as Record<string, unknown>;
     for (const k of keys) {
-      if (k in obj && typeof obj[k] === 'string' && obj[k]) return String(obj[k]);
+      if (k in record && typeof record[k] === 'string' && record[k]) return String(record[k]);
     }
     return undefined;
   }

@@ -31,6 +31,7 @@
     console.log('🟡 saveNodeData called for:', id);
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         environmentVariables,
         loadFromFile
       });

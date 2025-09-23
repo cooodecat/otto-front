@@ -28,6 +28,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         packageManager,
         scriptName,
         customCommands,

@@ -25,6 +25,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         commands,
         workingDirectory
       });

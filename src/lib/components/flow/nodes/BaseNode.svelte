@@ -27,7 +27,7 @@
       successColor?: string;
       failedColor?: string;
     };
-    children?: () => import('svelte').Snippet;
+    children?: import('svelte').Snippet;
   }
 
   const {

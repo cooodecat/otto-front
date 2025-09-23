@@ -27,6 +27,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         installPackages: packages,
         packageManager,
         updatePackageList: updateList

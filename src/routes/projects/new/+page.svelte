@@ -309,7 +309,8 @@
       console.error('Error loading repositories:', err);
 
       // 401 에러인 경우 GitHub App이 설치되지 않은 것
-      if (err?.status === 401 || err?.message?.includes('401')) {
+      const errorObj = err as { status?: number; message?: string };
+      if (errorObj?.status === 401 || errorObj?.message?.includes('401')) {
         hasGithubApp = false;
         error = 'GitHub App 설치가 필요합니다.';
       } else {

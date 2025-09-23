@@ -600,13 +600,13 @@
 
   // 엣지 변경 핸들러 (현재 미사용 - SvelteFlow에서 직접 지원하지 않음)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function _onEdgesChange(changes: unknown[]) {
+  function _onEdgesChange(changes: Array<{ type: string; id?: string }>) {
     console.log('🔗 Edges changed:', changes);
 
     let hasChanges = false;
 
     changes.forEach((change) => {
-      if (change.type === 'remove') {
+      if (change.type === 'remove' && change.id) {
         // 삭제될 엣지 정보 가져오기
         const edgeToRemove = edges.find((edge) => edge.id === change.id);
         if (edgeToRemove) {

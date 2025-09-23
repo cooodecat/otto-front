@@ -31,6 +31,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         recipients,
         subject,
         messageTemplate,

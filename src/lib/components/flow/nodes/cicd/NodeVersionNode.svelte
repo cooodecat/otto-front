@@ -24,6 +24,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         version,
         packageManager: pkgManager
       });
