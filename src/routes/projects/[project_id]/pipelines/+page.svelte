@@ -16,6 +16,7 @@
     Trash2
   } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
+  import BuildStatus from '$lib/components/BuildStatus.svelte';
 
   const projectId = $page.params.project_id;
 
@@ -155,12 +156,12 @@
 
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         <div class="relative">
-          <Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="파이프라인 검색..."
             bind:value={searchTerm}
-            class="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none sm:w-64"
+            class="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 sm:w-64"
           />
         </div>
 
@@ -229,7 +230,7 @@
           <button
             type="button"
             onclick={handleCreatePipeline}
-            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
+            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
           >
             <div class="text-center">
               <div
@@ -250,11 +251,21 @@
               class="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >
               <div class="mb-4 flex items-start justify-between">
-                <h3 class="text-lg font-semibold text-gray-900">
-                  {pipeline.pipelineName}
-                </h3>
+                <div class="flex-1">
+                  <h3 class="text-lg font-semibold text-gray-900">
+                    {pipeline.pipelineName}
+                  </h3>
+                  {#if pipeline.ecrImageUri || pipeline.imageTag}
+                    <div class="mt-2">
+                      <BuildStatus status="SUCCEEDED" compact={true} />
+                    </div>
+                  {:else}
+                    <div class="mt-2">
+                      <BuildStatus status="NOT_STARTED" compact={true} />
+                    </div>
+                  {/if}
+                </div>
                 <div class="flex items-center gap-2">
-                  <Activity class="h-5 w-5 text-green-500" />
                   <button
                     type="button"
                     onclick={(e) =>
@@ -274,6 +285,11 @@
               {/if}
 
               <div class="space-y-2 text-sm">
+                {#if pipeline.imageTag}
+                  <div class="flex items-center gap-2 text-gray-600">
+                    <span class="text-xs">이미지: {pipeline.imageTag.substring(0, 20)}...</span>
+                  </div>
+                {/if}
                 {#if pipeline.data && pipeline.data.trigger}
                   <div class="flex items-center gap-2 text-gray-600">
                     <Play class="h-4 w-4" />
@@ -312,7 +328,7 @@
                   <button
                     type="button"
                     onclick={() => handlePipelineClick(pipeline.pipelineId)}
-                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
+                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                   >
                     상세 보기 →
                   </button>
@@ -331,7 +347,7 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center">
     <!-- Backdrop with glass effect -->
     <div
-      class="bg-opacity-20 absolute inset-0 backdrop-blur-sm transition-opacity"
+      class="absolute inset-0 bg-opacity-20 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
     ></div>
 

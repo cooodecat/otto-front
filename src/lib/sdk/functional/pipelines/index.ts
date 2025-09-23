@@ -13,6 +13,8 @@ import type { PipelineResponseDto } from "../../structures/PipelineResponseDto";
 import type { UpdatePipelineRequestDto } from "../../structures/UpdatePipelineRequestDto";
 
 export * as projects from "./projects/index";
+export * as execute from "./execute/index";
+export * as builds from "./builds/index";
 
 /**
  * @tag pipeline
