@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft } from 'lucide-svelte';
+  import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft, FileText } from 'lucide-svelte';
   import { SvelteFlowProvider } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
@@ -784,6 +784,15 @@
           <!-- 액션 버튼들 -->
           <div class="flex gap-3">
             <button
+              onclick={() => goto(`/projects/${projectId}/logs`)}
+              class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 cursor-pointer"
+              title="실행 로그 보기"
+            >
+              <FileText class="h-4 w-4" />
+              <span>로그 보기</span>
+            </button>
+            
+            <button
               onclick={resetPipeline}
               class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
               title="파이프라인 초기화"
@@ -830,12 +839,18 @@
           </div>
 
           {#if buildStatus}
-            <BuildStatus
-              status={buildStatus.buildStatus}
-              currentPhase={buildStatus.currentPhase}
-              startTime={buildStatus.startTime?.toString()}
-              endTime={buildStatus.endTime?.toString()}
-            />
+            <button
+              onclick={() => goto(`/projects/${projectId}/logs`)}
+              class="w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+              title="클릭하여 로그 보기"
+            >
+              <BuildStatus
+                status={buildStatus.buildStatus}
+                currentPhase={buildStatus.currentPhase}
+                startTime={buildStatus.startTime?.toString()}
+                endTime={buildStatus.endTime?.toString()}
+              />
+            </button>
           {/if}
 
           {#if buildInfo}

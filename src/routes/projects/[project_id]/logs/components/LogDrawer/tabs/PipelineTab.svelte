@@ -161,9 +161,13 @@
       );
       
       // Notify parent component about new execution
-      // buildId is the new execution ID from CodeBuild
-      if (onNewExecution && response.buildId) {
-        onNewExecution(response.buildId);
+      console.log('Re-run response:', response);
+      
+      // Use executionId if available, otherwise use buildId
+      const newExecutionId = response.executionId || response.buildId;
+      if (onNewExecution && newExecutionId) {
+        console.log('Notifying parent about new execution:', newExecutionId);
+        onNewExecution(newExecutionId);
       }
     } catch (error) {
       console.error('Failed to re-run pipeline:', error);
@@ -183,9 +187,20 @@
   <div class="space-y-6">
     <!-- Pipeline Info -->
     <div>
-      <h3 class="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-900">
-        <span>📋</span>
-        {execution.pipelineName}
+      <h3 class="mb-3 flex items-center justify-between text-lg font-semibold text-gray-900">
+        <span class="flex items-center gap-2">
+          <span>📋</span>
+          {execution.pipelineName}
+        </span>
+        <span class="text-sm font-normal px-2 py-1 rounded-full {
+          execution.status === 'RUNNING' ? 'bg-blue-100 text-blue-700' :
+          execution.status === 'PENDING' ? 'bg-gray-100 text-gray-700' :
+          execution.status === 'SUCCESS' ? 'bg-green-100 text-green-700' :
+          execution.status === 'FAILED' ? 'bg-red-100 text-red-700' :
+          'bg-gray-100 text-gray-700'
+        }">
+          {execution.status}
+        </span>
       </h3>
 
       <div class="rounded-lg bg-gray-50 p-4">
@@ -262,8 +277,9 @@
       </button>
       <button
         onclick={handleRerun}
-        disabled={isRerunning || execution.status === 'RUNNING'}
+        disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
         class="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        title={execution.status === 'RUNNING' || execution.status === 'PENDING' ? 'Pipeline is currently running' : 'Re-run this pipeline'}
       >
         {#if isRerunning}
           <Loader2 class="h-4 w-4 animate-spin" />

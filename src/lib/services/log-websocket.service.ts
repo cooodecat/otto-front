@@ -61,8 +61,8 @@ export class LogWebSocketService {
     this.socket.on('logs:buffered', (data: LogEntry[]) => {
       console.log('Received buffered logs:', data.length);
       this.logs.update((logs) => {
-        // Merge and deduplicate
-        const allLogs = [...data, ...logs];
+        // Merge existing logs with new buffered logs
+        const allLogs = [...logs, ...data];
         const uniqueLogs = Array.from(
           new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
         );
@@ -75,8 +75,8 @@ export class LogWebSocketService {
     this.socket.on('logs:historical', (data: LogEntry[]) => {
       console.log('Received historical logs:', data.length);
       this.logs.update((logs) => {
-        // Merge and deduplicate
-        const allLogs = [...data, ...logs];
+        // Historical logs should come before existing logs (older)
+        const allLogs = [...logs, ...data];
         const uniqueLogs = Array.from(
           new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
         );
@@ -87,16 +87,38 @@ export class LogWebSocketService {
     });
 
     this.socket.on('logs:new', (data: LogEntry) => {
-      console.log('Received new log:', data.message);
+      console.log('Received new log:', data.message || '[no message]', 'Phase:', data.phase);
+      
+      // Validate log entry has required fields
+      if (!data || !data.timestamp) {
+        console.warn('Invalid log entry received:', data);
+        return;
+      }
+      
       this.logs.update((logs) => {
+        // Ensure message is at least an empty string
+        const validatedData = { ...data, message: data.message || '' };
+        
         // Check if already exists
         const exists = logs.some(
-          (l) => l.timestamp === data.timestamp && l.message === data.message
+          (l) => l.timestamp === validatedData.timestamp && l.message === validatedData.message
         );
         if (!exists) {
-          return [...logs, data].sort((a, b) => 
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
+          // For real-time logs, we can add to the end if it's the newest
+          const newLogs = [...logs, validatedData];
+          // Only sort if the new log is not in chronological order
+          const lastLogTime = logs.length > 0 ? new Date(logs[logs.length - 1].timestamp).getTime() : 0;
+          const newLogTime = new Date(validatedData.timestamp).getTime();
+          
+          if (newLogTime < lastLogTime) {
+            // Out of order, need to sort
+            console.log('New log out of order, sorting...');
+            return newLogs.sort((a, b) => 
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            );
+          }
+          // In order, just append
+          return newLogs;
         }
         return logs;
       });
@@ -105,20 +127,29 @@ export class LogWebSocketService {
     // Status and phase updates
     this.socket.on('status:changed', (data: { executionId: string; status: ExecutionStatus }) => {
       if (data.executionId === this.executionId) {
-        this.status.set(data.status);
+        // Normalize status to uppercase for consistency
+        const normalizedStatus = (data.status?.toUpperCase() || 'PENDING') as ExecutionStatus;
+        this.status.set(normalizedStatus);
       }
     });
 
     this.socket.on('phase:update', (data: PhaseInfo) => {
+      console.log('Phase update received:', data);
       this.phases.update((phases) => {
-        const index = phases.findIndex((p) => p.id === data.id);
+        const index = phases.findIndex((p) => p.id === data.id || p.name === data.name);
         if (index >= 0) {
-          phases[index] = data;
+          phases[index] = { ...phases[index], ...data };
         } else {
           phases.push(data);
         }
         return [...phases];
       });
+    });
+    
+    // Also listen for phases update event (plural)
+    this.socket.on('phases:update', (data: PhaseInfo[]) => {
+      console.log('Phases bulk update received:', data);
+      this.phases.set(data);
     });
 
     // Error handling
@@ -163,8 +194,14 @@ export class LogWebSocketService {
     this.socket.emit('subscribe', { executionId });
     console.log('Subscribing to execution:', executionId);
 
-    // Request historical logs - this might not exist in backend yet
-    // this.socket.emit('logs:request-historical', { executionId, limit: 1000 });
+    // Request historical logs after subscribing
+    // Try to request historical logs - backend might support this
+    setTimeout(() => {
+      if (this.socket && this.executionId === executionId) {
+        console.log('Requesting historical logs for:', executionId);
+        this.socket.emit('logs:request-historical', { executionId, limit: 1000 });
+      }
+    }, 100);
   }
 
   unsubscribe(): void {
@@ -172,9 +209,8 @@ export class LogWebSocketService {
 
     this.socket.emit('unsubscribe', { executionId: this.executionId });
     this.executionId = null;
-    this.logs.set([]);
-    this.phases.set([]);
-    this.status.set('PENDING');
+    // Don't clear logs and phases here - let the component manage them
+    // Only clear if explicitly disconnecting
   }
 
   disconnect(): void {
@@ -189,6 +225,10 @@ export class LogWebSocketService {
     this.socket = null;
     this.connected.set(false);
     this.reconnectAttempts = 0;
+    // Clear data when disconnecting
+    this.logs.set([]);
+    this.phases.set([]);
+    this.status.set('PENDING');
   }
 
   // Utility methods

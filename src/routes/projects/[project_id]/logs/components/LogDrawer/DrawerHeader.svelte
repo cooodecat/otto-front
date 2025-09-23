@@ -38,7 +38,7 @@
       const end = new Date(execution.completedAt).getTime();
       const seconds = Math.floor((end - start) / 1000);
       return formatDuration(seconds);
-    } else if (execution.status === 'RUNNING') {
+    } else if (getNormalizedStatus(execution.status) === 'RUNNING') {
       const start = new Date(execution.startedAt).getTime();
       const now = Date.now();
       const seconds = Math.floor((now - start) / 1000);
@@ -61,10 +61,18 @@
 
   const statusColors = {
     SUCCESS: 'bg-green-100 text-green-800',
+    SUCCEEDED: 'bg-green-100 text-green-800',
+    COMPLETED: 'bg-green-100 text-green-800',
     FAILED: 'bg-red-100 text-red-800',
     RUNNING: 'bg-blue-100 text-blue-800',
-    PENDING: 'bg-gray-100 text-gray-800'
+    PENDING: 'bg-gray-100 text-gray-800',
+    CANCELLED: 'bg-gray-100 text-gray-800'
   };
+  
+  // Helper to get normalized status
+  function getNormalizedStatus(status: string): string {
+    return status?.toUpperCase() || 'PENDING';
+  }
 
   async function copy(text: string) {
     try {
@@ -93,11 +101,11 @@
           {execution.executionType} #{execution.buildNumber}
         </h2>
         <span
-          class="rounded-full px-2.5 py-1 text-xs font-semibold {statusColors[execution.status]}"
+          class="rounded-full px-2.5 py-1 text-xs font-semibold {statusColors[getNormalizedStatus(execution.status)] || 'bg-gray-100 text-gray-800'}"
         >
-          {execution.status}
+          {getNormalizedStatus(execution.status)}
         </span>
-        {#if execution.status === 'RUNNING'}
+        {#if getNormalizedStatus(execution.status) === 'RUNNING' || getNormalizedStatus(execution.status) === 'PENDING'}
           <div
             class="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs {isConnected
               ? 'bg-green-100 text-green-700'

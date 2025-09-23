@@ -26,7 +26,6 @@
       >
         <Icon class="h-4 w-4" />
         <span class="font-medium">{tab.label}</span>
-        <span class="text-xs text-gray-400">({tab.shortcut})</span>
       </button>
     {/each}
   </nav>

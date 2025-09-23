@@ -88,7 +88,8 @@
 <!-- Log Drawer -->
 {#if isDrawerOpen && selectedExecutionId}
   <LogDrawer 
-    executionId={selectedExecutionId} 
+    executionId={selectedExecutionId}
+    {projectId}
     onClose={handleDrawerClose}
     onExecutionChange={handleExecutionChange}
   />

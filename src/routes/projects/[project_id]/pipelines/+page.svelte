@@ -13,7 +13,8 @@
     Activity,
     Play,
     ArrowLeft,
-    Trash2
+    Trash2,
+    FileText
   } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
@@ -70,10 +71,12 @@
   function handlePipelineClick(pipelineId: string) {
     goto(`/projects/${projectId}/pipelines/${pipelineId}`);
   }
-
-  function handleBackToProjects() {
-    goto('/projects');
+  
+  function handleViewLogs(e: Event) {
+    e.stopPropagation(); // Prevent card click
+    goto(`/projects/${projectId}/logs`);
   }
+
 
   function formatDate(dateString: string) {
     try {
@@ -139,19 +142,9 @@
   <div class="container mx-auto px-4 py-8">
     <!-- Pipeline Header -->
     <div class="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-      <div class="flex items-center gap-4">
-        <button
-          onclick={handleBackToProjects}
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-        >
-          <ArrowLeft class="h-4 w-4" />
-          <span>프로젝트</span>
-        </button>
-
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">파이프라인</h1>
-          <p class="mt-1 text-gray-600">CI/CD 파이프라인을 생성하고 관리합니다</p>
-        </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">파이프라인</h1>
+        <p class="mt-1 text-gray-600">CI/CD 파이프라인을 생성하고 관리합니다</p>
       </div>
 
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -266,6 +259,14 @@
                   {/if}
                 </div>
                 <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onclick={handleViewLogs}
+                    class="rounded p-1 transition-colors hover:bg-blue-50"
+                    title="로그 보기"
+                  >
+                    <FileText class="h-4 w-4 cursor-pointer text-blue-500" />
+                  </button>
                   <button
                     type="button"
                     onclick={(e) =>

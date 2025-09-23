@@ -156,33 +156,53 @@ export class LogApiService {
       connection,
       executionId,
       {
-        limit: params?.limit || 100
+        limit: params?.limit || 1000
       }
     );
 
-    // response 타입 체크
-    if (
-      !response ||
-      typeof response !== 'object' ||
-      !('logs' in response) ||
-      !Array.isArray(response.logs)
-    ) {
-      return [];
+    console.log('Raw API response for logs:', response);
+
+    // Check if response is an array directly
+    if (Array.isArray(response)) {
+      console.log('Response is array, processing directly');
+      return response.map((log: any) => ({
+        timestamp: log.timestamp,
+        level: (log.level || 'info') as 'info' | 'warning' | 'error',
+        message: log.message || '',
+        phase: log.phase || log.metadata?.phase || undefined,
+        step: log.step || log.metadata?.step || undefined,
+        stepOrder: log.stepOrder || log.metadata?.stepOrder || undefined
+      }));
+    }
+    
+    // Check for logs property
+    if (response && typeof response === 'object' && 'logs' in response && Array.isArray(response.logs)) {
+      console.log('Response has logs property, processing logs array');
+      return response.logs.map((log: any) => ({
+        timestamp: log.timestamp,
+        level: (log.level || 'info') as 'info' | 'warning' | 'error',
+        message: log.message || '',
+        phase: log.phase || log.metadata?.phase || undefined,
+        step: log.step || log.metadata?.step || undefined,
+        stepOrder: log.stepOrder || log.metadata?.stepOrder || undefined
+      }));
     }
 
-    interface LogResponse {
-      timestamp: string;
-      level: string;
-      message: string;
-      metadata?: { phase?: string };
+    // Check for data property
+    if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+      console.log('Response has data property, processing data array');
+      return response.data.map((log: any) => ({
+        timestamp: log.timestamp,
+        level: (log.level || 'info') as 'info' | 'warning' | 'error',
+        message: log.message || '',
+        phase: log.phase || log.metadata?.phase || undefined,
+        step: log.step || log.metadata?.step || undefined,
+        stepOrder: log.stepOrder || log.metadata?.stepOrder || undefined
+      }));
     }
 
-    return response.logs.map((log: LogResponse) => ({
-      timestamp: log.timestamp,
-      level: log.level as 'info' | 'warning' | 'error',
-      message: log.message,
-      phase: log.metadata?.phase as PhaseName | undefined
-    }));
+    console.warn('Unexpected response format for logs:', response);
+    return [];
   }
 
   async getArchivedLogUrl(executionId: string): Promise<string> {

@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { ExecutionMetadata } from '$lib/types/log.types';
-  import { Hammer, Rocket, GitBranch, User, Clock, FileText, Copy } from 'lucide-svelte';
+  import { Hammer, Rocket, GitBranch, User, Clock, FileText, Copy, ExternalLink } from 'lucide-svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
 
   interface Props {
     execution: ExecutionMetadata;
@@ -10,9 +12,18 @@
   }
 
   let { execution, isSelected, isFocused = false, onSelect }: Props = $props();
+  
+  const projectId = $derived($page.params.project_id);
 
   function handleClick() {
     onSelect(execution.executionId);
+  }
+  
+  function handleViewPipeline(e: Event) {
+    e.stopPropagation(); // Prevent execution selection
+    if (execution.pipelineId && projectId) {
+      goto(`/projects/${projectId}/pipelines/${execution.pipelineId}`);
+    }
   }
 
   function formatDuration(seconds: number): string {
@@ -53,10 +64,18 @@
 
   const statusColors = {
     SUCCESS: 'bg-green-100 text-green-800 border-green-200',
+    SUCCEEDED: 'bg-green-100 text-green-800 border-green-200',
+    COMPLETED: 'bg-green-100 text-green-800 border-green-200',
     FAILED: 'bg-red-100 text-red-800 border-red-200',
     RUNNING: 'bg-blue-100 text-blue-800 border-blue-200 animate-pulse',
-    PENDING: 'bg-gray-100 text-gray-800 border-gray-200'
+    PENDING: 'bg-gray-100 text-gray-800 border-gray-200',
+    CANCELLED: 'bg-gray-100 text-gray-800 border-gray-200'
   };
+  
+  // Helper to get normalized status
+  function getNormalizedStatus(status: string): string {
+    return status?.toUpperCase() || 'PENDING';
+  }
 </script>
 
 <button
@@ -84,8 +103,8 @@
 
         <span class="text-sm text-gray-500" title={new Date(execution.startedAt).toLocaleString()}>• {formatTime(execution.startedAt)}</span>
 
-        <span class="rounded-full px-2 py-1 text-xs font-medium {statusColors[execution.status]}">
-          {execution.status}
+        <span class="rounded-full px-2 py-1 text-xs font-medium {statusColors[getNormalizedStatus(execution.status)] || 'bg-gray-100 text-gray-800 border-gray-200'}">
+          {getNormalizedStatus(execution.status)}
         </span>
       </div>
 
@@ -124,7 +143,7 @@
           <User class="h-3 w-3" />
           {execution.author}
         </div>
-        {#if execution.status !== 'RUNNING' && execution.status !== 'PENDING'}
+        {#if getNormalizedStatus(execution.status) !== 'RUNNING' && getNormalizedStatus(execution.status) !== 'PENDING'}
           <div class="flex items-center gap-1">
             <Clock class="h-3 w-3" />
             {formatDuration(execution.duration)}
@@ -142,6 +161,19 @@
         <span class="inline-flex items-center gap-1">
           <FileText class="h-3 w-3" />
           Pipeline: {execution.pipelineName}
+          {#if execution.pipelineId}
+            <span
+              role="button"
+              tabindex="0"
+              onclick={(e) => { e.stopPropagation(); handleViewPipeline(e); }}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleViewPipeline(e); } }}
+              class="ml-1 inline-flex items-center gap-0.5 rounded hover:bg-gray-100 px-1 py-0.5 cursor-pointer"
+              title="View Pipeline"
+              aria-label="View Pipeline"
+            >
+              <ExternalLink class="h-3 w-3 text-blue-500" />
+            </span>
+          {/if}
         </span>
         <span class="inline-flex items-center gap-1">
           ID:
