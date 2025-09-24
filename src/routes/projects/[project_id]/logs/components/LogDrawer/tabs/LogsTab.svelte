@@ -78,21 +78,31 @@
     console.log('LogsTab - logs length:', logs?.length || 0);
   });
 
-  // Update execution status when prop changes
+  // Track if WebSocket has taken control
+  let wsControlled = $state(false);
+  
+  // Update execution status when prop changes (only if WebSocket hasn't taken control)
   $effect(() => {
+    // Skip if WebSocket is controlling the status
+    if (wsControlled && wsService) {
+      return;
+    }
+
     console.log(
       'LogsTab - prop update - initialExecutionStatus:',
       initialExecutionStatus,
       'current executionStatus:',
-      $state.snapshot(executionStatus)
+      $state.snapshot(executionStatus),
+      'wsControlled:',
+      wsControlled
     );
 
     // Normalize both statuses for comparison
     const normalizedInitial = initialExecutionStatus?.toUpperCase();
     const normalizedCurrent = executionStatus?.toUpperCase();
 
-    // Only update if prop actually changed
-    if (normalizedInitial !== normalizedCurrent) {
+    // Only update if prop actually changed AND WebSocket isn't controlling
+    if (normalizedInitial !== normalizedCurrent && !wsControlled) {
       const previousStatus = executionStatus;
       executionStatus = initialExecutionStatus || null;
 
@@ -135,6 +145,15 @@
     if (!wsService) return;
 
     const unsub = wsService.status.subscribe((v) => {
+      // Normalize the incoming status
+      const normalizedV = v?.toUpperCase();
+      const normalizedCurrent = executionStatus?.toUpperCase();
+      
+      // Skip if status hasn't actually changed
+      if (normalizedV === normalizedCurrent) {
+        return;
+      }
+
       console.log(
         'LogsTab - WebSocket status update:',
         v,
@@ -143,16 +162,19 @@
       );
 
       const previousStatus = executionStatus;
+      
+      // Normalize previous status for comparison
+      const normalizedPrevious = previousStatus?.toUpperCase();
 
       // Never allow status to go backwards from completed to running
       const wasCompleted =
-        previousStatus === 'SUCCESS' ||
-        previousStatus === 'FAILED' ||
-        previousStatus === 'SUCCEEDED' ||
-        previousStatus === 'COMPLETED';
-      const isNowRunning = v === 'RUNNING' || v === 'PENDING';
+        normalizedPrevious === 'SUCCESS' ||
+        normalizedPrevious === 'FAILED' ||
+        normalizedPrevious === 'SUCCEEDED' ||
+        normalizedPrevious === 'COMPLETED';
+      const isNowRunning = normalizedV === 'RUNNING' || normalizedV === 'PENDING';
       const isNowCompleted =
-        v === 'SUCCESS' || v === 'FAILED' || v === 'SUCCEEDED' || v === 'COMPLETED';
+        normalizedV === 'SUCCESS' || normalizedV === 'FAILED' || normalizedV === 'SUCCEEDED' || normalizedV === 'COMPLETED';
 
       if (wasCompleted && isNowRunning) {
         console.warn(
@@ -165,6 +187,8 @@
         return; // Ignore backwards transition
       }
 
+      // Mark that WebSocket has taken control
+      wsControlled = true;
       executionStatus = v;
 
       // Update views based on new status
@@ -178,9 +202,15 @@
         isLiveMode = false;
         showGrouped = true;
         autoScroll = false;
+        // Release WebSocket control when completed
+        wsControlled = false;
       }
     });
-    return () => unsub();
+    
+    return () => {
+      wsControlled = false;
+      unsub();
+    };
   });
 
   // Reset line numbering when execution changes

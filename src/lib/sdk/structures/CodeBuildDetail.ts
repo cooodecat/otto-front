@@ -12,6 +12,17 @@ export type CodeBuildDetail = {
         initiator?: undefined | string;
         "start-time"?: undefined | string;
         "end-time"?: undefined | string;
+        environment?:
+          | undefined
+          | {
+              "environment-variables"?:
+                | undefined
+                | {
+                    name: string;
+                    value: string;
+                    type?: undefined | string;
+                  }[];
+            };
         logs?:
           | undefined
           | {
