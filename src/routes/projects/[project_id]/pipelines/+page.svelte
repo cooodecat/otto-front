@@ -4,16 +4,7 @@
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import {
-    Plus,
-    Search,
-    Filter,
-    Calendar,
-    Settings,
-    Play,
-    Trash2,
-    FileText
-  } from 'lucide-svelte';
+  import { Plus, Search, Filter, Calendar, Settings, Play, Trash2, FileText } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
 

@@ -214,7 +214,7 @@
       <div class="mb-6">
         <h3 class="mb-3 text-sm font-medium text-gray-500">{group.date}</h3>
         <div class="space-y-2">
-          {#each group.items as execution, index}
+          {#each group.items as execution}
             <ExecutionItem
               {execution}
               isSelected={selectedExecutionId === execution.executionId}

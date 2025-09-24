@@ -71,7 +71,7 @@
 
   // Stable global line numbering (arrival order) - use Map instead of WeakMap for better stability
   let lineNumberMap: Map<string, number> = new Map();
-  let lineSeqCounter = $state(0);
+  let _lineSeqCounter = $state(0); // Kept for line numbering logic
 
   // Debug log count
   $effect(() => {
@@ -101,7 +101,9 @@
       const normalizedNew = executionStatus?.toUpperCase();
 
       // Determine if we should update the view
-      const wasCompleted =
+      // Check if the execution was already completed
+      // This is currently unused but may be needed for future state management
+      const _wasCompleted =
         normalizedPrevious === 'SUCCESS' ||
         normalizedPrevious === 'FAILED' ||
         normalizedPrevious === 'SUCCEEDED' ||
@@ -187,7 +189,7 @@
     void executionId;
     console.log('LogsTab - Execution changed, resetting line numbering');
     lineNumberMap = new Map();
-    lineSeqCounter = 0;
+    _lineSeqCounter = 0;
   });
 
   // Check if execution is stuck or failed
@@ -238,7 +240,7 @@
         counter = lineNumberMap.get(key)!;
       }
     }
-    lineSeqCounter = counter;
+    _lineSeqCounter = counter;
   });
 
   function getGlobalLineNumber(l: LogEntry): number {
@@ -482,7 +484,7 @@
   $effect(() => {
     // Check if new logs were added
     if (logs.length > previousLogCount) {
-      const newLogsCount = logs.length - previousLogCount;
+      const _newLogsCount = logs.length - previousLogCount; // Currently unused, kept for future use
       previousLogCount = logs.length;
       lastNewLogTime = Date.now();
 
@@ -573,18 +575,19 @@
     let cleanMessage = String(message); // Ensure it's a string
 
     // Remove ANSI codes
-    cleanMessage = cleanMessage.replace(/\x1b\[[0-9;]*m/g, '');
+    // eslint-disable-next-line no-control-regex
+    cleanMessage = cleanMessage.replace(/\u001b\[[0-9;]*m/g, '');
 
     // Remove timestamp patterns
     cleanMessage = cleanMessage
       // Remove full timestamps like 2025/09/23 18:28:48.340117
-      .replace(/\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2}:\d{2}(\.\d+)?/g, '')
+      .replace(/\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2}:\d{2}(\.\d+)?/g, '')
       // Remove ISO format timestamps
       .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?/g, '')
       // Remove time-only patterns at the start
       .replace(/^\d{1,2}:\d{2}:\d{2}(\.\d+)?\s*/g, '')
       // Remove bracketed timestamps
-      .replace(/\[\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2}:\d{2}(\.\d+)?\]/g, '')
+      .replace(/\[\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2}:\d{2}(\.\d+)?\]/g, '')
       .trim();
 
     return cleanMessage;
@@ -911,7 +914,7 @@
                     {phase.replace(/_/g, ' ')}
                   </span>
                   <pre
-                    class="flex-1 overflow-hidden whitespace-pre-wrap text-white">{@html highlightSearchQuery(
+                    class="flex-1 overflow-hidden whitespace-pre-wrap text-white">{@html /* eslint-disable-line svelte/no-at-html-tags */ highlightSearchQuery(
                       log.message || ''
                     )}</pre>
                 </div>
@@ -1070,7 +1073,9 @@
                       class="flex-1 break-all whitespace-pre-wrap {levelColors[log.level] ||
                         'text-gray-300'}"
                     >
-                      {@html highlightSearchQuery(log.message)}
+                      {@html /* eslint-disable-line svelte/no-at-html-tags */ highlightSearchQuery(
+                        log.message
+                      )}
                     </span>
                   </div>
                 {/each}
