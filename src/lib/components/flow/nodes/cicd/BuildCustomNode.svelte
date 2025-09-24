@@ -13,9 +13,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.BUILD];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: BuildCustomNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let packageManager = $state(data.packageManager || 'npm');
@@ -28,6 +28,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         packageManager,
         scriptName,
         customCommands,
@@ -77,7 +78,7 @@
       class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
     >
       <div>
-        <div class="mb-1 text-sm font-medium {groupColor.textClass}">⚙️ Custom Build</div>
+        <div class="mb-1 text-sm font-medium {groupColor.textClass}">Custom Build</div>
         <div class="text-xs text-gray-600">Run custom build commands</div>
       </div>
       <button
@@ -114,7 +115,7 @@
           <div>
             <div class="font-medium text-gray-700">Custom Commands ({customCommands.length})</div>
             <div class="mt-1 max-h-20 space-y-1 overflow-y-auto">
-              {#each customCommands as command}
+              {#each customCommands as command (command)}
                 <div class="font-mono text-xs text-gray-600">{command}</div>
               {/each}
             </div>
@@ -204,7 +205,7 @@
           <!-- Existing commands -->
           {#if customCommands.length > 0}
             <div class="max-h-32 space-y-1 overflow-y-auto">
-              {#each customCommands as command, index}
+              {#each customCommands as command, index (index)}
                 <div class="flex items-center justify-between rounded bg-white px-2 py-1 text-sm">
                   <span class="font-mono">{command}</span>
                   <button

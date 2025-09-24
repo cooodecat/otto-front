@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.TEST]; // 테스트 그룹 색상 사용
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: TestCustomNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let testCommands = $state<string[]>(data?.testCommands || []);
@@ -27,6 +27,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         testCommands,
         workingDirectory
       });
@@ -74,7 +75,7 @@
       class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
     >
       <div>
-        <div class="mb-1 text-sm font-medium {groupColor.textClass}">🧪 Custom Test</div>
+        <div class="mb-1 text-sm font-medium {groupColor.textClass}">Custom Test</div>
         <div class="text-xs text-gray-600">Run custom test commands</div>
       </div>
       <button
@@ -101,7 +102,7 @@
           <div>
             <div class="font-medium text-gray-700">Test Commands ({testCommands.length})</div>
             <div class="mt-1 max-h-20 space-y-1 overflow-y-auto">
-              {#each testCommands as command}
+              {#each testCommands as command (command)}
                 <div class="rounded border bg-gray-100 px-2 py-1 font-mono text-xs">
                   {command}
                 </div>
@@ -119,10 +120,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Working Directory -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700"
+          <label for="custom-test-workdir" class="mb-1 block text-sm font-medium text-gray-700"
             >Working Directory (optional)</label
           >
           <input
+            id="custom-test-workdir"
             type="text"
             bind:value={workingDirectory}
             onchange={saveNodeData}
@@ -133,13 +135,14 @@
 
         <!-- Test Commands -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Test Commands</label>
+          <div class="mb-1 block text-sm font-medium text-gray-700">Test Commands</div>
 
           <!-- Add new command -->
           <div class="mb-2 flex gap-2">
             <input
               type="text"
               bind:value={newCommand}
+              aria-label="New test command"
               onkeypress={handleKeyPress}
               placeholder="Enter test command (e.g., npm test)"
               class="flex-1 rounded border border-gray-300 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -155,7 +158,7 @@
           <!-- Existing commands -->
           {#if testCommands.length > 0}
             <div class="max-h-32 space-y-1 overflow-y-auto">
-              {#each testCommands as command, index}
+              {#each testCommands as command, index (index)}
                 <div class="flex items-center justify-between rounded bg-white px-2 py-1 text-sm">
                   <span class="font-mono">{command}</span>
                   <button

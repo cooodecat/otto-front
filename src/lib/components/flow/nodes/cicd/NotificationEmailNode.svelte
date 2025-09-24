@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.NOTIFICATION];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: NotificationEmailNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let recipients = $state(data?.recipients || '');
@@ -31,6 +31,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         recipients,
         subject,
         messageTemplate,
@@ -62,7 +63,7 @@
       class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
     >
       <div>
-        <div class="mb-1 text-sm font-medium {groupColor.textClass}">📧 Email Notify</div>
+        <div class="mb-1 text-sm font-medium {groupColor.textClass}">Email Notify</div>
         <div class="text-xs text-gray-600">Send email notifications</div>
       </div>
       <button
@@ -105,8 +106,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Recipients -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Recipients</label>
+          <label for="email-recipients" class="mb-1 block text-sm font-medium text-gray-700"
+            >Recipients</label
+          >
           <input
+            id="email-recipients"
             type="text"
             bind:value={recipients}
             onchange={saveNodeData}
@@ -117,8 +121,11 @@
 
         <!-- Subject -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Subject</label>
+          <label for="email-subject" class="mb-1 block text-sm font-medium text-gray-700"
+            >Subject</label
+          >
           <input
+            id="email-subject"
             type="text"
             bind:value={subject}
             onchange={saveNodeData}
@@ -129,8 +136,11 @@
 
         <!-- Message Template -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Message Template</label>
+          <label for="email-message" class="mb-1 block text-sm font-medium text-gray-700"
+            >Message Template</label
+          >
           <textarea
+            id="email-message"
             bind:value={messageTemplate}
             onchange={saveNodeData}
             rows="3"
@@ -144,7 +154,7 @@
 
         <!-- SMTP Configuration -->
         <div class="space-y-2">
-          <label class="text-sm font-medium text-gray-700">SMTP Configuration</label>
+          <div class="text-sm font-medium text-gray-700">SMTP Configuration</div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>

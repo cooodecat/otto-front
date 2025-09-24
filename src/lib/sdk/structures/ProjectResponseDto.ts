@@ -1,4 +1,4 @@
-import type { Format } from 'typia/lib/tags/Format';
+import type { Format } from "typia/lib/tags/Format";
 
 export type ProjectResponseDto = {
   /**
@@ -49,7 +49,7 @@ export type ProjectResponseDto = {
   /**
    * CodeBuild 프로젝트 이름
    */
-  codebuildProjectName: string;
+  codebuildProjectName: null | string;
 
   /**
    * 빌드 이미지
@@ -69,12 +69,12 @@ export type ProjectResponseDto = {
   /**
    * CloudWatch 로그 그룹
    */
-  cloudwatchLogGroup: string;
+  cloudwatchLogGroup: null | string;
 
   /**
    * CodeBuild 상태
    */
-  codebuildStatus: 'FAILED' | 'CREATED' | 'SUCCESS' | 'IN_PROGRESS';
+  codebuildStatus: null | "FAILED" | "CREATED" | "SUCCESS" | "IN_PROGRESS";
 
   /**
    * CodeBuild 에러 메시지
@@ -84,15 +84,25 @@ export type ProjectResponseDto = {
   /**
    * CodeBuild 프로젝트 ARN
    */
-  codebuildProjectArn: string;
+  codebuildProjectArn: null | string;
+
+  /**
+   * ECR 리포지토리 경로
+   */
+  ecrRepository: null | string;
+
+  /**
+   * 최신 이미지 태그
+   */
+  latestImageTag: null | string;
 
   /**
    * 생성일
    */
-  createdAt: string & Format<'date-time'>;
+  createdAt: string & Format<"date-time">;
 
   /**
    * 수정일
    */
-  updatedAt: string & Format<'date-time'>;
+  updatedAt: string & Format<"date-time">;
 };

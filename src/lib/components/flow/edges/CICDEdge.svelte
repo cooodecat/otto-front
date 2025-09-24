@@ -13,7 +13,7 @@
     targetPosition: Position;
     sourceHandle?: string;
     targetHandle?: string;
-    data?: any;
+    data?: { sourceHandle?: string } | Record<string, unknown>;
     markerEnd?: string;
     source?: string;
     target?: string;

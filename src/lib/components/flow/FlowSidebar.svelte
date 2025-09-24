@@ -37,6 +37,7 @@
       // CICDBlockType.TEST_PLAYWRIGHT,
       CICDBlockType.TEST_CUSTOM
     ],
+    [CICDBlockGroup.DEPLOY]: [CICDBlockType.DEPLOY],
     [CICDBlockGroup.NOTIFICATION]: [
       CICDBlockType.NOTIFICATION_SLACK,
       CICDBlockType.NOTIFICATION_EMAIL
@@ -53,6 +54,7 @@
     CICDBlockGroup.PREBUILD,
     CICDBlockGroup.BUILD,
     CICDBlockGroup.TEST,
+    CICDBlockGroup.DEPLOY,
     CICDBlockGroup.NOTIFICATION,
     CICDBlockGroup.UTILITY
   ];
@@ -63,6 +65,7 @@
     [CICDBlockGroup.PREBUILD]: '사전 빌드',
     [CICDBlockGroup.BUILD]: '빌드',
     [CICDBlockGroup.TEST]: '테스트',
+    [CICDBlockGroup.DEPLOY]: '배포',
     [CICDBlockGroup.NOTIFICATION]: '알림',
     [CICDBlockGroup.UTILITY]: '유틸리티'
   };
@@ -104,7 +107,7 @@
 
   <!-- 블록 목록 -->
   <div class="flex-1 space-y-6 overflow-y-auto p-4">
-    {#each groupOrder as group}
+    {#each groupOrder as group (group)}
       {@const groupColor = CICD_GROUP_COLORS[group]}
       {@const blocks = blocksByGroup[group]}
 
@@ -120,7 +123,7 @@
 
           <!-- 블록 목록 -->
           <div class="space-y-2">
-            {#each blocks as blockType}
+            {#each blocks as blockType (blockType)}
               {@const config = CICD_BLOCK_CONFIGS[blockType]}
 
               <div
@@ -140,9 +143,12 @@
                 class:opacity-50={isDragging && dragBlockType === blockType}
               >
                 <div
-                  class="h-8 w-8 flex-shrink-0 {groupColor.colorClass} flex items-center justify-center rounded-lg text-lg text-white"
+                  class="h-8 w-8 flex-shrink-0 {groupColor.colorClass} flex items-center justify-center rounded-lg text-white"
                 >
-                  {config.icon}
+                  {#if config.icon}
+                    {@const Icon = config.icon}
+                    <Icon class="h-5 w-5" />
+                  {/if}
                 </div>
 
                 <div class="min-w-0 flex-1">

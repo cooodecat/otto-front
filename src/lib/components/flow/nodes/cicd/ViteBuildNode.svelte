@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.BUILD];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: BuildViteNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let mode = $state(data.mode || 'production');
@@ -27,6 +27,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         mode,
         basePath,
         outputDir
@@ -54,7 +55,7 @@
       class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
     >
       <div>
-        <div class="mb-1 text-sm font-medium {groupColor.textClass}">⚡ Vite Build</div>
+        <div class="mb-1 text-sm font-medium {groupColor.textClass}">Vite Build</div>
         <div class="text-xs text-gray-600">Build project using Vite bundler</div>
       </div>
       <button

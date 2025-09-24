@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.BUILD];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: InstallPackagesNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let packageManager = $state(data?.packageManager || 'npm');
@@ -27,6 +27,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         packageManager,
         cleanInstall,
         productionOnly
@@ -78,7 +79,7 @@
       class="flex items-center justify-between rounded border {groupColor.borderClass} {groupColor.bgClass} p-3"
     >
       <div>
-        <div class="mb-1 text-sm font-medium {groupColor.textClass}">📦 Install Packages</div>
+        <div class="mb-1 text-sm font-medium {groupColor.textClass}">Install Packages</div>
         <div class="text-xs text-gray-600">Install project dependencies using package manager</div>
       </div>
       <button
