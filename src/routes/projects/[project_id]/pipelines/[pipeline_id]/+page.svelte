@@ -4,10 +4,12 @@
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft } from 'lucide-svelte';
-  import { SvelteFlowProvider, type Node, type Edge, type Connection } from '@xyflow/svelte';
-  import type { AnyCICDNodeData } from '$lib/types/flow-node.types';
-  import type { PipelineResponseDto } from '$lib/sdk/structures/PipelineResponseDto';
+  import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft, FileText } from 'lucide-svelte';
+  import {
+    SvelteFlowProvider,
+    type NodeTargetEventWithPointer,
+    type Connection
+  } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
   import { edgeTypes } from '$lib/components/flow/edgeTypes';
@@ -20,7 +22,7 @@
   const projectId = $page.params.project_id;
   const pipelineId = $page.params.pipeline_id;
 
-  let pipeline = $state<PipelineResponseDto | null>(null);
+  let pipeline = $state<any>(null);
   let loading = $state(true);
   let error = $state('');
   let isSaving = $state(false);
@@ -45,10 +47,10 @@
   );
 
   // Flow 관련 상태
-  let nodes = $state<Node[]>([]);
-  let edges = $state<Edge[]>([]);
+  let nodes = $state<any[]>([]);
+  let edges = $state<any[]>([]);
   let initialized = $state(false);
-  let _flowInstance = $state<unknown>(null);
+  let _flowInstance = $state<any>(null);
   let showResetConfirm = $state(false);
 
   onMount(async () => {
@@ -228,7 +230,12 @@
         console.log(`✅ CONFIRMED SAVED TO LOCALSTORAGE:`, {
           savedNodeCount: parsed.nodes?.length,
           savedEdgeCount: parsed.edges?.length,
-          savedNodePositions: parsed.nodes?.map((n: Node) => ({ id: n.id, position: n.position }))
+          savedNodePositions: parsed.nodes?.map(
+            (n: { id: string; position: { x: number; y: number } }) => ({
+              id: n.id,
+              position: n.position
+            })
+          )
         });
       } else {
         console.error('❌ FAILED TO SAVE TO LOCALSTORAGE');
@@ -298,13 +305,9 @@
     try {
       const flowData = { nodes, edges };
 
-      // 노드들을 순회하면서 deploy 옵션과 환경변수 추출
-      const extractedData = extractDeployAndEnvFromNodes();
-
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
         pipelineName: pipeline.pipelineName,
-        data: flowData,
-        ...extractedData
+        data: flowData
       });
 
       // 성공 메시지
@@ -317,54 +320,6 @@
     }
 
     isSaving = false;
-  }
-
-  // 노드들을 순회하면서 deploy 옵션과 환경변수를 추출하는 함수
-  function extractDeployAndEnvFromNodes() {
-    let deployOption: { port: number; command: string } | undefined;
-    let env: Record<string, string> = {};
-
-    nodes.forEach((node) => {
-      // Deploy 노드에서 배포 옵션 추출
-      if (node.type === CICDBlockType.DEPLOY) {
-        // 기본값이 없는 경우 기본값 설정
-        const nodeDeployOption = (node.data as any).deployOption || {
-          port: 3000,
-          command: 'npm start'
-        };
-        deployOption = nodeDeployOption;
-        console.log('🚀 Deploy option found:', deployOption);
-      }
-
-      // Environment Setup 노드에서 환경변수 추출
-      if (node.type === CICDBlockType.ENVIRONMENT_SETUP) {
-        const environmentVariables = node.data.environmentVariables || {};
-        Object.entries(environmentVariables).forEach(([key, envVar]: [string, any]) => {
-          if (envVar && typeof envVar === 'object' && envVar.value) {
-            env[key] = envVar.value;
-          }
-        });
-        if (Object.keys(environmentVariables).length > 0) {
-          console.log('🌍 Environment variables found:', env);
-        }
-      }
-    });
-
-    const result: {
-      deployOption?: { port: number; command: string };
-      env?: Record<string, string>;
-    } = {};
-
-    if (deployOption) {
-      result.deployOption = deployOption;
-    }
-
-    if (Object.keys(env).length > 0) {
-      result.env = env;
-    }
-
-    console.log('📦 Extracted pipeline data:', result);
-    return result;
   }
 
   async function handleRun() {
@@ -389,13 +344,8 @@
       if (!pipelineId) {
         throw new Error('Pipeline ID is required');
       }
-
-      // 실행 시에도 deploy 옵션과 환경변수 추출
-      const extractedData = extractDeployAndEnvFromNodes();
-
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
-        data: { nodes, edges, flowNodes },
-        ...extractedData
+        data: { nodes, edges, flowNodes }
       });
 
       console.log('파이프라인 실행 준비 완료');
@@ -432,7 +382,8 @@
       startStatusPolling(result.buildId);
     } catch (err) {
       console.error('파이프라인 실행 실패:', err);
-      error = (err as Error)?.message || '파이프라인 실행에 실패했습니다';
+      const errorMessage = err instanceof Error ? err.message : '파이프라인 실행에 실패했습니다';
+      error = errorMessage;
       showToast('error', error);
       isExecuting = false;
     }
@@ -614,22 +565,13 @@
   }
 
   // 노드 드래그 종료 핸들러 - onnodedragstop 이벤트 사용
-  function onNodeDragStop({
-    targetNode,
-    nodes,
-    event
-  }: {
-    targetNode: Node | null;
-    nodes: Node[];
-    event: MouseEvent | TouchEvent;
-  }) {
+  const onNodeDragStop: NodeTargetEventWithPointer<MouseEvent | TouchEvent> = (event) => {
     console.log('🎯 Raw drag stop event:', event);
-    console.log('🎯 Event detail:', (event as any).detail);
-    console.log('🎯 Event targetNode:', targetNode);
-    console.log('🎯 Event nodes:', nodes);
+    console.log('🎯 Event targetNode:', event.targetNode);
+    console.log('🎯 Event nodes:', event.nodes);
 
     // SvelteFlow의 onnodedragstop 이벤트에서 노드 정보 추출
-    const draggedNode = targetNode || (event as any).detail?.node || (nodes && nodes[0]);
+    const draggedNode = event.targetNode;
 
     if (!draggedNode || !draggedNode.id) {
       console.log('🚫 No dragged node found in event');
@@ -653,7 +595,7 @@
       nodes = updatedNodes;
       console.log('💾 Node position updated - localStorage will be saved via $effect');
     }
-  }
+  };
 
   // 엣지 변경 핸들러 (현재 미사용 - SvelteFlow에서 직접 지원하지 않음)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -663,7 +605,7 @@
     let hasChanges = false;
 
     changes.forEach((change) => {
-      if (change.type === 'remove' && change.id) {
+      if (change.type === 'remove') {
         // 삭제될 엣지 정보 가져오기
         const edgeToRemove = edges.find((edge) => edge.id === change.id);
         if (edgeToRemove) {
@@ -734,7 +676,7 @@
   }
 
   // 노드 데이터 업데이트 핸들러
-  function updateNodeData(nodeId: string, newData: AnyCICDNodeData) {
+  function updateNodeData(nodeId: string, newData: Record<string, unknown>) {
     console.log('🔄 Updating node data:', nodeId, newData);
 
     const nodeIndex = nodes.findIndex((node) => node.id === nodeId);
@@ -851,6 +793,15 @@
           <!-- 액션 버튼들 -->
           <div class="flex gap-3">
             <button
+              onclick={() => goto(`/projects/${projectId}/logs`)}
+              class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+              title="실행 로그 보기"
+            >
+              <FileText class="h-4 w-4" />
+              <span>로그 보기</span>
+            </button>
+
+            <button
               onclick={resetPipeline}
               class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
               title="파이프라인 초기화"
@@ -897,12 +848,18 @@
           </div>
 
           {#if buildStatus}
-            <BuildStatus
-              status={buildStatus.buildStatus}
-              currentPhase={buildStatus.currentPhase}
-              startTime={buildStatus.startTime?.toString()}
-              endTime={buildStatus.endTime?.toString()}
-            />
+            <button
+              onclick={() => goto(`/projects/${projectId}/logs`)}
+              class="w-full cursor-pointer text-left transition-opacity hover:opacity-80"
+              title="클릭하여 로그 보기"
+            >
+              <BuildStatus
+                status={buildStatus.buildStatus}
+                currentPhase={buildStatus.currentPhase}
+                startTime={buildStatus.startTime?.toString()}
+                endTime={buildStatus.endTime?.toString()}
+              />
+            </button>
           {/if}
 
           {#if buildInfo}

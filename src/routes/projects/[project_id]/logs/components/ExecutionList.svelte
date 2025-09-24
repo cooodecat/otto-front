@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ExecutionMetadata, ExecutionGroup as _ExecutionGroup } from '$lib/types/log.types';
+  import type { ExecutionMetadata } from '$lib/types/log.types';
   import ExecutionItem from './ExecutionItem.svelte';
   import { logApiService } from '$lib/services/log-api.service';
   import { onMount } from 'svelte';
@@ -210,11 +210,11 @@
       <p class="text-gray-500">No pipeline executions found</p>
     </div>
   {:else}
-    {#each executionGroups as group (group.date)}
+    {#each executionGroups as group}
       <div class="mb-6">
         <h3 class="mb-3 text-sm font-medium text-gray-500">{group.date}</h3>
         <div class="space-y-2">
-          {#each group.items as execution, _index (execution.executionId)}
+          {#each group.items as execution, index}
             <ExecutionItem
               {execution}
               isSelected={selectedExecutionId === execution.executionId}

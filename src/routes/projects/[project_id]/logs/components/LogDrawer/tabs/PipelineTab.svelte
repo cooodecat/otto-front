@@ -12,7 +12,6 @@
   }
 
   interface PipelineStep {
-    id?: string | number;
     name: string;
     command?: string;
     duration?: number;
@@ -27,7 +26,7 @@
 
   // Parse pipeline steps from execution metadata
   const pipelineSteps = $derived.by(() => {
-    const metadata = execution.metadata as any;
+    const metadata = execution.metadata as Record<string, unknown>;
 
     // Check if steps are provided in metadata
     if (metadata?.steps && Array.isArray(metadata.steps)) {
@@ -38,11 +37,11 @@
     const steps: PipelineStep[] = [];
 
     // Parse from build/deploy commands if available
-    if (metadata?.buildCommand) {
+    if (metadata?.buildCommand && typeof metadata.buildCommand === 'string') {
       steps.push(...parseCommandToSteps(metadata.buildCommand));
     }
 
-    if (metadata?.deployCommand) {
+    if (metadata?.deployCommand && typeof metadata.deployCommand === 'string') {
       steps.push(...parseCommandToSteps(metadata.deployCommand));
     }
 
@@ -168,7 +167,7 @@
 
   // Get pipeline configuration from metadata
   const pipelineConfig = $derived.by(() => {
-    const metadata = execution.metadata as any;
+    const metadata = execution.metadata as Record<string, unknown>;
     return {
       environment: metadata?.environment || 'production',
       nodeVersion: metadata?.nodeVersion || '18.x',
@@ -199,9 +198,13 @@
       );
 
       // Notify parent component about new execution
-      // buildId is the new execution ID from CodeBuild
-      if (onNewExecution && response.buildId) {
-        onNewExecution(response.buildId);
+      console.log('Re-run response:', response);
+
+      // Use buildId from the response
+      const newExecutionId = response.buildId;
+      if (onNewExecution && newExecutionId) {
+        console.log('Notifying parent about new execution:', newExecutionId);
+        onNewExecution(newExecutionId);
       }
     } catch (error) {
       console.error('Failed to re-run pipeline:', error);
@@ -221,15 +224,30 @@
   <div class="space-y-6">
     <!-- Pipeline Info -->
     <div>
-      <h3 class="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-900">
-        <span>📋</span>
-        {execution.pipelineName}
+      <h3 class="mb-3 flex items-center justify-between text-lg font-semibold text-gray-900">
+        <span class="flex items-center gap-2">
+          <span>📋</span>
+          {execution.pipelineName}
+        </span>
+        <span
+          class="rounded-full px-2 py-1 text-sm font-normal {execution.status === 'RUNNING'
+            ? 'bg-blue-100 text-blue-700'
+            : execution.status === 'PENDING'
+              ? 'bg-gray-100 text-gray-700'
+              : execution.status === 'SUCCESS'
+                ? 'bg-green-100 text-green-700'
+                : execution.status === 'FAILED'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-gray-100 text-gray-700'}"
+        >
+          {execution.status}
+        </span>
       </h3>
 
       <div class="rounded-lg bg-gray-50 p-4">
         <h4 class="mb-3 font-medium text-gray-700">Executed Steps:</h4>
         <div class="space-y-2">
-          {#each pipelineSteps as step, i (step.id || i)}
+          {#each pipelineSteps as step}
             <div
               class="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2 {step.status ===
               'failed'
@@ -303,8 +321,11 @@
       </button>
       <button
         onclick={handleRerun}
-        disabled={isRerunning || execution.status === 'RUNNING'}
+        disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
         class="flex cursor-pointer items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        title={execution.status === 'RUNNING' || execution.status === 'PENDING'
+          ? 'Pipeline is currently running'
+          : 'Re-run this pipeline'}
       >
         {#if isRerunning}
           <Loader2 class="h-4 w-4 animate-spin" />

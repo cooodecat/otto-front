@@ -4,7 +4,16 @@
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { Plus, Search, Filter, Calendar, Settings, Play, ArrowLeft, Trash2 } from 'lucide-svelte';
+  import {
+    Plus,
+    Search,
+    Filter,
+    Calendar,
+    Settings,
+    Play,
+    Trash2,
+    FileText
+  } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
 
@@ -61,8 +70,9 @@
     goto(`/projects/${projectId}/pipelines/${pipelineId}`);
   }
 
-  function handleBackToProjects() {
-    goto('/projects');
+  function handleViewLogs(e: Event) {
+    e.stopPropagation(); // Prevent card click
+    goto(`/projects/${projectId}/logs`);
   }
 
   function formatDate(dateString: string) {
@@ -129,19 +139,9 @@
   <div class="container mx-auto px-4 py-8">
     <!-- Pipeline Header -->
     <div class="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-      <div class="flex items-center gap-4">
-        <button
-          onclick={handleBackToProjects}
-          class="flex items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-        >
-          <ArrowLeft class="h-4 w-4" />
-          <span>프로젝트</span>
-        </button>
-
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">파이프라인</h1>
-          <p class="mt-1 text-gray-600">CI/CD 파이프라인을 생성하고 관리합니다</p>
-        </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">파이프라인</h1>
+        <p class="mt-1 text-gray-600">CI/CD 파이프라인을 생성하고 관리합니다</p>
       </div>
 
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -236,7 +236,7 @@
           </button>
 
           <!-- Existing Pipeline Cards -->
-          {#each filteredPipelines as pipeline (pipeline.pipelineId)}
+          {#each filteredPipelines as pipeline}
             <article
               class="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >
@@ -256,6 +256,14 @@
                   {/if}
                 </div>
                 <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onclick={handleViewLogs}
+                    class="rounded p-1 transition-colors hover:bg-blue-50"
+                    title="로그 보기"
+                  >
+                    <FileText class="h-4 w-4 cursor-pointer text-blue-500" />
+                  </button>
                   <button
                     type="button"
                     onclick={(e) =>
@@ -337,6 +345,7 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center">
     <!-- Backdrop with glass effect -->
     <button
+      type="button"
       class="bg-opacity-20 absolute inset-0 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
       aria-label="Cancel delete"

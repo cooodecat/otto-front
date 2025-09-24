@@ -1,11 +1,30 @@
 // Execution Types
 export type ExecutionType = 'BUILD' | 'DEPLOY' | 'PIPELINE';
-export type ExecutionStatus = 'SUCCESS' | 'FAILED' | 'RUNNING' | 'PENDING';
+export type ExecutionStatus =
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'RUNNING'
+  | 'PENDING'
+  | 'SUCCEEDED'
+  | 'COMPLETED'
+  | 'CANCELLED';
 export type TriggerType = 'webhook' | 'manual' | 'schedule';
 export type LogLevel = 'info' | 'warning' | 'error';
 
 // Phase Types
-export type PhaseName = 'PREPARING' | 'BUILDING' | 'TESTING' | 'FINALIZING';
+export type PhaseName =
+  | 'PREPARING'
+  | 'BUILDING'
+  | 'TESTING'
+  | 'FINALIZING'
+  | 'DOWNLOAD_SOURCE'
+  | 'INSTALL'
+  | 'PRE_BUILD'
+  | 'BUILD'
+  | 'POST_BUILD'
+  | 'UPLOAD_ARTIFACTS'
+  | 'OTHER'
+  | string; // Allow any string for dynamic phases
 export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 // Main Interfaces

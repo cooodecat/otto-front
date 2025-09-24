@@ -16,7 +16,7 @@
 
 <div class="border-b border-gray-200 px-6">
   <nav class="flex space-x-6">
-    {#each tabs as tab (tab)}
+    {#each tabs as tab}
       {@const Icon = tab.icon}
       <button
         onclick={() => (activeTab = tab.id)}
@@ -27,7 +27,6 @@
       >
         <Icon class="h-4 w-4" />
         <span class="font-medium">{tab.label}</span>
-        <span class="text-xs text-gray-400">({tab.shortcut})</span>
       </button>
     {/each}
   </nav>
