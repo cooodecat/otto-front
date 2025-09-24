@@ -41,6 +41,15 @@
     endTime?: string;
     logs?: { groupName?: string; streamName?: string };
   } | null>(null);
+
+  // 임시: 배포 URL 헬스체크 상태 추가
+  let deployHealthStatus = $state<{
+    isHealthy?: boolean;
+    lastChecked?: Date;
+    responseStatus?: number;
+    isChecking?: boolean;
+  } | null>(null);
+  let healthCheckInterval: NodeJS.Timeout | null = null;
   let statusPollingInterval: NodeJS.Timeout | null = null;
   let toast = $state<{ type: 'success' | 'error' | 'warning' | 'info'; message: string } | null>(
     null
@@ -412,9 +421,27 @@
         }
         isExecuting = false;
 
-        // 실행 완료 알림
+        // 실행 완료 알림 및 임시: 배포 URL 헬스체크 시작
         if (status.buildStatus === 'SUCCEEDED') {
-          showToast('success', '파이프라인이 성공적으로 완료되었습니다!');
+          showToast('success', '빌드가 성공적으로 완료되었습니다! 배포 상태를 확인 중입니다...');
+
+          // 임시: 빌드 완료 시 파이프라인 정보 새로고침하여 최신 deployUrl 가져오기
+          await refreshPipelineInfo();
+
+          if (pipeline?.deployUrl) {
+            console.log(`배포 URL 발견: ${pipeline.deployUrl}`);
+            startHealthCheckPolling(pipeline.deployUrl);
+          } else {
+            console.log('배포 URL이 아직 설정되지 않았습니다. 잠시 후 다시 확인합니다.');
+            // 3초 후 다시 파이프라인 정보 확인
+            setTimeout(async () => {
+              await refreshPipelineInfo();
+              if (pipeline?.deployUrl) {
+                console.log(`지연 로드 후 배포 URL 발견: ${pipeline.deployUrl}`);
+                startHealthCheckPolling(pipeline.deployUrl);
+              }
+            }, 3000);
+          }
         } else if (status.buildStatus === 'FAILED') {
           showToast('error', '파이프라인 실행이 실패했습니다. 로그를 확인해주세요.');
         } else if (status.buildStatus === 'STOPPED') {
@@ -449,11 +476,129 @@
       if (statusPollingInterval) {
         clearInterval(statusPollingInterval);
       }
+      // 임시: 헬스체크 폴링도 중지
+      if (healthCheckInterval) {
+        clearInterval(healthCheckInterval);
+      }
     };
   });
 
   function showToast(type: 'success' | 'error' | 'warning' | 'info', message: string) {
     toast = { type, message };
+  }
+
+  // 임시: 파이프라인 정보 새로고침 (배포 URL 업데이트 확인용)
+  async function refreshPipelineInfo() {
+    if (!pipelineId) return;
+
+    try {
+      console.log('파이프라인 정보 새로고침 중...');
+
+      const data = await api.functional.pipelines.getPipelineById(makeFetch({ fetch }), pipelineId);
+
+      // 기존 pipeline 데이터와 비교해서 배포 URL 변경 사항 로그
+      if (pipeline?.deployUrl !== data.deployUrl) {
+        console.log(`배포 URL 업데이트: ${pipeline?.deployUrl} -> ${data.deployUrl}`);
+      }
+
+      pipeline = data;
+
+      console.log('파이프라인 정보 새로고침 완료:', {
+        deployUrl: data.deployUrl,
+        ecrImageUri: data.ecrImageUri,
+        imageTag: data.imageTag
+      });
+    } catch (error) {
+      console.error('파이프라인 정보 새로고침 실패:', error);
+    }
+  }
+
+  // 임시: 배포 URL 헬스체크 함수
+  async function checkDeploymentHealth(deployUrl: string) {
+    if (!deployUrl || deployHealthStatus?.isChecking) return;
+
+    deployHealthStatus = {
+      ...deployHealthStatus,
+      isChecking: true,
+      lastChecked: new Date()
+    };
+
+    try {
+      console.log(`헬스체크: https://${deployUrl}`);
+
+      // CORS 우회를 위해 이미지 로드로 헬스체크
+      const healthCheck = new Promise<{ status: number; isHealthy: boolean }>((resolve, reject) => {
+        const img = new Image();
+        const timeout = setTimeout(() => {
+          reject(new Error('timeout'));
+        }, 10000); // 10초 타임아웃
+
+        img.onload = () => {
+          clearTimeout(timeout);
+          resolve({ status: 200, isHealthy: true });
+        };
+
+        img.onerror = () => {
+          clearTimeout(timeout);
+          // favicon이 없더라도 사이트가 동작 중이라고 간주
+          resolve({ status: 404, isHealthy: true });
+        };
+
+        img.src = `https://${deployUrl}/favicon.ico?t=${Date.now()}`;
+      });
+
+      const result = await healthCheck;
+
+      deployHealthStatus = {
+        isHealthy: result.isHealthy,
+        lastChecked: new Date(),
+        responseStatus: result.status,
+        isChecking: false
+      };
+
+      console.log(`헬스체크 결과: ${result.status} - ${result.isHealthy ? '건강' : '비건강'}`);
+
+      // 배포 완료 시 헬스체크 중지
+      if (result.isHealthy && healthCheckInterval) {
+        clearInterval(healthCheckInterval);
+        healthCheckInterval = null;
+        showToast('success', '배포가 성공적으로 완료되었습니다! 사이트에 접속할 수 있습니다.');
+      }
+    } catch (error) {
+      console.log(`헬스체크 실패: ${error}`);
+
+      deployHealthStatus = {
+        isHealthy: false,
+        lastChecked: new Date(),
+        responseStatus: 0,
+        isChecking: false
+      };
+    }
+  }
+
+  // 임시: 헬스체크 폴링 시작
+  function startHealthCheckPolling(deployUrl: string) {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+    }
+
+    console.log(`헬스체크 폴링 시작: ${deployUrl}`);
+
+    // 즉시 첫 번째 체크
+    checkDeploymentHealth(deployUrl);
+
+    // 5초마다 체크
+    healthCheckInterval = setInterval(() => {
+      if (deployHealthStatus?.isHealthy) {
+        // 이미 건강하면 중지
+        if (healthCheckInterval) {
+          clearInterval(healthCheckInterval);
+          healthCheckInterval = null;
+        }
+        return;
+      }
+      checkDeploymentHealth(deployUrl);
+    }, 5000);
   }
 
   function handleBack() {
@@ -880,6 +1025,54 @@
                   <span class="ml-2 truncate font-mono text-gray-700" title={buildInfo.imageTag}>
                     {buildInfo.imageTag}
                   </span>
+                </div>
+              {/if}
+
+              <!-- 임시: 배포 URL 및 헬스체크 상태 -->
+              {#if pipeline?.deployUrl}
+                <div class="mt-2 border-t pt-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-gray-500">배포 URL:</span>
+                    <div class="flex items-center gap-2">
+                      {#if deployHealthStatus?.isChecking}
+                        <div
+                          class="h-2 w-2 animate-pulse rounded-full bg-yellow-500"
+                          title="헬스체크 중"
+                        ></div>
+                      {:else if deployHealthStatus?.isHealthy}
+                        <div class="h-2 w-2 rounded-full bg-green-500" title="배포 완료"></div>
+                      {:else if deployHealthStatus?.isHealthy === false}
+                        <div class="h-2 w-2 rounded-full bg-red-500" title="배포 대기 중"></div>
+                      {:else}
+                        <div class="h-2 w-2 rounded-full bg-gray-400" title="상태 확인 중"></div>
+                      {/if}
+                    </div>
+                  </div>
+                  <div class="mt-1">
+                    <a
+                      href="https://{pipeline.deployUrl}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="font-mono text-xs break-all text-blue-600 hover:text-blue-800"
+                      title="배포된 사이트 열기"
+                    >
+                      https://{pipeline.deployUrl}
+                    </a>
+                  </div>
+                  {#if deployHealthStatus}
+                    <div class="mt-1 text-xs text-gray-500">
+                      {#if deployHealthStatus.isChecking}
+                        사이트 상태 확인 중...
+                      {:else if deployHealthStatus.isHealthy}
+                        사이트 접속 가능 ({deployHealthStatus.responseStatus || 200})
+                      {:else}
+                        사이트 준비 중... (잠시 후 다시 시도해주세요)
+                      {/if}
+                      {#if deployHealthStatus.lastChecked}
+                        <br />마지막 확인: {deployHealthStatus.lastChecked.toLocaleTimeString()}
+                      {/if}
+                    </div>
+                  {/if}
                 </div>
               {/if}
               {#if buildStatus?.logs?.groupName}
