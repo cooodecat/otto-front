@@ -36,7 +36,7 @@
 </script>
 
 <div class="phase-timeline p-4">
-  {#each phases as phase, i}
+  {#each phases as phase, i (phase.name)}
     <div
       class="phase-step relative flex items-start pb-8 last:pb-0"
       class:active={phase.status === 'running'}
@@ -100,7 +100,7 @@
         <!-- Sub-steps for Running Phase -->
         {#if phase.status === 'running' && phase.subSteps}
           <div class="sub-steps mt-3 space-y-1">
-            {#each phase.subSteps as step}
+            {#each phase.subSteps as step (step.name || step)}
               <div class="flex items-center gap-2 text-xs text-gray-600">
                 {#if step.completed}
                   <Check class="h-3 w-3 text-green-500" />

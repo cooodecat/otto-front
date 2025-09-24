@@ -201,8 +201,11 @@
 
       <div class="space-y-4">
         <div>
-          <label class="mb-1 block text-sm font-medium">Auth Token (Optional)</label>
+          <label for="ws-auth-token" class="mb-1 block text-sm font-medium"
+            >Auth Token (Optional)</label
+          >
           <input
+            id="ws-auth-token"
             type="text"
             bind:value={token}
             placeholder="Enter auth token or leave empty"
@@ -212,8 +215,9 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium">Execution ID</label>
+          <label for="ws-execution-id" class="mb-1 block text-sm font-medium">Execution ID</label>
           <input
+            id="ws-execution-id"
             type="text"
             bind:value={testExecutionId}
             class="w-full rounded-lg border px-3 py-2"
@@ -316,7 +320,7 @@
       <div class="mb-6 rounded-lg bg-white p-6 shadow">
         <h2 class="mb-4 text-lg font-semibold">Execution Phases</h2>
         <div class="grid grid-cols-4 gap-4">
-          {#each phases as phase}
+          {#each phases as phase (phase.name)}
             <div
               class="rounded-lg border p-3
 							{phase.status === 'completed' ? 'border-green-200 bg-green-50' : ''}
@@ -343,7 +347,7 @@
         {#if logs.length === 0}
           <div class="text-gray-500">No logs received yet...</div>
         {:else}
-          {#each logs as log}
+          {#each logs as log (log.timestamp + log.message)}
             <div class="mb-1">
               <span class="text-gray-500">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
               <span

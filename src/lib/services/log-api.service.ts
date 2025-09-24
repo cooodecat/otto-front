@@ -2,9 +2,8 @@ import api from '$lib/sdk';
 import { makeFetch } from '$lib/utils/make-fetch';
 import type {
   ExecutionMetadata,
-  ExecutionListResponse,
+  ExecutionListResponse as _ExecutionListResponse,
   LogEntry,
-  PhaseName,
   ExecutionType,
   ExecutionStatus,
   TriggerType
@@ -13,15 +12,19 @@ import type { ExecutionResponseDto } from '$lib/sdk/structures/ExecutionResponse
 
 export class LogApiService {
   // Helpers to extract commit info from varying backend schemas
-  private pickString(obj: any, keys: string[]): string | undefined {
-    if (!obj) return undefined;
+  private pickString(obj: unknown, keys: string[]): string | undefined {
+    if (!obj || typeof obj !== 'object') return undefined;
+    const record = obj as Record<string, unknown>;
     for (const k of keys) {
-      if (k in obj && typeof obj[k] === 'string' && obj[k]) return String(obj[k]);
+      if (k in record && typeof record[k] === 'string' && record[k]) return String(record[k]);
     }
     return undefined;
   }
 
-  private extractFromMetadataLike(exec: any): { commitId?: string; commitMessage?: string } {
+  private extractFromMetadataLike(exec: Record<string, unknown>): {
+    commitId?: string;
+    commitMessage?: string;
+  } {
     const meta = exec?.metadata ?? exec?.meta ?? {};
     const commitId =
       this.pickString(meta, ['commitId', 'commit_id', 'commitSha', 'commitSHA', 'sha', 'commit']) ||
@@ -33,10 +36,10 @@ export class LogApiService {
   }
 
   // Standalone helpers for use below
-  extractCommitId(exec: any): string | undefined {
+  extractCommitId(exec: Record<string, unknown>): string | undefined {
     return this.extractFromMetadataLike(exec).commitId;
   }
-  extractCommitMessage(exec: any): string | undefined {
+  extractCommitMessage(exec: Record<string, unknown>): string | undefined {
     return this.extractFromMetadataLike(exec).commitMessage;
   }
   async getExecutions(params: {
@@ -61,7 +64,7 @@ export class LogApiService {
     // ExecutionResponseDto[] to ExecutionMetadata[] 변환
     return executions.map((exec: ExecutionResponseDto, index: number) => ({
       executionId: exec.executionId,
-      buildNumber: parseInt(exec.metadata?.buildNumber as string) || (executions.length - index),
+      buildNumber: parseInt(exec.metadata?.buildNumber as string) || executions.length - index,
       executionType: exec.executionType.toUpperCase() as ExecutionType,
       status: exec.status.toUpperCase() as ExecutionStatus,
       startedAt: exec.startedAt,
@@ -76,8 +79,7 @@ export class LogApiService {
       commitId: this.extractCommitId(exec) || '',
       commitMessage: this.extractCommitMessage(exec) || '',
       author:
-        (exec.metadata && 'author' in exec.metadata ? String(exec.metadata.author) : '') ||
-        '',
+        (exec.metadata && 'author' in exec.metadata ? String(exec.metadata.author) : '') || '',
       pipelineId: exec.pipelineId,
       pipelineName:
         (exec.metadata && 'pipelineName' in exec.metadata
@@ -97,17 +99,17 @@ export class LogApiService {
     const connection = makeFetch();
     console.log('API Call - Getting execution by ID:', executionId);
     console.log('API Connection:', connection);
-    
     const execution = await api.functional.logs.executions.getExecutionById(
       connection,
       executionId
     );
-    
+
     console.log('API Response - Raw execution data:', execution);
 
     return {
       executionId: execution.executionId,
-      buildNumber: parseInt(execution.metadata?.buildNumber as string) || Math.floor(Math.random() * 1000) + 1,
+      buildNumber:
+        parseInt(execution.metadata?.buildNumber as string) || Math.floor(Math.random() * 1000) + 1,
       executionType: execution.executionType.toUpperCase() as ExecutionType,
       status: execution.status.toUpperCase() as ExecutionStatus,
       startedAt: execution.startedAt,
@@ -151,6 +153,19 @@ export class LogApiService {
       phase?: string;
     }
   ): Promise<LogEntry[]> {
+    interface LogResponse {
+      timestamp?: unknown;
+      level?: unknown;
+      message?: unknown;
+      phase?: unknown;
+      step?: unknown;
+      stepOrder?: unknown;
+      metadata?: {
+        phase?: string;
+        step?: string;
+        stepOrder?: number;
+      };
+    }
     const connection = makeFetch();
     const response = await api.functional.logs.executions.logs.getExecutionLogs(
       connection,
@@ -165,39 +180,85 @@ export class LogApiService {
     // Check if response is an array directly
     if (Array.isArray(response)) {
       console.log('Response is array, processing directly');
-      return response.map((log: any) => ({
-        timestamp: log.timestamp,
+      return response.map((log: LogResponse) => ({
+        timestamp: String(log.timestamp || ''),
         level: (log.level || 'info') as 'info' | 'warning' | 'error',
-        message: log.message || '',
-        phase: log.phase || log.metadata?.phase || undefined,
-        step: log.step || log.metadata?.step || undefined,
-        stepOrder: log.stepOrder || log.metadata?.stepOrder || undefined
+        message: String(log.message || ''),
+        phase: log.phase
+          ? String(log.phase)
+          : log.metadata?.phase
+            ? String(log.metadata.phase)
+            : undefined,
+        step: log.step
+          ? String(log.step)
+          : log.metadata?.step
+            ? String(log.metadata.step)
+            : undefined,
+        stepOrder: log.stepOrder
+          ? Number(log.stepOrder)
+          : log.metadata?.stepOrder
+            ? Number(log.metadata.stepOrder)
+            : undefined
       }));
     }
-    
+
     // Check for logs property
-    if (response && typeof response === 'object' && 'logs' in response && Array.isArray(response.logs)) {
+    if (
+      response &&
+      typeof response === 'object' &&
+      'logs' in response &&
+      Array.isArray(response.logs)
+    ) {
       console.log('Response has logs property, processing logs array');
-      return response.logs.map((log: any) => ({
-        timestamp: log.timestamp,
+      return (response as { logs: LogResponse[] }).logs.map((log: LogResponse) => ({
+        timestamp: String(log.timestamp || ''),
         level: (log.level || 'info') as 'info' | 'warning' | 'error',
-        message: log.message || '',
-        phase: log.phase || log.metadata?.phase || undefined,
-        step: log.step || log.metadata?.step || undefined,
-        stepOrder: log.stepOrder || log.metadata?.stepOrder || undefined
+        message: String(log.message || ''),
+        phase: log.phase
+          ? String(log.phase)
+          : log.metadata?.phase
+            ? String(log.metadata.phase)
+            : undefined,
+        step: log.step
+          ? String(log.step)
+          : log.metadata?.step
+            ? String(log.metadata.step)
+            : undefined,
+        stepOrder: log.stepOrder
+          ? Number(log.stepOrder)
+          : log.metadata?.stepOrder
+            ? Number(log.metadata.stepOrder)
+            : undefined
       }));
     }
 
     // Check for data property
-    if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)) {
+    if (
+      response &&
+      typeof response === 'object' &&
+      'data' in response &&
+      Array.isArray(response.data)
+    ) {
       console.log('Response has data property, processing data array');
-      return response.data.map((log: any) => ({
-        timestamp: log.timestamp,
+      return (response as { data: LogResponse[] }).data.map((log: LogResponse) => ({
+        timestamp: String(log.timestamp || ''),
         level: (log.level || 'info') as 'info' | 'warning' | 'error',
-        message: log.message || '',
-        phase: log.phase || log.metadata?.phase || undefined,
-        step: log.step || log.metadata?.step || undefined,
-        stepOrder: log.stepOrder || log.metadata?.stepOrder || undefined
+        message: String(log.message || ''),
+        phase: log.phase
+          ? String(log.phase)
+          : log.metadata?.phase
+            ? String(log.metadata.phase)
+            : undefined,
+        step: log.step
+          ? String(log.step)
+          : log.metadata?.step
+            ? String(log.metadata.step)
+            : undefined,
+        stepOrder: log.stepOrder
+          ? Number(log.stepOrder)
+          : log.metadata?.stepOrder
+            ? Number(log.metadata.stepOrder)
+            : undefined
       }));
     }
 

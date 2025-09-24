@@ -14,7 +14,7 @@
     id: string;
     data: AnyCICDNodeData;
     colorClass?: string;
-    icon?: any;
+    icon?: typeof Settings | string;
     minWidth?: number;
     deletable?: boolean;
     showInput?: boolean;
@@ -27,7 +27,7 @@
       successColor?: string;
       failedColor?: string;
     };
-    children?: any;
+    children?: import('svelte').Snippet;
   }
 
   const {
@@ -127,7 +127,7 @@
   {/if}
 
   <!-- Custom Output Handles -->
-  {#each outputHandles as handle}
+  {#each outputHandles as handle (handle.id)}
     <Handle
       type="source"
       position={handle.position}

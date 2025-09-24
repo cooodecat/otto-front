@@ -2,7 +2,13 @@
   import { X } from 'lucide-svelte';
   import { fade, fly } from 'svelte/transition';
   import { onMount, onDestroy } from 'svelte';
-  import type { ExecutionMetadata, PhaseInfo, LogEntry, ExecutionStatus } from '$lib/types/log.types';
+  import type {
+    ExecutionMetadata,
+    PhaseInfo,
+    LogEntry,
+    ExecutionStatus,
+    PhaseName
+  } from '$lib/types/log.types';
   import DrawerHeader from './DrawerHeader.svelte';
   import DrawerTabs from './DrawerTabs.svelte';
   import LogsTab from './tabs/LogsTab.svelte';
@@ -29,25 +35,25 @@
   let phases = $state<PhaseInfo[]>([]);
   let logs = $state<LogEntry[]>([]);
   let isConnected = $state(false);
-  let logsTabRef = $state<any>(null);
+  let logsTabRef = $state<{ scrollToPhaseIndex?: (index: number) => void } | null>(null);
   let currentExecutionId = $state(executionId);
 
   // WebSocket service - created only when needed
   let wsService = $state<LogWebSocketService | null>(null);
-  
+
   // Store unsubscribers
   let unsubscribers: (() => void)[] = [];
-  
+
   // Extract phase information from logs
   function updatePhasesFromLogs(logs: LogEntry[]) {
     const phaseMap = new Map<string, PhaseInfo>();
-    
+
     // Initialize with existing phases
-    phases.forEach(p => phaseMap.set(p.name, p));
-    
-    logs.forEach(log => {
+    phases.forEach((p) => phaseMap.set(p.name, p));
+
+    logs.forEach((log) => {
       const message = log.message || '';
-      
+
       // Detect phase start
       const phaseStart = message.match(/Entering phase\s+([A-Z_]+)/i);
       if (phaseStart) {
@@ -55,7 +61,7 @@
         if (!phaseMap.has(phaseName)) {
           phaseMap.set(phaseName, {
             id: phaseName,
-            name: phaseName,
+            name: phaseName as PhaseName,
             status: 'running',
             startTime: log.timestamp,
             progress: 10
@@ -67,7 +73,7 @@
           phase.progress = Math.max(phase.progress || 0, 10);
         }
       }
-      
+
       // Detect phase completion
       const phaseComplete = message.match(/Phase complete:?\s*([A-Z_]+)/i);
       if (phaseComplete) {
@@ -77,7 +83,7 @@
           phase.status = 'completed';
           phase.endTime = log.timestamp;
           phase.progress = 100;
-          
+
           // Calculate duration
           if (phase.startTime) {
             const start = new Date(phase.startTime).getTime();
@@ -86,7 +92,7 @@
           }
         }
       }
-      
+
       // Special handling for FINALIZING phase completion
       if (message.match(/Build succeeded|SUCCEEDED|Build complete|Execution complete/i)) {
         const finalizingPhase = phaseMap.get('FINALIZING');
@@ -94,7 +100,7 @@
           finalizingPhase.status = 'completed';
           finalizingPhase.endTime = log.timestamp;
           finalizingPhase.progress = 100;
-          
+
           if (finalizingPhase.startTime) {
             const start = new Date(finalizingPhase.startTime).getTime();
             const end = new Date(log.timestamp).getTime();
@@ -102,7 +108,7 @@
           }
         }
       }
-      
+
       // Update progress based on log content
       if (log.phase && phaseMap.has(log.phase)) {
         const phase = phaseMap.get(log.phase)!;
@@ -112,7 +118,7 @@
         }
       }
     });
-    
+
     // Update phases state
     phases = Array.from(phaseMap.values()).sort((a, b) => {
       const aTime = a.startTime ? new Date(a.startTime).getTime() : 0;
@@ -124,7 +130,7 @@
   // Load execution data from API
   async function loadExecutionData() {
     loading = true;
-    
+
     // Set a timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       if (loading) {
@@ -132,17 +138,22 @@
         loading = false;
       }
     }, 10000); // 10 second timeout
-    
+
     try {
       console.log('Loading execution data for ID:', currentExecutionId);
       execution = await logApiService.getExecutionById(currentExecutionId);
-      
+
       // Log the actual data to see what we're getting
       console.log('Loaded execution data:', $state.snapshot(execution));
       console.log('Metadata:', $state.snapshot(execution?.metadata));
-      
+
       // Always try to load logs from API first as a fallback
-      console.log('Loading logs from API for execution:', currentExecutionId, 'Status:', execution?.status);
+      console.log(
+        'Loading logs from API for execution:',
+        currentExecutionId,
+        'Status:',
+        execution?.status
+      );
       try {
         const apiLogs = await logApiService.getExecutionLogs(currentExecutionId, { limit: 1000 });
         console.log('Loaded logs from API:', apiLogs?.length || 0);
@@ -151,18 +162,20 @@
           updatePhasesFromLogs(apiLogs);
         } else {
           console.warn('No logs returned from API for execution:', currentExecutionId);
-          
+
           // Check if this is a stale RUNNING execution
           if (execution?.status === 'RUNNING' && execution?.startedAt) {
             const startTime = new Date(execution.startedAt).getTime();
             const now = Date.now();
             const hoursSinceStart = (now - startTime) / (1000 * 60 * 60);
-            
+
             if (hoursSinceStart > 1) {
-              console.warn(`Execution has been running for ${hoursSinceStart.toFixed(1)} hours with no logs - likely interrupted`);
+              console.warn(
+                `Execution has been running for ${hoursSinceStart.toFixed(1)} hours with no logs - likely interrupted`
+              );
             }
           }
-          
+
           // Try to get archived logs URL as fallback
           try {
             const archiveUrl = await logApiService.getArchivedLogUrl(currentExecutionId);
@@ -174,16 +187,16 @@
       } catch (logError) {
         console.error('Failed to load logs from API:', logError);
       }
-      
+
       // Initialize phases based on execution type if no phases from server
       if (!phases || phases.length === 0) {
-        phases = [];  // Start with empty phases, will be populated from WebSocket or logs
+        phases = []; // Start with empty phases, will be populated from WebSocket or logs
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to load execution:', error);
       console.error('Error details:', {
-        message: error?.message || 'Unknown error',
-        stack: error?.stack || '',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : '',
         executionId: currentExecutionId
       });
       // Fallback to mock data
@@ -201,18 +214,18 @@
       console.error('Pipeline ID not found for re-run');
       return;
     }
-    
+
     try {
       const connection = makeFetch();
       const response = await api.functional.pipelines.execute.executePipeline(
         connection,
         execution.pipelineId
       );
-      
+
       console.log('Re-run response:', response);
-      
-      // Use executionId if available, otherwise use buildId
-      const newExecutionId = response.executionId || response.buildId;
+
+      // Use buildId from the response
+      const newExecutionId = response.buildId;
       if (newExecutionId) {
         console.log('Switching to new execution:', newExecutionId);
         await handleNewExecution(newExecutionId);
@@ -222,33 +235,33 @@
       // TODO: Show error toast
     }
   }
-  
+
   // Handle new execution from re-run
   async function handleNewExecution(buildIdOrExecutionId: string) {
     console.log('Switching to new execution with buildId/executionId:', buildIdOrExecutionId);
-    
+
     // Disconnect from current WebSocket
     if (wsService) {
       wsService.disconnect();
       wsService = null;
     }
-    
+
     // Clear current data
     logs = [];
     phases = [];
     execution = null;
     loading = true;
-    
+
     // Switch to logs tab immediately to show loading
     activeTab = 'logs';
-    
+
     // Wait for the new execution to be created in the backend
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
     try {
       // If it looks like a buildId (contains ':'), we need to find the actual executionId
       let actualExecutionId = buildIdOrExecutionId;
-      
+
       if (buildIdOrExecutionId.includes(':')) {
         console.log('BuildId detected, fetching latest execution...');
         // Get the latest execution for this project
@@ -256,7 +269,7 @@
           projectId: projectId || '',
           pageSize: 5
         });
-        
+
         // Find the most recent execution (should be the one we just created)
         const latestExecution = executions[0];
         if (latestExecution) {
@@ -264,15 +277,15 @@
           console.log('Found latest execution:', actualExecutionId);
         }
       }
-      
+
       // Update execution ID and reload
       currentExecutionId = actualExecutionId;
-      
+
       // Notify parent component about the change
       if (onExecutionChange) {
         onExecutionChange(actualExecutionId);
       }
-      
+
       // Load new execution data and reconnect WebSocket
       await loadExecutionData();
       await setupWebSocket();
@@ -288,32 +301,33 @@
   // Setup WebSocket connection
   async function setupWebSocket() {
     // Skip WebSocket for completed executions
-    if (execution?.status === 'SUCCESS' || execution?.status === 'FAILED' || 
-        execution?.status === 'SUCCEEDED' || execution?.status === 'COMPLETED' ||
-        execution?.status === 'CANCELLED') {
+    if (
+      execution?.status === 'SUCCESS' ||
+      execution?.status === 'FAILED' ||
+      execution?.status === 'SUCCEEDED' ||
+      execution?.status === 'COMPLETED' ||
+      execution?.status === 'CANCELLED'
+    ) {
       console.log('Execution is completed, skipping WebSocket connection');
       return;
     }
-    
+
     try {
       // Create WebSocket service only for running executions
       if (!wsService) {
         wsService = new LogWebSocketService();
       }
-      
+
       const token = localStorage.getItem('auth_token') || '';
-      
+
       // Create a timeout promise
       const connectTimeout = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('WebSocket connection timeout')), 5000);
       });
-      
+
       // Race between connection and timeout
-      await Promise.race([
-        wsService.connect(token),
-        connectTimeout
-      ]);
-      
+      await Promise.race([wsService.connect(token), connectTimeout]);
+
       wsService.subscribe(currentExecutionId);
 
       // Subscribe to stores and track unsubscribers
@@ -331,7 +345,7 @@
           // Don't overwrite with empty array if WebSocket hasn't sent anything yet
           if (value.length > 0) {
             logs = value;
-            
+
             // Extract phase information from log messages
             updatePhasesFromLogs(value);
           } else if (value.length === 0 && logs.length === 0) {
@@ -353,7 +367,7 @@
         wsService.status.subscribe((value) => {
           // Normalize status to uppercase first
           const normalizedStatus = (value?.toUpperCase() || 'PENDING') as ExecutionStatus;
-          
+
           if (execution) {
             // Create a new object for reactivity in Svelte 5
             execution = { ...execution, status: normalizedStatus };
@@ -367,19 +381,19 @@
               endTime: p.endTime || new Date().toISOString(),
               progress: 100
             }));
-            
+
             // Explicitly mark FINALIZING as completed
-            const finalizingIdx = phases.findIndex(p => p.name === 'FINALIZING');
+            const finalizingIdx = phases.findIndex((p) => p.name === 'FINALIZING');
             if (finalizingIdx >= 0) {
               phases[finalizingIdx].status = 'completed';
               phases[finalizingIdx].progress = 100;
             }
           } else if (normalizedStatus === 'FAILED') {
-            phases = phases.map((p) => (
+            phases = phases.map((p) =>
               p.status === 'completed' || p.status === 'failed'
                 ? p
                 : { ...p, status: 'failed', endTime: p.endTime || new Date().toISOString() }
-            ));
+            );
           }
         })
       );
@@ -391,22 +405,24 @@
   onMount(async () => {
     // Load execution data first, then setup WebSocket if needed
     await loadExecutionData();
-    
+
     // Setup WebSocket for active executions (PENDING, RUNNING, or any in-progress state)
     const normalizedStatus = execution?.status?.toUpperCase();
-    if (execution && 
-        normalizedStatus !== 'SUCCESS' && 
-        normalizedStatus !== 'FAILED' && 
-        normalizedStatus !== 'SUCCEEDED' && 
-        normalizedStatus !== 'COMPLETED' &&
-        normalizedStatus !== 'CANCELLED') {
+    if (
+      execution &&
+      normalizedStatus !== 'SUCCESS' &&
+      normalizedStatus !== 'FAILED' &&
+      normalizedStatus !== 'SUCCEEDED' &&
+      normalizedStatus !== 'COMPLETED' &&
+      normalizedStatus !== 'CANCELLED'
+    ) {
       await setupWebSocket();
     }
   });
 
   onDestroy(() => {
     // Unsubscribe from all stores
-    unsubscribers.forEach(fn => fn());
+    unsubscribers.forEach((fn) => fn());
     if (wsService) {
       wsService.disconnect();
       wsService = null;
@@ -479,7 +495,6 @@
     ];
   }
 
-
   // React to prop changes
   $effect(() => {
     if (executionId !== currentExecutionId) {
@@ -492,12 +507,14 @@
     if (execution && !loading) {
       // Check if we need to setup WebSocket for active executions
       const normalizedStatus = execution?.status?.toUpperCase();
-      if (!wsService && 
-          normalizedStatus !== 'SUCCESS' && 
-          normalizedStatus !== 'FAILED' && 
-          normalizedStatus !== 'SUCCEEDED' && 
-          normalizedStatus !== 'COMPLETED' &&
-          normalizedStatus !== 'CANCELLED') {
+      if (
+        !wsService &&
+        normalizedStatus !== 'SUCCESS' &&
+        normalizedStatus !== 'FAILED' &&
+        normalizedStatus !== 'SUCCEEDED' &&
+        normalizedStatus !== 'COMPLETED' &&
+        normalizedStatus !== 'CANCELLED'
+      ) {
         console.log('Execution status changed to active state, setting up WebSocket');
         setupWebSocket();
       }
@@ -519,7 +536,7 @@
 
 <!-- Backdrop -->
 <button
-  class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm cursor-pointer"
+  class="fixed inset-0 z-40 cursor-pointer bg-black/30 backdrop-blur-sm"
   transition:fade={{ duration: 200 }}
   onclick={onClose}
   aria-label="Close drawer"
@@ -527,107 +544,110 @@
 ></button>
 
 <!-- Floating Drawer Container -->
-<div class="fixed inset-0 z-50 pointer-events-none p-6">
+<div class="pointer-events-none fixed inset-0 z-50 p-6">
   <!-- Drawer with Floating Style (Full Width) -->
   <div
-    class="ml-auto h-full min-h-0 w-[85%] max-w-7xl pointer-events-auto rounded-2xl bg-white shadow-2xl overflow-hidden ring-1 ring-gray-200/50 flex flex-col relative"
+    class="pointer-events-auto relative ml-auto flex h-full min-h-0 w-[85%] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200/50"
     transition:fly={{ x: '100%', duration: 300 }}
   >
-  <!-- Main Content Panel -->
-  <div class="flex flex-1 min-h-0 flex-col">
-    <!-- Close Button -->
-    <button
-      onclick={onClose}
-      class="absolute top-4 right-4 z-10 rounded-full p-2 bg-gray-100 hover:bg-gray-200 transition-all hover:rotate-90 cursor-pointer"
-      aria-label="Close drawer"
-    >
-      <X class="h-5 w-5 text-gray-700" />
-    </button>
+    <!-- Main Content Panel -->
+    <div class="flex min-h-0 flex-1 flex-col">
+      <!-- Close Button -->
+      <button
+        onclick={onClose}
+        class="absolute top-4 right-4 z-10 cursor-pointer rounded-full bg-gray-100 p-2 transition-all hover:rotate-90 hover:bg-gray-200"
+        aria-label="Close drawer"
+      >
+        <X class="h-5 w-5 text-gray-700" />
+      </button>
 
-    <!-- Header -->
-    {#if loading}
-      <div class="flex justify-center p-6">
-        <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-      </div>
-    {:else if execution}
-      <DrawerHeader {execution} {isConnected} />
-      
-      <!-- Compact Phase Progress Indicator -->
-      {#if phases.length > 0}
-        <div class="px-6 py-3 border-b border-gray-200 bg-gray-50/50">
-          <div class="flex items-center gap-3">
-            <span class="text-xs font-medium text-gray-600">Progress:</span>
-            <div class="flex-1 flex items-center gap-2">
-              {#each phases as phase, index}
-                <button
-                  type="button"
-                  class="flex-1 group relative cursor-pointer"
-                  onclick={async () => {
-                    activeTab = 'logs';
-                    // Wait for LogsTab to mount/bind
-                    await tick();
-                    // Give the child a moment if switching tabs
-                    setTimeout(() => {
-                      logsTabRef?.scrollToPhaseIndex?.(index);
-                    }, 0);
-                  }}
-                >
-                  <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      class="h-full transition-all duration-300 {
-                        phase.status === 'completed' ? 'bg-green-500' : 
-                        phase.status === 'running' ? 'bg-blue-500 animate-pulse' : 
-                        phase.status === 'failed' ? 'bg-red-500' : 
-                        'bg-gray-300'
-                      }"
-                      style="width: {
-                        phase.status === 'completed' ? '100%' : 
-                        phase.status === 'running' ? `${phase.progress || 50}%` : 
-                        '0%'
-                      }"
-                    ></div>
-                  </div>
-                  <!-- Tooltip -->
-                  <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none transition-opacity whitespace-nowrap z-20">
-                    {phase.name}
-                  </div>
-                </button>
-              {/each}
-            </div>
-            <span class="text-xs text-gray-500">
-              {phases.filter(p => p.status === 'completed').length}/{phases.length} completed
-            </span>
-          </div>
+      <!-- Header -->
+      {#if loading}
+        <div class="flex justify-center p-6">
+          <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
         </div>
-      {/if}
-    {/if}
+      {:else if execution}
+        <DrawerHeader {execution} {isConnected} />
 
-    <!-- Tabs -->
-    <DrawerTabs bind:activeTab />
-
-    <!-- Tab Content -->
-    <div class="flex flex-1 min-h-0 flex-col">
-      {#if execution}
-        {#if activeTab === 'logs'}
-          <LogsTab 
-            bind:this={logsTabRef} 
-            executionId={execution.executionId} 
-            executionStatus={execution.status} 
-            executionStartedAt={execution.startedAt}
-            {phases} 
-            {logs} 
-            {wsService} 
-            isLoading={loading}
-            onRerun={() => execution && handleRerun(execution)}
-          />
-        {:else if activeTab === 'pipeline'}
-          <PipelineTab {execution} onNewExecution={handleNewExecution} />
-        {:else if activeTab === 'artifacts'}
-          <ArtifactsTab executionId={execution.executionId} />
+        <!-- Compact Phase Progress Indicator -->
+        {#if phases.length > 0}
+          <div class="border-b border-gray-200 bg-gray-50/50 px-6 py-3">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-medium text-gray-600">Progress:</span>
+              <div class="flex flex-1 items-center gap-2">
+                {#each phases as phase, index}
+                  <button
+                    type="button"
+                    class="group relative flex-1 cursor-pointer"
+                    onclick={async () => {
+                      activeTab = 'logs';
+                      // Wait for LogsTab to mount/bind
+                      await tick();
+                      // Give the child a moment if switching tabs
+                      setTimeout(() => {
+                        logsTabRef?.scrollToPhaseIndex?.(index);
+                      }, 0);
+                    }}
+                  >
+                    <div class="h-1.5 overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        class="h-full transition-all duration-300 {phase.status === 'completed'
+                          ? 'bg-green-500'
+                          : phase.status === 'running'
+                            ? 'animate-pulse bg-blue-500'
+                            : phase.status === 'failed'
+                              ? 'bg-red-500'
+                              : 'bg-gray-300'}"
+                        style="width: {phase.status === 'completed'
+                          ? '100%'
+                          : phase.status === 'running'
+                            ? `${phase.progress || 50}%`
+                            : '0%'}"
+                      ></div>
+                    </div>
+                    <!-- Tooltip -->
+                    <div
+                      class="pointer-events-none absolute -top-8 left-1/2 z-20 -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      {phase.name}
+                    </div>
+                  </button>
+                {/each}
+              </div>
+              <span class="text-xs text-gray-500">
+                {phases.filter((p) => p.status === 'completed').length}/{phases.length} completed
+              </span>
+            </div>
+          </div>
         {/if}
       {/if}
+
+      <!-- Tabs -->
+      <DrawerTabs bind:activeTab />
+
+      <!-- Tab Content -->
+      <div class="flex min-h-0 flex-1 flex-col">
+        {#if execution}
+          {#if activeTab === 'logs'}
+            <LogsTab
+              bind:this={logsTabRef}
+              executionId={execution.executionId}
+              executionStatus={execution.status}
+              executionStartedAt={execution.startedAt}
+              {phases}
+              {logs}
+              {wsService}
+              isLoading={loading}
+              onRerun={() => execution && handleRerun(execution)}
+            />
+          {:else if activeTab === 'pipeline'}
+            <PipelineTab {execution} onNewExecution={handleNewExecution} />
+          {:else if activeTab === 'artifacts'}
+            <ArtifactsTab executionId={execution.executionId} />
+          {/if}
+        {/if}
+      </div>
     </div>
-  </div>
   </div>
 </div>
 
@@ -635,7 +655,7 @@
   :global(.highlight-phase) {
     animation: highlight 2s ease-in-out;
   }
-  
+
   @keyframes highlight {
     0% {
       background-color: transparent;

@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.TEST];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: TestJestNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let configFile = $state(data?.configFile || 'jest.config.js');
@@ -27,6 +27,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         configFile,
         coverage,
         watchMode
@@ -91,8 +92,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Config File -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Config File</label>
+          <label for="jest-config-file" class="mb-1 block text-sm font-medium text-gray-700"
+            >Config File</label
+          >
           <input
+            id="jest-config-file"
             type="text"
             bind:value={configFile}
             onchange={saveNodeData}

@@ -1,10 +1,15 @@
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { writable, type Writable } from 'svelte/store';
-import type { LogEntry, ExecutionStatus, PhaseInfo, WebSocketEvents } from '$lib/types/log.types';
+import type {
+  LogEntry,
+  ExecutionStatus,
+  PhaseInfo,
+  WebSocketEvents as _WebSocketEvents
+} from '$lib/types/log.types';
 import { PUBLIC_BACKEND_URL } from '$env/static/public';
 
 export class LogWebSocketService {
-  private socket: Socket | null = null;
+  private socket: ReturnType<typeof io> | null = null;
   private executionId: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -64,10 +69,10 @@ export class LogWebSocketService {
         // Merge existing logs with new buffered logs
         const allLogs = [...logs, ...data];
         const uniqueLogs = Array.from(
-          new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
+          new Map(allLogs.map((l) => [`${l.timestamp}-${l.message}`, l])).values()
         );
-        return uniqueLogs.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        return uniqueLogs.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
       });
     });
@@ -78,27 +83,27 @@ export class LogWebSocketService {
         // Historical logs should come before existing logs (older)
         const allLogs = [...logs, ...data];
         const uniqueLogs = Array.from(
-          new Map(allLogs.map(l => [`${l.timestamp}-${l.message}`, l])).values()
+          new Map(allLogs.map((l) => [`${l.timestamp}-${l.message}`, l])).values()
         );
-        return uniqueLogs.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        return uniqueLogs.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
       });
     });
 
     this.socket.on('logs:new', (data: LogEntry) => {
       console.log('Received new log:', data.message || '[no message]', 'Phase:', data.phase);
-      
+
       // Validate log entry has required fields
       if (!data || !data.timestamp) {
         console.warn('Invalid log entry received:', data);
         return;
       }
-      
+
       this.logs.update((logs) => {
         // Ensure message is at least an empty string
         const validatedData = { ...data, message: data.message || '' };
-        
+
         // Check if already exists
         const exists = logs.some(
           (l) => l.timestamp === validatedData.timestamp && l.message === validatedData.message
@@ -107,14 +112,15 @@ export class LogWebSocketService {
           // For real-time logs, we can add to the end if it's the newest
           const newLogs = [...logs, validatedData];
           // Only sort if the new log is not in chronological order
-          const lastLogTime = logs.length > 0 ? new Date(logs[logs.length - 1].timestamp).getTime() : 0;
+          const lastLogTime =
+            logs.length > 0 ? new Date(logs[logs.length - 1].timestamp).getTime() : 0;
           const newLogTime = new Date(validatedData.timestamp).getTime();
-          
+
           if (newLogTime < lastLogTime) {
             // Out of order, need to sort
             console.log('New log out of order, sorting...');
-            return newLogs.sort((a, b) => 
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            return newLogs.sort(
+              (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
             );
           }
           // In order, just append
@@ -145,7 +151,7 @@ export class LogWebSocketService {
         return [...phases];
       });
     });
-    
+
     // Also listen for phases update event (plural)
     this.socket.on('phases:update', (data: PhaseInfo[]) => {
       console.log('Phases bulk update received:', data);

@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.NOTIFICATION];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: NotificationSlackNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let channel = $state(data?.channel || '');
@@ -27,6 +27,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         channel,
         webhookUrlEnv,
         messageTemplate
@@ -97,8 +98,11 @@
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <!-- Channel -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Channel</label>
+          <label for="slack-channel" class="mb-1 block text-sm font-medium text-gray-700"
+            >Channel</label
+          >
           <input
+            id="slack-channel"
             type="text"
             bind:value={channel}
             onchange={saveNodeData}
@@ -109,10 +113,11 @@
 
         <!-- Webhook URL Environment Variable -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700"
+          <label for="slack-webhook-env" class="mb-1 block text-sm font-medium text-gray-700"
             >Webhook URL Environment Variable</label
           >
           <input
+            id="slack-webhook-env"
             type="text"
             bind:value={webhookUrlEnv}
             onchange={saveNodeData}
@@ -123,8 +128,11 @@
 
         <!-- Message Template -->
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Message Template</label>
+          <label for="slack-message-template" class="mb-1 block text-sm font-medium text-gray-700"
+            >Message Template</label
+          >
           <textarea
+            id="slack-message-template"
             bind:value={messageTemplate}
             onchange={saveNodeData}
             rows="3"

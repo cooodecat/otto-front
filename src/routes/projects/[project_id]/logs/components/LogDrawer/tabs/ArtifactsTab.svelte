@@ -48,7 +48,7 @@
       </div>
     {:else}
       <div class="space-y-3">
-        {#each artifacts as artifact}
+        {#each artifacts as artifact (artifact.name)}
           {@const Icon = artifact.icon}
           <div
             class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 transition-shadow hover:shadow-sm"

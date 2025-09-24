@@ -5,7 +5,11 @@
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
   import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft, FileText } from 'lucide-svelte';
-  import { SvelteFlowProvider } from '@xyflow/svelte';
+  import {
+    SvelteFlowProvider,
+    type NodeTargetEventWithPointer,
+    type Connection
+  } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
   import { edgeTypes } from '$lib/components/flow/edgeTypes';
@@ -226,7 +230,12 @@
         console.log(`✅ CONFIRMED SAVED TO LOCALSTORAGE:`, {
           savedNodeCount: parsed.nodes?.length,
           savedEdgeCount: parsed.edges?.length,
-          savedNodePositions: parsed.nodes?.map((n: any) => ({ id: n.id, position: n.position }))
+          savedNodePositions: parsed.nodes?.map(
+            (n: { id: string; position: { x: number; y: number } }) => ({
+              id: n.id,
+              position: n.position
+            })
+          )
         });
       } else {
         console.error('❌ FAILED TO SAVE TO LOCALSTORAGE');
@@ -371,9 +380,10 @@
 
       // 실행 상태 폴링 시작
       startStatusPolling(result.buildId);
-    } catch (err: any) {
+    } catch (err) {
       console.error('파이프라인 실행 실패:', err);
-      error = err?.message || '파이프라인 실행에 실패했습니다';
+      const errorMessage = err instanceof Error ? err.message : '파이프라인 실행에 실패했습니다';
+      error = errorMessage;
       showToast('error', error);
       isExecuting = false;
     }
@@ -513,7 +523,7 @@
     );
   }
 
-  function onConnect(connection: any) {
+  function onConnect(connection: Connection) {
     console.log('🔗 Connection attempt:', connection);
 
     // 1:1 연결 제한 - 이미 같은 source handle에서 나가는 연결이 있으면 삭제
@@ -555,14 +565,13 @@
   }
 
   // 노드 드래그 종료 핸들러 - onnodedragstop 이벤트 사용
-  function onNodeDragStop(event: any) {
+  const onNodeDragStop: NodeTargetEventWithPointer<MouseEvent | TouchEvent> = (event) => {
     console.log('🎯 Raw drag stop event:', event);
-    console.log('🎯 Event detail:', event.detail);
     console.log('🎯 Event targetNode:', event.targetNode);
     console.log('🎯 Event nodes:', event.nodes);
 
     // SvelteFlow의 onnodedragstop 이벤트에서 노드 정보 추출
-    const draggedNode = event.targetNode || event.detail?.node || (event.nodes && event.nodes[0]);
+    const draggedNode = event.targetNode;
 
     if (!draggedNode || !draggedNode.id) {
       console.log('🚫 No dragged node found in event');
@@ -586,11 +595,11 @@
       nodes = updatedNodes;
       console.log('💾 Node position updated - localStorage will be saved via $effect');
     }
-  }
+  };
 
   // 엣지 변경 핸들러 (현재 미사용 - SvelteFlow에서 직접 지원하지 않음)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function _onEdgesChange(changes: any[]) {
+  function _onEdgesChange(changes: Array<{ type: string; id?: string }>) {
     console.log('🔗 Edges changed:', changes);
 
     let hasChanges = false;
@@ -667,7 +676,7 @@
   }
 
   // 노드 데이터 업데이트 핸들러
-  function updateNodeData(nodeId: string, newData: any) {
+  function updateNodeData(nodeId: string, newData: Record<string, unknown>) {
     console.log('🔄 Updating node data:', nodeId, newData);
 
     const nodeIndex = nodes.findIndex((node) => node.id === nodeId);
@@ -760,7 +769,7 @@
     <!-- 메인 영역 -->
     <div class="relative flex-1">
       <!-- 상단 헤더 -->
-      <div class="absolute left-0 right-0 top-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
+      <div class="absolute top-0 right-0 left-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <button
@@ -785,13 +794,13 @@
           <div class="flex gap-3">
             <button
               onclick={() => goto(`/projects/${projectId}/logs`)}
-              class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 cursor-pointer"
+              class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
               title="실행 로그 보기"
             >
               <FileText class="h-4 w-4" />
               <span>로그 보기</span>
             </button>
-            
+
             <button
               onclick={resetPipeline}
               class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
@@ -832,7 +841,7 @@
       <!-- Build Status Panel -->
       {#if buildInfo || buildStatus}
         <div
-          class="absolute right-4 top-20 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+          class="absolute top-20 right-4 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
         >
           <div class="mb-3">
             <h3 class="text-sm font-semibold text-gray-700">실행 정보</h3>
@@ -841,7 +850,7 @@
           {#if buildStatus}
             <button
               onclick={() => goto(`/projects/${projectId}/logs`)}
-              class="w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+              class="w-full cursor-pointer text-left transition-opacity hover:opacity-80"
               title="클릭하여 로그 보기"
             >
               <BuildStatus
@@ -876,7 +885,7 @@
               {#if buildStatus?.logs?.groupName}
                 <div class="mt-2 border-t pt-2">
                   <span class="text-gray-500">CloudWatch 로그:</span>
-                  <div class="mt-1 break-all font-mono text-xs text-gray-600">
+                  <div class="mt-1 font-mono text-xs break-all text-gray-600">
                     {buildStatus.logs.groupName}
                   </div>
                 </div>

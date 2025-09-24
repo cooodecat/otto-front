@@ -49,7 +49,7 @@
   });
 </script>
 
-<div class="h-screen flex flex-col overflow-hidden">
+<div class="flex h-screen flex-col overflow-hidden">
   <!-- Header -->
   <div class="flex-shrink-0 border-b bg-white px-6 py-4">
     <div class="flex items-center justify-between">
@@ -61,7 +61,7 @@
       <button
         onclick={handleRefresh}
         disabled={isRefreshing}
-        class="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+        class="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <RefreshCw class="h-4 w-4 {isRefreshing ? 'animate-spin' : ''}" />
         Refresh
@@ -87,7 +87,7 @@
 
 <!-- Log Drawer -->
 {#if isDrawerOpen && selectedExecutionId}
-  <LogDrawer 
+  <LogDrawer
     executionId={selectedExecutionId}
     {projectId}
     onClose={handleDrawerClose}

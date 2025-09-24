@@ -225,7 +225,7 @@
           </button>
 
           <!-- Existing Project Cards -->
-          {#each filteredProjects as project}
+          {#each filteredProjects as project (project)}
             <article
               class="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >
@@ -307,10 +307,11 @@
 {#if deleteModal.show}
   <div class="fixed inset-0 z-50 flex items-center justify-center">
     <!-- Backdrop with glass effect -->
-    <div
+    <button
       class="bg-opacity-20 absolute inset-0 bg-gray-900 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
-    ></div>
+      aria-label="Cancel delete"
+    ></button>
 
     <!-- Modal Content -->
     <div class="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">

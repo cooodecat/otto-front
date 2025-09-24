@@ -14,9 +14,9 @@
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.UTILITY];
 
   // 노드 데이터 업데이트 핸들러 가져오기
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: CustomCommandNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let commands = $state<string[]>(data?.commands || []);
@@ -27,6 +27,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         commands,
         workingDirectory
       });
@@ -99,7 +100,7 @@
           <div>
             <div class="font-medium text-gray-700">Commands ({commands.length})</div>
             <div class="mt-1 max-h-20 space-y-1 overflow-y-auto">
-              {#each commands as command}
+              {#each commands as command (command)}
                 <div class="rounded border bg-gray-100 px-2 py-1 font-mono text-xs">
                   {command}
                 </div>
@@ -157,7 +158,7 @@
           <!-- Existing commands -->
           {#if commands.length > 0}
             <div class="max-h-32 space-y-1 overflow-y-auto">
-              {#each commands as command, index}
+              {#each commands as command, index (index)}
                 <div class="flex items-center justify-between rounded bg-white px-2 py-1 text-sm">
                   <span class="font-mono">{command}</span>
                   <button

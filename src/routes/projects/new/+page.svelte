@@ -91,7 +91,7 @@
         installations = [];
         hasGithubApp = false;
       }
-    } catch (err: any) {
+    } catch (err) {
       error = 'GitHub App 설치 정보를 불러오는데 실패했습니다';
       console.error('Error loading installations:', err);
       installations = [];
@@ -123,7 +123,7 @@
         repositories = [];
         console.log('❌ No repositories found');
       }
-    } catch (err: any) {
+    } catch (err) {
       error = '리포지토리 목록을 불러오는데 실패했습니다';
       console.error('❌ Error loading repositories:', err);
       repositories = [];
@@ -305,11 +305,12 @@
         hasGithubApp = true;
         error = 'GitHub App이 설치되어 있지만 접근 가능한 저장소가 없습니다.';
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error loading repositories:', err);
 
       // 401 에러인 경우 GitHub App이 설치되지 않은 것
-      if (err?.status === 401 || err?.message?.includes('401')) {
+      const errorObj = err as { status?: number; message?: string };
+      if (errorObj?.status === 401 || errorObj?.message?.includes('401')) {
         hasGithubApp = false;
         error = 'GitHub App 설치가 필요합니다.';
       } else {
@@ -490,7 +491,7 @@
     <!-- Progress Indicator -->
     <div class="mb-8 flex items-center justify-center">
       <div class="flex items-center space-x-4">
-        {#each [1, 2, 3] as step}
+        {#each [1, 2, 3] as step (step)}
           <div class="flex items-center">
             <div
               class="flex h-10 w-10 items-center justify-center rounded-full {currentStep >= step
@@ -510,7 +511,7 @@
     </div>
 
     <!-- Content Card -->
-    <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
       <!-- Step Content -->
       <div class="p-8">
         <!-- Step 1: Repository Selection -->
@@ -613,7 +614,7 @@
                     id="installation-select"
                     type="button"
                     onclick={() => (showInstallationDropdown = !showInstallationDropdown)}
-                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   >
                     <div class="flex items-center gap-3">
                       {#if selectedInstallation}
@@ -637,9 +638,9 @@
 
                   {#if showInstallationDropdown}
                     <div
-                      class="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
+                      class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
                     >
-                      {#each installations as installation}
+                      {#each installations as installation (installation.id)}
                         <button
                           onclick={() => selectInstallation(installation)}
                           class="flex w-full items-center gap-3 px-4 py-3 transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-gray-50"
@@ -680,7 +681,7 @@
                       type="button"
                       onclick={() => (showRepositoryDropdown = !showRepositoryDropdown)}
                       disabled={loadingRepositories}
-                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:cursor-not-allowed disabled:bg-gray-50"
+                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
                     >
                       <div class="flex items-center gap-3">
                         {#if loadingRepositories}
@@ -706,14 +707,14 @@
 
                     {#if showRepositoryDropdown && !loadingRepositories}
                       <div
-                        class="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+                        class="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
                       >
                         {#if repositories.length === 0}
                           <div class="px-4 py-6 text-center text-gray-500">
                             접근 가능한 저장소가 없습니다
                           </div>
                         {:else}
-                          {#each repositories as repository}
+                          {#each repositories as repository (repository.id)}
                             <button
                               onclick={() => selectRepository(repository)}
                               class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-gray-50"
@@ -752,10 +753,10 @@
                     <select
                       id="branch-select"
                       bind:value={selectedBranch}
-                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     >
                       {#if branches.length > 0}
-                        {#each branches as branch}
+                        {#each branches as branch (branch.name)}
                           <option value={branch.name}>
                             {branch.name}
                             {#if branch.name === selectedRepository.default_branch}
@@ -791,7 +792,7 @@
                   bind:value={projectConfig.name}
                   oninput={() => validateProjectName(projectConfig.name)}
                   placeholder="my-awesome-project"
-                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 {validation.nameError
+                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none {validation.nameError
                     ? 'border-red-500'
                     : ''}"
                 />
@@ -816,7 +817,7 @@
                   bind:value={projectConfig.description}
                   placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
                   rows="3"
-                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 ></textarea>
               </div>
 

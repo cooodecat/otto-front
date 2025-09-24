@@ -107,7 +107,7 @@
 
   <!-- 블록 목록 -->
   <div class="flex-1 space-y-6 overflow-y-auto p-4">
-    {#each groupOrder as group}
+    {#each groupOrder as group (group)}
       {@const groupColor = CICD_GROUP_COLORS[group]}
       {@const blocks = blocksByGroup[group]}
 
@@ -123,7 +123,7 @@
 
           <!-- 블록 목록 -->
           <div class="space-y-2">
-            {#each blocks as blockType}
+            {#each blocks as blockType (blockType)}
               {@const config = CICD_BLOCK_CONFIGS[blockType]}
 
               <div
@@ -146,7 +146,8 @@
                   class="h-8 w-8 flex-shrink-0 {groupColor.colorClass} flex items-center justify-center rounded-lg text-white"
                 >
                   {#if config.icon}
-                    <svelte:component this={config.icon} class="h-5 w-5" />
+                    {@const Icon = config.icon}
+                    <Icon class="h-5 w-5" />
                   {/if}
                 </div>
 

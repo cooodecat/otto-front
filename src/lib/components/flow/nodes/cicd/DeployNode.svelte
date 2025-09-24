@@ -13,9 +13,9 @@
   const { id, data }: Props = $props();
   const groupColor = CICD_GROUP_COLORS[CICDBlockGroup.DEPLOY];
 
-  const updateNodeData = getContext<((nodeId: string, newData: any) => void) | undefined>(
-    'updateNodeData'
-  );
+  const updateNodeData = getContext<
+    ((nodeId: string, newData: DeployNodeData) => void) | undefined
+  >('updateNodeData');
 
   let isEditing = $state(false);
   let commands = $state<string[]>(data?.commands || []);
@@ -25,6 +25,7 @@
   function saveNodeData() {
     if (updateNodeData) {
       updateNodeData(id, {
+        ...data,
         commands,
         workingDirectory
       });
@@ -95,7 +96,7 @@
           <div>
             <div class="font-medium text-gray-700">Commands</div>
             <div class="mt-1 space-y-1">
-              {#each commands as command}
+              {#each commands as command (command)}
                 <div class="rounded border bg-gray-100 px-2 py-1 font-mono text-xs">
                   {command}
                 </div>
@@ -111,8 +112,11 @@
     {#if isEditing}
       <div class="space-y-3 rounded border bg-gray-50 p-3">
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Working Directory</label>
+          <label for="deploy-workdir" class="mb-1 block text-sm font-medium text-gray-700"
+            >Working Directory</label
+          >
           <input
+            id="deploy-workdir"
             type="text"
             bind:value={workingDirectory}
             onchange={saveNodeData}
@@ -122,11 +126,11 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Deploy Commands</label>
+          <div class="mb-1 block text-sm font-medium text-gray-700">Deploy Commands</div>
 
           {#if commands.length > 0}
             <div class="mb-2 space-y-1">
-              {#each commands as command, index}
+              {#each commands as command, index (index)}
                 <div class="flex items-center gap-2">
                   <div class="flex-1 rounded border bg-white px-2 py-1 font-mono text-xs">
                     {command}
