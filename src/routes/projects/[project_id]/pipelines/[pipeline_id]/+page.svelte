@@ -430,7 +430,7 @@
 
           if (pipeline?.deployUrl) {
             console.log(`배포 URL 발견: ${pipeline.deployUrl}`);
-            startHealthCheckPolling(pipeline.deployUrl);
+            startHealthCheckPolling();
           } else {
             console.log('배포 URL이 아직 설정되지 않았습니다. 잠시 후 다시 확인합니다.');
             // 3초 후 다시 파이프라인 정보 확인
@@ -438,7 +438,7 @@
               await refreshPipelineInfo();
               if (pipeline?.deployUrl) {
                 console.log(`지연 로드 후 배포 URL 발견: ${pipeline.deployUrl}`);
-                startHealthCheckPolling(pipeline.deployUrl);
+                startHealthCheckPolling();
               }
             }, 3000);
           }
@@ -513,9 +513,9 @@
     }
   }
 
-  // 임시: 배포 URL 헬스체크 함수
-  async function checkDeploymentHealth(deployUrl: string) {
-    if (!deployUrl || deployHealthStatus?.isChecking) return;
+  // 임시: 백엔드 API를 통한 배포 헬스체크
+  async function checkDeploymentHealth() {
+    if (!pipelineId || deployHealthStatus?.isChecking) return;
 
     deployHealthStatus = {
       ...deployHealthStatus,
@@ -524,39 +524,23 @@
     };
 
     try {
-      console.log(`헬스체크: https://${deployUrl}`);
+      console.log(`백엔드 헬스체크 API 호출: pipelineId=${pipelineId}`);
 
-      // CORS 우회를 위해 이미지 로드로 헬스체크
-      const healthCheck = new Promise<{ status: number; isHealthy: boolean }>((resolve, reject) => {
-        const img = new Image();
-        const timeout = setTimeout(() => {
-          reject(new Error('timeout'));
-        }, 10000); // 10초 타임아웃
-
-        img.onload = () => {
-          clearTimeout(timeout);
-          resolve({ status: 200, isHealthy: true });
-        };
-
-        img.onerror = () => {
-          clearTimeout(timeout);
-          // favicon이 없더라도 사이트가 동작 중이라고 간주
-          resolve({ status: 404, isHealthy: true });
-        };
-
-        img.src = `https://${deployUrl}/favicon.ico?t=${Date.now()}`;
-      });
-
-      const result = await healthCheck;
+      const result = await api.functional.pipelines.deployment.health.getDeploymentHealth(
+        makeFetch({ fetch }),
+        pipelineId
+      );
 
       deployHealthStatus = {
         isHealthy: result.isHealthy,
-        lastChecked: new Date(),
-        responseStatus: result.status,
+        lastChecked: new Date(result.lastChecked),
+        responseStatus: result.responseStatus,
         isChecking: false
       };
 
-      console.log(`헬스체크 결과: ${result.status} - ${result.isHealthy ? '건강' : '비건강'}`);
+      console.log(
+        `헬스체크 결과: ${result.responseStatus} - ${result.isHealthy ? '건강' : '비건강'} (${result.responseTime}ms)`
+      );
 
       // 배포 완료 시 헬스체크 중지
       if (result.isHealthy && healthCheckInterval) {
@@ -576,16 +560,16 @@
     }
   }
 
-  // 임시: 헬스체크 폴링 시작
-  function startHealthCheckPolling(deployUrl: string) {
+  // 임시: 헬스체크 폴링 시작 (백엔드 API 사용)
+  function startHealthCheckPolling() {
     if (healthCheckInterval) {
       clearInterval(healthCheckInterval);
     }
 
-    console.log(`헬스체크 폴링 시작: ${deployUrl}`);
+    console.log(`백엔드 헬스체크 폴링 시작: pipelineId=${pipelineId}`);
 
     // 즉시 첫 번째 체크
-    checkDeploymentHealth(deployUrl);
+    checkDeploymentHealth();
 
     // 5초마다 체크
     healthCheckInterval = setInterval(() => {
@@ -597,7 +581,7 @@
         }
         return;
       }
-      checkDeploymentHealth(deployUrl);
+      checkDeploymentHealth();
     }, 5000);
   }
 
@@ -1050,13 +1034,13 @@
                   </div>
                   <div class="mt-1">
                     <a
-                      href="https://{pipeline.deployUrl}"
+                      href="http://{pipeline.deployUrl}"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="font-mono text-xs break-all text-blue-600 hover:text-blue-800"
                       title="배포된 사이트 열기"
                     >
-                      https://{pipeline.deployUrl}
+                      http://{pipeline.deployUrl}
                     </a>
                   </div>
                   {#if deployHealthStatus}
