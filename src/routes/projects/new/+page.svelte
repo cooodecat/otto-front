@@ -13,7 +13,7 @@
     LoaderCircle,
     GitBranch,
     Lock,
-    Unlock,
+    LockOpen,
     ChevronDown,
     Check
   } from 'lucide-svelte';
@@ -49,6 +49,7 @@
   let hasGithubApp = $state(false);
   let isInstallingGitHub = $state(false);
   let searchQuery = $state('');
+  let justInstalledGitHub = $state(false); // GitHub App 설치 완료 알림용
 
   // Dropdown states
   let showInstallationDropdown = $state(false);
@@ -75,7 +76,7 @@
     };
   });
 
-  async function loadInstallations() {
+  async function loadInstallations(afterInstall = false) {
     try {
       loading = true;
       error = '';
@@ -84,9 +85,33 @@
         makeFetch({ fetch })
       );
 
+      const prevCount = installations.length;
+
       if (Array.isArray(data)) {
-        installations = data;
-        hasGithubApp = data.length > 0;
+        // 계정별로 가장 최신 Installation만 유지 (중복 제거)
+        const uniqueInstallations = new Map<string, Installation>();
+
+        data.forEach((inst) => {
+          const key = `${inst.account.login}-${inst.account.type}`;
+          const existing = uniqueInstallations.get(key);
+
+          // 더 최신 것 또는 더 높은 ID를 가진 것을 유지
+          if (!existing || parseInt(inst.id) > parseInt(existing.id)) {
+            uniqueInstallations.set(key, inst);
+          }
+        });
+
+        installations = Array.from(uniqueInstallations.values());
+        hasGithubApp = installations.length > 0;
+
+        // 설치 후 새로운 installation이 추가되었는지 확인
+        if (afterInstall && installations.length > prevCount) {
+          justInstalledGitHub = true;
+          // 3초 후 알림 숨기기
+          setTimeout(() => {
+            justInstalledGitHub = false;
+          }, 3000);
+        }
       } else {
         installations = [];
         hasGithubApp = false;
@@ -224,7 +249,12 @@
         githubInstallWindow = null;
 
         console.log('🔄 GitHub App 창이 닫혔습니다. Installation 목록을 새로고침합니다.');
-        loadInstallations();
+
+        // 시각적 피드백을 위한 짧은 지연
+        loading = true;
+        setTimeout(() => {
+          loadInstallations(true); // afterInstall = true
+        }, 300);
       }
     }, 500); // 500ms마다 확인
   }
@@ -553,6 +583,21 @@
                 </div>
               </div>
             {:else}
+              <!-- GitHub App 설치 성공 알림 -->
+              {#if justInstalledGitHub}
+                <div class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
+                  <div class="flex items-center gap-3">
+                    <Check class="h-5 w-5 text-green-600" />
+                    <div>
+                      <p class="text-sm font-medium text-green-900">GitHub App 설치 완료!</p>
+                      <p class="text-sm text-green-700">
+                        새로운 계정 또는 저장소가 추가되었습니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              {/if}
+
               <!-- GitHub App 설치 버튼 (항상 표시) -->
               <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <div class="flex items-center justify-between">
@@ -614,7 +659,7 @@
                     id="installation-select"
                     type="button"
                     onclick={() => (showInstallationDropdown = !showInstallationDropdown)}
-                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <div class="flex items-center gap-3">
                       {#if selectedInstallation}
@@ -681,7 +726,7 @@
                       type="button"
                       onclick={() => (showRepositoryDropdown = !showRepositoryDropdown)}
                       disabled={loadingRepositories}
-                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+                      class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-3 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:cursor-not-allowed disabled:bg-gray-50"
                     >
                       <div class="flex items-center gap-3">
                         {#if loadingRepositories}
@@ -692,7 +737,7 @@
                             {#if selectedRepository.private}
                               <Lock class="h-4 w-4 text-amber-500" />
                             {:else}
-                              <Unlock class="h-4 w-4 text-green-500" />
+                              <LockOpen class="h-4 w-4 text-green-500" />
                             {/if}
                           </div>
                           <span class="font-medium text-gray-900"
@@ -723,7 +768,7 @@
                                 {#if repository.private}
                                   <Lock class="h-4 w-4 text-amber-500" />
                                 {:else}
-                                  <Unlock class="h-4 w-4 text-green-500" />
+                                  <LockOpen class="h-4 w-4 text-green-500" />
                                 {/if}
                               </div>
                               <div class="flex-1">
@@ -753,7 +798,7 @@
                     <select
                       id="branch-select"
                       bind:value={selectedBranch}
-                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      class="min-w-48 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
                       {#if branches.length > 0}
                         {#each branches as branch (branch.name)}
@@ -792,7 +837,7 @@
                   bind:value={projectConfig.name}
                   oninput={() => validateProjectName(projectConfig.name)}
                   placeholder="my-awesome-project"
-                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none {validation.nameError
+                  class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 {validation.nameError
                     ? 'border-red-500'
                     : ''}"
                 />
@@ -817,7 +862,7 @@
                   bind:value={projectConfig.description}
                   placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
                   rows="3"
-                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  class="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
                 ></textarea>
               </div>
 
