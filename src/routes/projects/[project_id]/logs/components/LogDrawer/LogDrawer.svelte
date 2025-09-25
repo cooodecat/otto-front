@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { X } from 'lucide-svelte';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { onMount, onDestroy } from 'svelte';
@@ -563,15 +562,6 @@
   >
     <!-- Main Content Panel -->
     <div class="flex min-h-0 flex-1 flex-col">
-      <!-- Close Button -->
-      <button
-        onclick={onClose}
-        class="absolute top-6 right-6 z-10 cursor-pointer rounded-full bg-white/80 p-2.5 shadow-lg backdrop-blur transition-all hover:rotate-90 hover:bg-white hover:shadow-xl"
-        aria-label="Close drawer"
-      >
-        <X class="h-5 w-5 text-gray-700" />
-      </button>
-
       <!-- Header -->
       {#if loading}
         <div class="flex justify-center p-6">
@@ -580,11 +570,13 @@
       {:else if execution}
         <DrawerHeader
           {execution}
+          {phases}
           {isConnected}
           onRerun={() => execution && handleRerun(execution)}
           onEdit={() =>
             execution?.pipelineId &&
             goto(`/projects/${projectId}/pipelines/${execution.pipelineId}`)}
+          {onClose}
         />
 
         <!-- Compact Phase Progress Indicator -->
