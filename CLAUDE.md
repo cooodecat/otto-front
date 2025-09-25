@@ -75,6 +75,7 @@ src/
     │   └── new/            # 새 프로젝트 생성
     └── app/github/callback/ # GitHub App 설치 콜백
 ```
+
 ## API 통합 패턴
 
 ### Nestia SDK 사용법
