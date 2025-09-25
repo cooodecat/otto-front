@@ -336,15 +336,14 @@
         wsService = new LogWebSocketService();
       }
 
-      const token = localStorage.getItem('auth_token') || '';
-
+      // Don't pass token - server will extract from cookies
       // Create a timeout promise
       const connectTimeout = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('WebSocket connection timeout')), 10000);
       });
 
       // Race between connection and timeout
-      await Promise.race([wsService.connect(token), connectTimeout]);
+      await Promise.race([wsService.connect(''), connectTimeout]);
 
       wsService.subscribe(currentExecutionId);
 
