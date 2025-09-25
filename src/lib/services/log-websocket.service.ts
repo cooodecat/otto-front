@@ -8,6 +8,28 @@ import type {
 } from '$lib/types/log.types';
 import { PUBLIC_BACKEND_URL } from '$env/static/public';
 
+function sanitizeWebsocketBaseUrl(input: string): string {
+  if (!input) return '';
+
+  try {
+    const parsed = new URL(input);
+    const sanitizedPath = parsed.pathname
+      .replace(/\/+$/, '')
+      .replace(/\/api(\/v\d+)?$/i, '');
+
+    parsed.pathname = sanitizedPath || '/';
+    parsed.search = '';
+    parsed.hash = '';
+
+    // Trim trailing slash for consistent concatenation
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return input
+      .replace(/\/+$/, '')
+      .replace(/\/api(\/v\d+)?$/i, '');
+  }
+}
+
 export class LogWebSocketService {
   private socket: ReturnType<typeof io> | null = null;
   private executionId: string | null = null;
@@ -31,13 +53,8 @@ export class LogWebSocketService {
 
     // Determine the correct URL based on environment
     const url = websocketUrl || PUBLIC_BACKEND_URL || 'http://localhost:4000';
-    
-    // Ensure we use the correct protocol for production
-    const wsUrl = url.startsWith('https://') 
-      ? url.replace('https://', 'wss://').replace('wss://', 'https://') // Keep https for socket.io
-      : url;
-    
-    const logsNamespace = `${wsUrl}/logs`;
+    const baseUrl = sanitizeWebsocketBaseUrl(url);
+    const logsNamespace = baseUrl.endsWith('/logs') ? baseUrl : `${baseUrl}/logs`;
     
     console.log('Connecting to WebSocket:', logsNamespace);
 

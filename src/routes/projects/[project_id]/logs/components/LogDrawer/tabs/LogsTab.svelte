@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PhaseInfo, LogEntry, ExecutionStatus } from '$lib/types/log.types';
   import type { LogWebSocketService } from '$lib/services/log-websocket.service';
+  import { untrack } from 'svelte';
   import {
     Download,
     Loader2,
@@ -80,11 +81,36 @@
 
   // Track if WebSocket has taken control
   let wsControlled = $state(false);
+  // Track last processed status to prevent loops
+  let lastProcessedStatus = $state<string | undefined>(undefined);
+
+  const STATUS_PRIORITY: Record<string, number> = {
+    PENDING: 0,
+    RUNNING: 1,
+    SUCCESS: 2,
+    SUCCEEDED: 2,
+    COMPLETED: 2,
+    FAILED: 2,
+    CANCELLED: 2
+  };
+
+  function getStatusPriority(status?: string | null): number {
+    if (!status) return -1;
+    return STATUS_PRIORITY[status] ?? -1;
+  }
   
   // Update execution status when prop changes (only if WebSocket hasn't taken control)
   $effect(() => {
     // Skip if WebSocket is controlling the status
-    if (wsControlled && wsService) {
+    if (wsControlled) {
+      return;
+    }
+    
+    // Normalize the status for comparison
+    const normalizedInitial = initialExecutionStatus?.toUpperCase();
+    
+    // Skip if this is the same status we just processed
+    if (normalizedInitial === lastProcessedStatus) {
       return;
     }
 
@@ -97,14 +123,16 @@
       wsControlled
     );
 
-    // Normalize both statuses for comparison
-    const normalizedInitial = initialExecutionStatus?.toUpperCase();
+    // normalizedInitial is already declared above
     const normalizedCurrent = executionStatus?.toUpperCase();
 
     // Only update if prop actually changed AND WebSocket isn't controlling
-    if (normalizedInitial !== normalizedCurrent && !wsControlled) {
+    if (normalizedInitial !== normalizedCurrent) {
       const previousStatus = executionStatus;
-      executionStatus = initialExecutionStatus || null;
+      untrack(() => {
+        executionStatus = initialExecutionStatus || null;
+        lastProcessedStatus = normalizedInitial;
+      });
 
       // Normalize statuses for checking
       const normalizedPrevious = previousStatus?.toUpperCase();
@@ -128,14 +156,18 @@
       // Update view based on new status
       if (isNowCompleted) {
         console.log('LogsTab - Status is completed:', $state.snapshot(executionStatus));
-        isLiveMode = false;
-        showGrouped = true;
-        autoScroll = false;
+        untrack(() => {
+          isLiveMode = false;
+          showGrouped = true;
+          autoScroll = false;
+        });
       } else if (isNowRunning) {
         console.log('LogsTab - Status is running:', $state.snapshot(executionStatus));
-        isLiveMode = true;
-        showGrouped = false;
-        autoScroll = true;
+        untrack(() => {
+          isLiveMode = true;
+          showGrouped = false;
+          autoScroll = true;
+        });
       }
     }
   });
@@ -149,8 +181,21 @@
       const normalizedV = v?.toUpperCase();
       const normalizedCurrent = executionStatus?.toUpperCase();
       
-      // Skip if status hasn't actually changed
-      if (normalizedV === normalizedCurrent) {
+      // Skip if status hasn't actually changed or if we just processed this
+      if (normalizedV === normalizedCurrent || normalizedV === lastProcessedStatus) {
+        return;
+      }
+
+      // Prevent backwards transitions (e.g. RUNNING -> PENDING)
+      const currentPriority = getStatusPriority(normalizedCurrent);
+      const nextPriority = getStatusPriority(normalizedV);
+      if (nextPriority < currentPriority) {
+        console.warn(
+          'WebSocket status update ignored due to lower priority:',
+          v,
+          'current:',
+          $state.snapshot(executionStatus)
+        );
         return;
       }
 
@@ -188,27 +233,38 @@
       }
 
       // Mark that WebSocket has taken control
-      wsControlled = true;
-      executionStatus = v;
+      untrack(() => {
+        wsControlled = true;
+        executionStatus = v;
+        lastProcessedStatus = normalizedV;
+      });
 
       // Update views based on new status
       if (isNowRunning) {
         // Enable live mode for running executions
-        isLiveMode = true;
-        showGrouped = false;
-        autoScroll = true;
+        untrack(() => {
+          isLiveMode = true;
+          showGrouped = false;
+          autoScroll = true;
+        });
       } else if (isNowCompleted) {
         // When execution completes, switch to grouped view
-        isLiveMode = false;
-        showGrouped = true;
-        autoScroll = false;
+        untrack(() => {
+          isLiveMode = false;
+          showGrouped = true;
+          autoScroll = false;
+        });
         // Release WebSocket control when completed
-        wsControlled = false;
+        untrack(() => {
+          wsControlled = false;
+        });
       }
     });
     
     return () => {
-      wsControlled = false;
+      untrack(() => {
+        wsControlled = false;
+      });
       unsub();
     };
   });
