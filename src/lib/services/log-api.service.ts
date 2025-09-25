@@ -69,12 +69,37 @@ export class LogApiService {
       status: exec.status.toUpperCase() as ExecutionStatus,
       startedAt: exec.startedAt,
       completedAt: exec.completedAt,
-      duration:
-        exec.completedAt && exec.startedAt
-          ? Math.floor(
-              (new Date(exec.completedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000
-            )
-          : 0,
+      updatedAt: exec.updatedAt,
+      duration: (() => {
+        // First try metadata.duration
+        if (
+          exec.metadata?.duration &&
+          typeof exec.metadata.duration === 'number' &&
+          exec.metadata.duration > 0
+        ) {
+          return exec.metadata.duration;
+        }
+
+        // Prefer updatedAt - startedAt (always available and more reliable)
+        if (exec.updatedAt && exec.startedAt) {
+          const start = new Date(exec.startedAt).getTime();
+          const end = new Date(exec.updatedAt).getTime();
+          const seconds = Math.floor((end - start) / 1000);
+          // Only return if positive
+          if (seconds > 0) return seconds;
+        }
+
+        // Fallback to completedAt - startedAt if available
+        if (exec.completedAt && exec.startedAt) {
+          const start = new Date(exec.startedAt).getTime();
+          const end = new Date(exec.completedAt).getTime();
+          const seconds = Math.floor((end - start) / 1000);
+          // Only return if positive
+          if (seconds > 0) return seconds;
+        }
+
+        return 0;
+      })(),
       branch: (exec.metadata?.branch as string) || 'main',
       commitId: this.extractCommitId(exec) || '',
       commitMessage: this.extractCommitMessage(exec) || '',
@@ -114,14 +139,37 @@ export class LogApiService {
       status: execution.status.toUpperCase() as ExecutionStatus,
       startedAt: execution.startedAt,
       completedAt: execution.completedAt,
-      duration:
-        execution.completedAt && execution.startedAt
-          ? Math.floor(
-              (new Date(execution.completedAt).getTime() -
-                new Date(execution.startedAt).getTime()) /
-                1000
-            )
-          : 0,
+      updatedAt: execution.updatedAt,
+      duration: (() => {
+        // First try metadata.duration
+        if (
+          execution.metadata?.duration &&
+          typeof execution.metadata.duration === 'number' &&
+          execution.metadata.duration > 0
+        ) {
+          return execution.metadata.duration;
+        }
+
+        // Prefer updatedAt - startedAt (always available and more reliable)
+        if (execution.updatedAt && execution.startedAt) {
+          const start = new Date(execution.startedAt).getTime();
+          const end = new Date(execution.updatedAt).getTime();
+          const seconds = Math.floor((end - start) / 1000);
+          // Only return if positive
+          if (seconds > 0) return seconds;
+        }
+
+        // Fallback to completedAt - startedAt if available
+        if (execution.completedAt && execution.startedAt) {
+          const start = new Date(execution.startedAt).getTime();
+          const end = new Date(execution.completedAt).getTime();
+          const seconds = Math.floor((end - start) / 1000);
+          // Only return if positive
+          if (seconds > 0) return seconds;
+        }
+
+        return 0;
+      })(),
       branch: (execution.metadata?.branch as string) || 'main',
       commitId: this.extractCommitId(execution) || '',
       commitMessage: this.extractCommitMessage(execution) || '',
@@ -330,6 +378,61 @@ export class LogApiService {
     }
 
     return logs;
+  }
+
+  private mapStatusForUpdate(
+    status: ExecutionStatus | 'PENDING'
+  ): 'pending' | 'running' | 'success' | 'failed' {
+    switch (status?.toUpperCase()) {
+      case 'RUNNING':
+        return 'running';
+      case 'SUCCESS':
+      case 'SUCCEEDED':
+      case 'COMPLETED':
+        return 'success';
+      case 'FAILED':
+      case 'CANCELLED':
+        return 'failed';
+      case 'PENDING':
+      default:
+        return 'pending';
+    }
+  }
+
+  async updateExecutionStatus(
+    executionId: string,
+    status: ExecutionStatus,
+    options: {
+      errorMessage?: string;
+      metadata?: Record<string, unknown>;
+      archiveUrl?: string;
+      completedAt?: string;
+    } = {}
+  ): Promise<void> {
+    const payload = {
+      status: this.mapStatusForUpdate(status),
+      ...(options.errorMessage ? { errorMessage: options.errorMessage } : {}),
+      ...(options.metadata ? { metadata: options.metadata } : {}),
+      ...(options.archiveUrl ? { archiveUrl: options.archiveUrl } : {}),
+      ...(options.completedAt ? { completedAt: options.completedAt } : {})
+    };
+
+    try {
+      await api.functional.logs.executions.status.updateExecutionStatus(
+        makeFetch(),
+        executionId,
+        payload as {
+          status: 'pending' | 'running' | 'success' | 'failed';
+          completedAt?: string;
+          metadata?: Record<string, unknown>;
+          errorMessage?: string;
+          archiveUrl?: string;
+        }
+      );
+    } catch (err) {
+      console.error('Failed to update execution status:', err);
+      throw err;
+    }
   }
 }
 

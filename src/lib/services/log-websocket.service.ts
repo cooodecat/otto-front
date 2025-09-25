@@ -7,6 +7,7 @@ import type {
   WebSocketEvents as _WebSocketEvents
 } from '$lib/types/log.types';
 import { PUBLIC_BACKEND_URL } from '$env/static/public';
+import { LogDeduplicator } from '$lib/utils/log-deduplicator';
 
 function sanitizeWebsocketBaseUrl(input: string): string {
   if (!input) return '';
@@ -34,6 +35,7 @@ export class LogWebSocketService {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isConnecting = false;
   private connectionAttemptTimeout: ReturnType<typeof setTimeout> | null = null;
+  private deduplicator: LogDeduplicator = new LogDeduplicator();
 
   // Stores
   public logs: Writable<LogEntry[]> = writable([]);
@@ -216,57 +218,62 @@ export class LogWebSocketService {
 
     // Log events
     this.socket.on('logs:buffered', (data: LogEntry[]) => {
-      console.log(
-        `📦 [WebSocket] Received buffered logs:\n` +
-          `  - Count: ${data.length}\n` +
-          `  - Execution ID: ${this.executionId || 'none'}\n` +
-          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
-          `  - Time range: ${data.length > 0 ? `${data[0]?.timestamp} to ${data[data.length - 1]?.timestamp}` : 'none'}`
-      );
       this.logs.update((logs) => {
-        // Merge existing logs with new buffered logs
-        const allLogs = [...logs, ...data];
-        const uniqueLogs = Array.from(
-          new Map(allLogs.map((l) => [`${l.timestamp}-${l.message}`, l])).values()
+        const beforeCount = logs.length;
+        const dedupedData = this.deduplicator.deduplicate(data);
+        const afterDedup = dedupedData.length;
+
+        console.log(
+          `📦 [WebSocket] Received buffered logs:\n` +
+            `  - Received: ${data.length} logs\n` +
+            `  - After dedup: ${afterDedup} logs\n` +
+            `  - Duplicates removed: ${data.length - afterDedup}\n` +
+            `  - Execution ID: ${this.executionId || 'none'}\n` +
+            `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+            `  - Time range: ${dedupedData.length > 0 ? `${dedupedData[0]?.timestamp} to ${dedupedData[dedupedData.length - 1]?.timestamp}` : 'none'}\n` +
+            `  - Current logs: ${logs.length}`
         );
-        return uniqueLogs.sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+
+        // Use the deduplicator to merge and deduplicate
+        const mergedLogs = this.deduplicator.mergeAndDeduplicate(logs, dedupedData);
+
+        console.log(
+          `  - Final count: ${mergedLogs.length} (added ${mergedLogs.length - beforeCount})`
         );
+
+        return mergedLogs;
       });
     });
 
     this.socket.on('logs:historical', (data: LogEntry[]) => {
       this.logs.update((logs) => {
+        const beforeCount = logs.length;
+        const dedupedData = this.deduplicator.deduplicate(data);
+        const afterDedup = dedupedData.length;
+
         console.log(
           `📦 [WebSocket] Received historical logs:\n` +
-            `  - Count: ${data.length}\n` +
+            `  - Received: ${data.length} logs\n` +
+            `  - After dedup: ${afterDedup} logs\n` +
+            `  - Duplicates removed: ${data.length - afterDedup}\n` +
             `  - Execution ID: ${this.executionId || 'none'}\n` +
             `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
-            `  - Time range: ${data.length > 0 ? `${data[0]?.timestamp} to ${data[data.length - 1]?.timestamp}` : 'none'}\n` +
-            `  - Current logs count: ${logs.length}`
+            `  - Time range: ${dedupedData.length > 0 ? `${dedupedData[0]?.timestamp} to ${dedupedData[dedupedData.length - 1]?.timestamp}` : 'none'}\n` +
+            `  - Current logs: ${logs.length}`
         );
-        // Historical logs should come before existing logs (older)
-        const allLogs = [...logs, ...data];
-        const uniqueLogs = Array.from(
-          new Map(allLogs.map((l) => [`${l.timestamp}-${l.message}`, l])).values()
+
+        // Use the deduplicator to merge and deduplicate
+        const mergedLogs = this.deduplicator.mergeAndDeduplicate(logs, dedupedData);
+
+        console.log(
+          `  - Final count: ${mergedLogs.length} (added ${mergedLogs.length - beforeCount})`
         );
-        return uniqueLogs.sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
+
+        return mergedLogs;
       });
     });
 
     this.socket.on('logs:new', (data: LogEntry) => {
-      console.log(
-        `📦 [WebSocket] Received new log:\n` +
-          `  - Message: ${data.message || '[no message]'}\n` +
-          `  - Phase: ${data.phase || 'unknown'}\n` +
-          `  - Level: ${data.level || 'info'}\n` +
-          `  - Timestamp: ${data.timestamp || 'missing'}\n` +
-          `  - Execution ID: ${this.executionId || 'none'}\n` +
-          `  - Socket ID: ${this.socket?.id || 'unknown'}`
-      );
-
       // Validate log entry has required fields
       if (!data || !data.timestamp) {
         console.warn(
@@ -282,29 +289,55 @@ export class LogWebSocketService {
         // Ensure message is at least an empty string
         const validatedData = { ...data, message: data.message || '' };
 
-        // Check if already exists
-        const exists = logs.some(
-          (l) => l.timestamp === validatedData.timestamp && l.message === validatedData.message
-        );
-        if (!exists) {
-          // For real-time logs, we can add to the end if it's the newest
-          const newLogs = [...logs, validatedData];
-          // Only sort if the new log is not in chronological order
-          const lastLogTime =
-            logs.length > 0 ? new Date(logs[logs.length - 1].timestamp).getTime() : 0;
-          const newLogTime = new Date(validatedData.timestamp).getTime();
-
-          if (newLogTime < lastLogTime) {
-            // Out of order, need to sort
-            console.log('New log out of order, sorting...');
-            return newLogs.sort(
-              (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-            );
-          }
-          // In order, just append
-          return newLogs;
+        // Check if this is a duplicate using the deduplicator
+        if (this.deduplicator.hasSeenLog(validatedData)) {
+          console.debug(
+            `🔁 [WebSocket] Duplicate log skipped:\n` +
+              `  - Message: ${validatedData.message.substring(0, 50)}...\n` +
+              `  - Timestamp: ${validatedData.timestamp}`
+          );
+          return logs;
         }
-        return logs;
+
+        // Check for similar recent logs
+        if (this.deduplicator.hasSimilarRecentLog(validatedData)) {
+          console.debug(
+            `🔁 [WebSocket] Similar recent log skipped:\n` +
+              `  - Message: ${validatedData.message.substring(0, 50)}...\n` +
+              `  - Timestamp: ${validatedData.timestamp}`
+          );
+          return logs;
+        }
+
+        // Add to deduplicator
+        this.deduplicator.addLog(validatedData);
+
+        console.log(
+          `📦 [WebSocket] New unique log:\n` +
+            `  - Message: ${validatedData.message.substring(0, 100) || '[no message]'}...\n` +
+            `  - Phase: ${validatedData.phase || 'unknown'}\n` +
+            `  - Level: ${validatedData.level || 'info'}\n` +
+            `  - Timestamp: ${validatedData.timestamp || 'missing'}`
+        );
+
+        // For real-time logs, we can add to the end if it's the newest
+        const newLogs = [...logs, validatedData];
+
+        // Only sort if the new log is not in chronological order
+        const lastLogTime =
+          logs.length > 0 ? new Date(logs[logs.length - 1].timestamp).getTime() : 0;
+        const newLogTime = new Date(validatedData.timestamp).getTime();
+
+        if (newLogTime < lastLogTime) {
+          // Out of order, need to sort
+          console.log('New log out of order, sorting...');
+          return newLogs.sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+        }
+
+        // In order, just append
+        return newLogs;
       });
     });
 
@@ -402,6 +435,11 @@ export class LogWebSocketService {
     }
 
     this.executionId = executionId;
+
+    // Clear deduplicator cache for new execution
+    this.deduplicator.clear();
+    console.log(`🧹 [WebSocket] Cleared deduplication cache for new execution: ${executionId}`);
+
     // Changed to match backend handler: 'subscribe' instead of 'execution:subscribe'
     this.socket.emit('subscribe', { executionId });
     console.log(

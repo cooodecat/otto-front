@@ -9,30 +9,6 @@
   }
 
   let { phases, currentPhase: _currentPhase, onPhaseClick }: Props = $props();
-
-  function formatDuration(seconds?: number): string {
-    if (!seconds) return '';
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
-  }
-
-  // Calculate elapsed time for running phase
-  let elapsedTime = $state(0);
-
-  $effect(() => {
-    const runningPhase = phases.find((p) => p.status === 'running');
-    if (runningPhase && runningPhase.startTime) {
-      const interval = setInterval(() => {
-        const start = new Date(runningPhase.startTime!).getTime();
-        const now = Date.now();
-        elapsedTime = Math.floor((now - start) / 1000);
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  });
 </script>
 
 <div class="phase-timeline p-4">
@@ -76,16 +52,6 @@
         <h4 class="font-medium text-gray-900 capitalize">
           {phase.name.toLowerCase()}
         </h4>
-
-        {#if phase.duration}
-          <span class="text-sm text-gray-500">
-            {formatDuration(phase.duration)}
-          </span>
-        {:else if phase.status === 'running'}
-          <span class="text-sm text-blue-500">
-            {formatDuration(elapsedTime)} elapsed
-          </span>
-        {/if}
 
         <!-- Progress Bar for Running Phase -->
         {#if phase.status === 'running' && phase.progress}

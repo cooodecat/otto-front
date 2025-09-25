@@ -1,51 +1,72 @@
 <script lang="ts">
   import type { ExecutionMetadata } from '$lib/types/log.types';
+  import { onDestroy } from 'svelte';
   import {
     Hammer,
     Rocket,
     GitBranch,
     User,
     Clock,
+    Calendar,
     FileText,
     Copy,
-    ExternalLink
+    GitCommit,
+    AlertCircle,
+    AlertTriangle,
+    Workflow
   } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { calculateExecutionDuration, formatDateTime } from '$lib/utils/duration';
 
   interface Props {
     execution: ExecutionMetadata;
     isSelected: boolean;
     isFocused?: boolean;
+    isNew?: boolean;
     onSelect: (executionId: string) => void;
   }
 
-  let { execution, isSelected, isFocused = false, onSelect }: Props = $props();
+  let { execution, isSelected, isFocused = false, isNew = false, onSelect }: Props = $props();
 
   const projectId = $derived($page.params.project_id);
+  let currentTime = $state(Date.now());
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+
+  // Update current time every second for running executions
+  $effect(() => {
+    const normalizedStatus = getNormalizedStatus(execution.status);
+    if (normalizedStatus === 'RUNNING' || normalizedStatus === 'PENDING') {
+      intervalId = setInterval(() => {
+        currentTime = Date.now();
+      }, 1000);
+    } else {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    }
+  });
+
+  onDestroy(() => {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+  });
 
   function handleClick() {
     onSelect(execution.executionId);
   }
 
-  function handleViewPipeline(e: Event) {
+  function _handleViewPipeline(e: Event) {
     e.stopPropagation(); // Prevent execution selection
     if (execution.pipelineId && projectId) {
       goto(`/projects/${projectId}/pipelines/${execution.pipelineId}`);
     }
   }
 
-  function formatDuration(seconds: number): string {
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (minutes < 60) {
-      return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  }
+  // Use unified duration calculation
+  const duration = $derived(calculateExecutionDuration(execution, undefined, currentTime));
 
   function formatTime(dateStr: string): string {
     const date = new Date(dateStr);
@@ -59,12 +80,6 @@
     if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     const days = Math.floor(hours / 24);
     return `${days} day${days > 1 ? 's' : ''} ago`;
-  }
-
-  function elapsedSince(dateStr: string): string {
-    const start = new Date(dateStr).getTime();
-    const secs = Math.max(0, Math.floor((Date.now() - start) / 1000));
-    return formatDuration(secs);
   }
 
   async function copy(text: string) {
@@ -93,9 +108,22 @@
 
 <button
   onclick={handleClick}
+  onkeydown={(e) => {
+    // Prevent spacebar from triggering click
+    if (e.key === ' ') {
+      e.preventDefault();
+    }
+    // Allow Enter key to work normally
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleClick();
+    }
+  }}
   class="w-full cursor-pointer rounded-xl border bg-white p-5 text-left transition-all duration-200 hover:translate-y-[-2px] hover:border-blue-200 hover:shadow-lg {isSelected
     ? 'border-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg'
-    : 'border-gray-200 shadow-sm'} {isFocused ? 'ring-2 ring-blue-300' : ''}"
+    : isNew
+      ? 'animate-highlight-new border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg'
+      : 'border-gray-200 shadow-sm'} {isFocused ? 'ring-2 ring-blue-300' : ''}"
 >
   <div class="flex items-start justify-between gap-4">
     <div class="flex-1">
@@ -114,10 +142,6 @@
           {execution.executionType}
         </span>
 
-        <span class="text-sm text-gray-500" title={new Date(execution.startedAt).toLocaleString()}
-          >• {formatTime(execution.startedAt)}</span
-        >
-
         <span
           class="rounded-full px-2 py-1 text-xs font-medium {statusColors[
             getNormalizedStatus(execution.status)
@@ -125,135 +149,146 @@
         >
           {getNormalizedStatus(execution.status)}
         </span>
+
+        {#if isNew}
+          <span
+            class="animate-pulse rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-2 py-1 text-xs font-medium text-white shadow-sm"
+          >
+            NEW
+          </span>
+        {/if}
       </div>
+
+      <!-- Started Time -->
+      <div class="mb-2 flex items-center gap-2 text-sm text-gray-600">
+        <Calendar class="h-3.5 w-3.5 text-gray-400" />
+        <span title={new Date(execution.startedAt).toLocaleString()}>
+          {formatDateTime(execution.startedAt)}
+          <span class="ml-1 text-gray-400">({formatTime(execution.startedAt)})</span>
+        </span>
+      </div>
+
+      <!-- Pipeline Info (moved up) -->
+      {#if execution.pipelineName && execution.pipelineName !== 'Unknown Pipeline'}
+        <div class="mb-2 flex items-center gap-1.5 text-sm">
+          <Workflow class="h-4 w-4 text-indigo-500" />
+          <span class="font-medium text-gray-700">
+            {execution.pipelineName}
+          </span>
+        </div>
+      {/if}
 
       <!-- Commit Info -->
       {#if (execution.commitMessage && execution.commitMessage.trim() !== '') || execution.commitId}
-        <div class="mb-1 flex items-center gap-2 text-sm text-gray-600">
-          {#if execution.commitMessage && execution.commitMessage.trim() !== ''}
-            <span class="truncate" title={execution.commitMessage || ''}
-              >"{execution.commitMessage}"</span
-            >
-          {/if}
+        <div class="mb-1 flex items-center gap-2 text-sm">
           {#if execution.commitId}
-            <span
-              class="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-[11px] text-gray-600"
-            >
-              <span class="font-mono">{execution.commitId.slice(0, 7)}</span>
+            <div class="flex items-center gap-1">
+              <GitCommit class="h-3.5 w-3.5 text-gray-500" />
               <span
-                role="button"
-                tabindex="0"
-                class="inline-flex opacity-70 hover:opacity-100"
-                title="Copy full SHA"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  copy(execution.commitId);
-                }}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
+                class="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700"
+              >
+                {execution.commitId.slice(0, 7)}
+                <span
+                  role="button"
+                  tabindex="0"
+                  class="inline-flex cursor-pointer opacity-60 transition-opacity hover:opacity-100"
+                  title="Copy full commit SHA"
+                  onclick={(e) => {
                     e.stopPropagation();
                     copy(execution.commitId);
-                  }
-                }}
-                aria-label="Copy full commit SHA"
-              >
-                <Copy class="h-3 w-3" />
+                  }}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      copy(execution.commitId);
+                    }
+                  }}
+                  aria-label="Copy full commit SHA"
+                >
+                  <Copy class="h-3 w-3" />
+                </span>
               </span>
-            </span>
+            </div>
+          {/if}
+          {#if execution.commitMessage && execution.commitMessage.trim() !== ''}
+            <span class="truncate text-gray-600" title={execution.commitMessage || ''}
+              >{execution.commitMessage}</span
+            >
           {/if}
         </div>
       {/if}
 
-      <!-- Meta Info -->
+      <!-- Meta Info (Branch & Author) -->
       <div class="flex items-center gap-4 text-xs text-gray-500">
         <div class="flex items-center gap-1">
           <GitBranch class="h-3 w-3" />
           {execution.branch}
         </div>
-        <div class="flex items-center gap-1">
-          <User class="h-3 w-3" />
-          {execution.author}
-        </div>
-        {#if getNormalizedStatus(execution.status) !== 'RUNNING' && getNormalizedStatus(execution.status) !== 'PENDING'}
+        {#if execution.author}
           <div class="flex items-center gap-1">
-            <Clock class="h-3 w-3" />
-            {formatDuration(execution.duration)}
-          </div>
-        {:else}
-          <div class="flex items-center gap-1">
-            <Clock class="h-3 w-3" />
-            {elapsedSince(execution.startedAt)}
+            <User class="h-3 w-3" />
+            {execution.author}
           </div>
         {/if}
-      </div>
-
-      <!-- Pipeline Info -->
-      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-        <span class="inline-flex items-center gap-1">
-          <FileText class="h-3 w-3" />
-          Pipeline: {execution.pipelineName}
-          {#if execution.pipelineId}
-            <span
-              role="button"
-              tabindex="0"
-              onclick={(e) => {
-                e.stopPropagation();
-                handleViewPipeline(e);
-              }}
-              onkeydown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleViewPipeline(e);
-                }
-              }}
-              class="ml-1 inline-flex cursor-pointer items-center gap-0.5 rounded px-1 py-0.5 hover:bg-gray-100"
-              title="View Pipeline"
-              aria-label="View Pipeline"
-            >
-              <ExternalLink class="h-3 w-3 text-blue-500" />
-            </span>
-          {/if}
-        </span>
-        <span class="inline-flex items-center gap-1">
-          ID:
-          <span class="font-mono text-gray-700">{execution.executionId}</span>
-          <span
-            role="button"
-            tabindex="0"
-            class="inline-flex opacity-60 hover:opacity-100"
-            title="Copy execution ID"
-            onclick={(e) => {
-              e.stopPropagation();
-              copy(execution.executionId);
-            }}
-            onkeydown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                e.stopPropagation();
-                copy(execution.executionId);
-              }
-            }}
-            aria-label="Copy execution ID"
-          >
-            <Copy class="h-3 w-3" />
-          </span>
-        </span>
       </div>
     </div>
 
-    <!-- Log Stats -->
-    {#if execution.logStats}
-      <div class="text-right text-xs text-gray-500">
-        <div>{execution.logStats.totalLines || 0} lines</div>
-        {#if execution.logStats.errorCount > 0}
-          <div class="text-red-600">{execution.logStats.errorCount} errors</div>
-        {/if}
-        {#if execution.logStats.warningCount > 0}
-          <div class="text-yellow-600">{execution.logStats.warningCount} warnings</div>
-        {/if}
+    <!-- Log Stats & Duration -->
+    <div class="flex flex-col items-end gap-2 text-xs">
+      <!-- Duration -->
+      <div class="flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
+        <Clock class="h-3 w-3 text-gray-500" />
+        <span class="font-medium text-gray-700">
+          {duration.formatted}
+        </span>
       </div>
-    {/if}
+
+      <!-- Errors & Warnings -->
+      {#if execution.logStats?.errorCount && execution.logStats.errorCount > 0}
+        <div class="flex items-center gap-1.5">
+          <AlertCircle class="h-3 w-3 text-red-500" />
+          <span class="text-red-600"
+            >{execution.logStats.errorCount} error{execution.logStats.errorCount > 1
+              ? 's'
+              : ''}</span
+          >
+        </div>
+      {/if}
+      {#if execution.logStats?.warningCount && execution.logStats.warningCount > 0}
+        <div class="flex items-center gap-1.5">
+          <AlertTriangle class="h-3 w-3 text-yellow-500" />
+          <span class="text-yellow-600"
+            >{execution.logStats.warningCount} warning{execution.logStats.warningCount > 1
+              ? 's'
+              : ''}</span
+          >
+        </div>
+      {/if}
+    </div>
   </div>
 </button>
+
+<style>
+  @keyframes highlight-new {
+    0% {
+      transform: scale(1);
+    }
+    25% {
+      transform: scale(1.02);
+    }
+    50% {
+      transform: scale(1);
+    }
+    75% {
+      transform: scale(1.01);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  :global(.animate-highlight-new) {
+    animation: highlight-new 0.6s ease-in-out;
+  }
+</style>

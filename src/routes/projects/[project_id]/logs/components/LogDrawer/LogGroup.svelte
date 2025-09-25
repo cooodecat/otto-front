@@ -6,13 +6,15 @@
     XCircle,
     Loader2,
     AlertCircle,
-    Clock,
     FileText,
     Activity,
-    Maximize2
+    Maximize2,
+    Clock
   } from 'lucide-svelte';
   import type { LogEntry } from '$lib/types/log.types';
   import LogDetailPopover from './LogDetailPopover.svelte';
+  import LogSegment from './LogSegment.svelte';
+  import { LogParser } from '$lib/utils/log-parser';
 
   interface Props {
     phase: string;
@@ -26,6 +28,7 @@
     searchQuery?: string;
     estimatedDuration?: number; // in seconds
     forceExpand?: boolean;
+    externalExpanded?: boolean;
   }
 
   let {
@@ -39,10 +42,12 @@
     totalPhases = 0,
     searchQuery = '',
     estimatedDuration = 60,
-    forceExpand = false
+    forceExpand = false,
+    externalExpanded = false
   }: Props = $props();
 
-  let isExpanded = $state(initialExpanded);
+  let internalExpanded = $state(initialExpanded);
+  let isExpanded = $derived(forceExpand || externalExpanded || internalExpanded);
   let selectedLog = $state<LogEntry | null>(null);
   let selectedIndex = $state<number | null>(null);
   let showProgressBar = $state(false);
@@ -226,7 +231,7 @@
   });
 
   function toggleExpanded() {
-    isExpanded = !isExpanded;
+    internalExpanded = !internalExpanded;
   }
 
   function handleLogClick(log: LogEntry, _index: number) {
@@ -253,89 +258,13 @@
   // Auto-expand if running or failed
   $effect(() => {
     if (status === 'running' || status === 'failed') {
-      isExpanded = true;
+      internalExpanded = true;
     }
   });
 
-  // Expand when externally requested (do not auto-collapse)
-  $effect(() => {
-    if (forceExpand) {
-      isExpanded = true;
-    }
-  });
-
-  // Parse ANSI colors and highlight keywords
-  function formatLogMessage(message: string): string {
-    // Remove ANSI codes for now but highlight keywords
-    // Remove ANSI codes - using unicode escape for control character
-    // eslint-disable-next-line no-control-regex
-    let formatted = message.replace(/\u001b\[[0-9;]*m/g, '');
-
-    // Highlight search query if present
-    if (searchQuery && searchQuery.trim()) {
-      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`(${escapedQuery})`, 'gi');
-      formatted = formatted.replace(
-        regex,
-        '<mark class="bg-yellow-300 text-black px-0.5 rounded">$1</mark>'
-      );
-    }
-
-    // Syntax highlighting for code patterns
-    formatted = formatted
-      // File paths and directories
-      .replace(/(\/?[a-zA-Z0-9_\-.]+\/[a-zA-Z0-9_\-./]+)/g, '<span class="text-cyan-400">$1</span>')
-      // URLs
-      .replace(/(https?:\/\/[^\s]+)/g, '<span class="text-blue-400 underline">$1</span>')
-      // JSON-like structures
-      .replace(/(\{[^}]+\})/g, '<span class="text-purple-400 font-mono">$1</span>')
-      // Numbers (standalone)
-      .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="text-orange-400">$1</span>')
-      // Commands (npm, yarn, pnpm, etc.)
-      .replace(
-        /\b(npm|yarn|pnpm|node|git|docker|kubectl)\s+([a-z-]+)/gi,
-        '<span class="text-green-400">$1</span> <span class="text-blue-400">$2</span>'
-      )
-      // Environment variables
-      .replace(/\$([A-Z_]+)/g, '<span class="text-purple-400">$$1</span>')
-      // Quoted strings
-      .replace(/"([^"]+)"/g, '<span class="text-yellow-300">"$1"</span>')
-      .replace(/'([^']+)'/g, '<span class="text-yellow-300">\'$1\'</span>')
-      // IP addresses
-      .replace(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g, '<span class="text-cyan-400">$1</span>')
-      // Ports
-      .replace(/:(\d{2,5})\b/g, ':<span class="text-orange-400">$1</span>');
-
-    // Apply keyword highlighting after syntax highlighting
-    formatted = formatted
-      .replace(/(\[Container\])/g, '<span class="text-blue-400">$1</span>')
-      .replace(
-        /(ERROR|FAILED|Failed|error)/gi,
-        '<span class="text-red-400 font-bold bg-red-900/30 px-1 rounded">$1</span>'
-      )
-      .replace(
-        /(WARNING|WARN|Warning)/gi,
-        '<span class="text-yellow-400 font-bold bg-yellow-900/30 px-1 rounded">$1</span>'
-      )
-      .replace(
-        /(SUCCESS|SUCCEEDED|Succeeded|success|completed?|done|finished)/gi,
-        '<span class="text-green-400 font-bold">$1</span>'
-      )
-      .replace(/(Phase complete:)/g, '<span class="text-green-400">$1</span>')
-      .replace(/(Entering phase)/g, '<span class="text-blue-400">$1</span>')
-      .replace(
-        /(Running command|Executing|Starting|Building|Installing|Downloading)/gi,
-        '<span class="text-purple-400">$1</span>'
-      )
-      // Timing information
-      .replace(
-        /(\d+(?:\.\d+)?)\s*(ms|s|sec|seconds?|minutes?|hours?)/gi,
-        '<span class="text-orange-300">$1 $2</span>'
-      )
-      // Percentages
-      .replace(/(\d+(?:\.\d+)?%)/g, '<span class="text-cyan-300">$1</span>');
-
-    return formatted;
+  // Parse log message using the new parser
+  function parseLogMessage(message: string) {
+    return LogParser.parseMessage(message, searchQuery);
   }
 
   // Get log level color
@@ -439,12 +368,6 @@
     </div>
 
     <div class="flex items-center gap-2">
-      {#if durationInfo.duration}
-        <span class="flex items-center gap-1 text-sm text-gray-600">
-          <Clock class="h-3 w-3" />
-          {durationInfo.duration}
-        </span>
-      {/if}
       {#if status === 'running'}
         <Activity class="h-4 w-4 animate-pulse text-blue-500" />
       {/if}
@@ -475,8 +398,9 @@
                     {new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false })}
                   </span>
                   <div class="flex-1 break-all whitespace-pre-wrap">
-                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    {@html formatLogMessage(log.message)}
+                    {#each parseLogMessage(log.message).segments as segment}
+                      <LogSegment {segment} />
+                    {/each}
                   </div>
                   <div class="opacity-0 transition-opacity group-hover:opacity-100">
                     <Maximize2 class="h-3 w-3 text-gray-400" />
