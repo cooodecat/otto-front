@@ -317,9 +317,14 @@
     try {
       const flowData = { nodes, edges };
 
+      // Deploy 노드에서 deployOption 추출
+      const deployNode = nodes.find((node) => node.type === 'deploy' || node.data.blockType === 'deploy');
+      const deployOption = deployNode?.data?.deployOption || null;
+
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
         pipelineName: pipeline.pipelineName,
-        data: flowData
+        data: flowData,
+        deployOption: deployOption
       });
 
       // 성공 메시지
@@ -352,12 +357,17 @@
           ...node.data
         }));
 
+      // Deploy 노드에서 deployOption 추출
+      const deployNode = nodes.find((node) => node.type === 'deploy' || node.data.blockType === 'deploy');
+      const deployOption = deployNode?.data?.deployOption || null;
+
       // 파이프라인 업데이트 (Flow 노드 포함)
       if (!pipelineId) {
         throw new Error('Pipeline ID is required');
       }
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
-        data: { nodes, edges, flowNodes }
+        data: { nodes, edges, flowNodes },
+        deployOption: deployOption
       });
 
       console.log('파이프라인 실행 준비 완료');
