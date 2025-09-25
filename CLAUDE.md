@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Otto Frontend - GitHub 통합 CI/CD 시스템의 SvelteKit 기반 웹 애플리케이션입니다.
 
 ### 기술 스택
+
 - **프레임워크**: SvelteKit 2.22.0 + Svelte 5.0 (최신 runes 문법 사용)
 - **스타일링**: Tailwind CSS 4.0 (Vite 플러그인 통합)
 - **타입스크립트**: strict 모드 활성화
@@ -74,7 +75,6 @@ src/
     │   └── new/            # 새 프로젝트 생성
     └── app/github/callback/ # GitHub App 설치 콜백
 ```
-
 ## API 통합 패턴
 
 ### Nestia SDK 사용법
@@ -89,8 +89,8 @@ import { makeFetch } from '$lib/utils/make-fetch';
 export const load = async ({ fetch, cookies }) => {
   // makeFetch로 IConnection 객체 생성
   const connection = makeFetch({
-    fetch,  // SvelteKit의 서버사이드 fetch
-    cookie: cookies.get('auth')  // 쿠키 포워딩
+    fetch, // SvelteKit의 서버사이드 fetch
+    cookie: cookies.get('auth') // 쿠키 포워딩
   });
 
   // SDK를 통한 타입 세이프 API 호출
@@ -125,11 +125,13 @@ export const load = async (serverEvent) => {
 ```
 
 ### 쿠키 설정
+
 - **access_token**: 단기 액세스 토큰 (httpOnly, secure, sameSite: lax)
 - **refresh_token**: 장기 리프레시 토큰 (httpOnly, secure, sameSite: lax)
 - **도메인**: 프로덕션에서는 `.codecat-otto.shop` 전체 도메인 공유
 
 ### 토큰 리프레시
+
 - 액세스 토큰 만료 시 자동 리프레시
 - 리프레시 토큰이 없으면 인증 실패 처리
 - 버퍼 시간: 만료 60초 전 미리 리프레시
@@ -139,11 +141,13 @@ export const load = async (serverEvent) => {
 프로젝트는 시각적 CI/CD 파이프라인 구성을 위한 다양한 노드 타입을 제공:
 
 ### 빌드 노드
+
 - `BuildCustomNode`: 커스텀 빌드 명령
 - `BuildWebpackNode`: Webpack 빌드
 - `ViteBuildNode`: Vite 빌드
 
 ### 테스트 노드
+
 - `TestJestNode`: Jest 테스트
 - `TestVitestNode`: Vitest 테스트
 - `TestPlaywrightNode`: Playwright E2E 테스트
@@ -151,6 +155,7 @@ export const load = async (serverEvent) => {
 - `TestCustomNode`: 커스텀 테스트 명령
 
 ### 배포 및 기타
+
 - `DeployNode`: 배포 작업
 - `ParallelExecutionNode`: 병렬 실행
 - `ConditionBranchNode`: 조건부 분기
@@ -172,6 +177,7 @@ PUBLIC_GITHUB_CLIENT_ID=your_client_id
 ## 개발 워크플로우
 
 ### 초기 설정
+
 ```bash
 # 의존성 설치
 pnpm install
@@ -184,13 +190,18 @@ pnpm dev
 ```
 
 ### 백엔드 SDK 업데이트
+
 백엔드 API가 변경되면 otto-handler 디렉토리에서:
+
 ```bash
 npx nestia sdk
 ```
+
 이 명령은 자동으로 `src/lib/sdk` 디렉토리를 업데이트합니다.
 
 ### 배포 전 체크
+
+
 ```bash
 # 타입 체크
 pnpm check
@@ -222,4 +233,6 @@ pnpm preview
 - **플랫폼**: Vercel
 - **어댑터**: `@sveltejs/adapter-vercel`
 - **런타임**: Node.js 22.x
+
 - **도메인**: codecat-otto.shop
+
