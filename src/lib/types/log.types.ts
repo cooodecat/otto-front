@@ -38,6 +38,7 @@ export interface ExecutionMetadata {
   // Time info
   startedAt: string;
   completedAt?: string;
+  updatedAt?: string;
   duration: number; // seconds
 
   // Git info
@@ -88,6 +89,14 @@ export interface PhaseInfo {
     name: string;
     completed: boolean;
   }>;
+  // Metadata for tracking status changes
+  statusMetadata?: {
+    source?: 'websocket' | 'log_parsing' | 'timeout' | 'manual';
+    lastUpdateReason?: string;
+    failureReason?: string;
+    hasExplicitCompletion?: boolean;
+    updatedAt?: string;
+  };
 }
 
 export interface LogEntry {

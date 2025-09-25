@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ExecutionMetadata, PhaseInfo } from '$lib/types/log.types';
+  import { onDestroy } from 'svelte';
   import {
     Calendar,
     GitBranch,
@@ -12,20 +13,70 @@
     Edit3,
     RefreshCw,
     Loader2,
-    X
+    X,
+    Workflow,
+    Keyboard
   } from 'lucide-svelte';
+  import {
+    calculateExecutionDuration,
+    formatDateTime,
+    formatRelativeTime
+  } from '$lib/utils/duration';
 
   interface Props {
     execution: ExecutionMetadata;
     phases?: PhaseInfo[];
     isConnected?: boolean;
+    isNavigating?: boolean;
+    isTimeoutSuspected?: boolean;
+    timeoutMessage?: string | null;
     onRerun?: () => void;
     onEdit?: () => void;
     onClose?: () => void;
+    onNavigate?: (direction: 'prev' | 'next') => void;
   }
 
-  let { execution, phases = [], isConnected = false, onRerun, onEdit, onClose }: Props = $props();
+  let {
+    execution,
+    phases = [],
+    isConnected = false,
+    isNavigating: _isNavigating = false,
+    isTimeoutSuspected = false,
+    timeoutMessage = null,
+    onRerun,
+    onEdit,
+    onClose,
+    onNavigate: _onNavigate
+  }: Props = $props();
   let isRerunning = $state(false);
+  let currentTime = $state(Date.now());
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+
+  // Update current time every second for running executions
+  $effect(() => {
+    const normalizedStatus = getNormalizedStatus(execution.status);
+    if (normalizedStatus === 'RUNNING' || normalizedStatus === 'PENDING') {
+      // Start interval to update time every second
+      intervalId = setInterval(() => {
+        currentTime = Date.now();
+      }, 1000);
+    } else {
+      // Clear interval if not running
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    }
+  });
+
+  onDestroy(() => {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+  });
+
+  // Use unified duration calculation
+  const duration = $derived(calculateExecutionDuration(execution, phases, currentTime));
 
   async function handleRerun() {
     if (isRerunning || !onRerun) return;
@@ -35,104 +86,6 @@
     } finally {
       isRerunning = false;
     }
-  }
-
-  function formatDateTime(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  }
-
-  function formatRelative(dateStr: string): string {
-    const date = new Date(dateStr);
-    const diff = Date.now() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }
-
-  function calculateDuration(): string {
-    // Debug logging
-    console.log('Calculating duration:', {
-      duration: execution.duration,
-      startedAt: execution.startedAt,
-      completedAt: execution.completedAt,
-      status: execution.status,
-      phases: phases
-    });
-    
-    const normalizedStatus = getNormalizedStatus(execution.status);
-    
-    // 1. execution.duration이 있으면 사용 (백엔드에서 제공하는 값, 초 단위)
-    if (execution.duration !== undefined && execution.duration !== null && execution.duration > 0) {
-      return formatDuration(execution.duration);
-    }
-    
-    // 2. Phase들의 duration 합산 (phases가 있고 완료 상태인 경우)
-    if (phases && phases.length > 0) {
-      const totalPhaseDuration = phases.reduce((total, phase) => {
-        if (phase.duration && phase.duration > 0) {
-          return total + phase.duration;
-        }
-        return total;
-      }, 0);
-      
-      if (totalPhaseDuration > 0) {
-        console.log('Total phase duration:', totalPhaseDuration);
-        return formatDuration(totalPhaseDuration);
-      }
-    }
-    
-    // 3. completedAt이 있으면 직접 계산
-    if (execution.completedAt && execution.startedAt) {
-      const start = new Date(execution.startedAt).getTime();
-      const end = new Date(execution.completedAt).getTime();
-      const seconds = Math.floor((end - start) / 1000);
-      return formatDuration(seconds);
-    }
-    
-    // 4. 실행 중이면 현재까지 경과 시간 표시
-    if ((normalizedStatus === 'RUNNING' || normalizedStatus === 'PENDING') && execution.startedAt) {
-      const start = new Date(execution.startedAt).getTime();
-      const now = Date.now();
-      const seconds = Math.floor((now - start) / 1000);
-      return `${formatDuration(seconds)} (running)`;
-    }
-    
-    // 5. 완료 상태인데 duration/completedAt/phases가 없는 경우
-    if ((normalizedStatus === 'SUCCESS' || normalizedStatus === 'SUCCEEDED' || 
-         normalizedStatus === 'COMPLETED' || normalizedStatus === 'FAILED' || 
-         normalizedStatus === 'CANCELLED') && execution.startedAt) {
-      // 마지막 대안: startedAt으로부터 현재까지 계산
-      const start = new Date(execution.startedAt).getTime();
-      const now = Date.now();
-      const seconds = Math.floor((now - start) / 1000);
-      return formatDuration(seconds);
-    }
-    
-    // 6. 그 외의 경우
-    return 'N/A';
-  }
-
-  function formatDuration(seconds: number): string {
-    if (seconds < 60) return `${seconds} seconds`;
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (minutes < 60) {
-      return secs > 0 ? `${minutes}m ${secs}s` : `${minutes} minutes`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
   }
 
   const statusColors: Record<string, string> = {
@@ -166,95 +119,185 @@
 
         <div class="min-w-0 flex-1">
           <!-- Title and Status -->
-          <div class="mb-2 flex flex-wrap items-center gap-3">
-            <h2 class="text-xl font-semibold text-gray-900">
-              {execution.executionType} #{execution.buildNumber}
-            </h2>
-            <span
-              class="rounded-full px-2.5 py-1 text-xs font-semibold {statusColors[
-                getNormalizedStatus(execution.status)
-              ] || 'bg-gray-100 text-gray-800'}"
-            >
-              {getNormalizedStatus(execution.status)}
-            </span>
-            {#if getNormalizedStatus(execution.status) === 'RUNNING' || getNormalizedStatus(execution.status) === 'PENDING'}
-              <div
-                class="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs {isConnected
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-600'}"
+          <div class="mb-2">
+            <div class="flex items-center gap-3">
+              <h2 class="text-xl font-semibold text-gray-900">
+                {execution.executionType} #{execution.buildNumber}
+              </h2>
+              <span
+                class="rounded-full px-2.5 py-1 text-xs font-semibold {statusColors[
+                  getNormalizedStatus(execution.status)
+                ] || 'bg-gray-100 text-gray-800'}"
               >
-                {#if isConnected}
-                  <Wifi class="h-3 w-3" />
-                  <span>Live</span>
+                {getNormalizedStatus(execution.status)}
+              </span>
+              {#if getNormalizedStatus(execution.status) === 'RUNNING' || getNormalizedStatus(execution.status) === 'PENDING'}
+                <div
+                  class="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs {isConnected
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-600'}"
+                >
+                  {#if isConnected}
+                    <Wifi class="h-3 w-3" />
+                    <span>Live</span>
+                  {:else}
+                    <WifiOff class="h-3 w-3" />
+                    <span>Disconnected</span>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+
+            {#if isTimeoutSuspected && timeoutMessage}
+              <div
+                class="mt-2 flex items-start gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-2"
+              >
+                <svg
+                  class="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-xs font-medium text-yellow-800">Timeout Warning</p>
+                  <p class="text-xs text-yellow-700">{timeoutMessage}</p>
+                </div>
+              </div>
+            {/if}
+
+            {#if execution.pipelineName && execution.pipelineName !== 'Unknown Pipeline' && execution.pipelineName !== ''}
+              <div class="mt-1 flex items-center gap-1.5">
+                <Workflow class="h-3.5 w-3.5 text-indigo-500" />
+                {#if execution.pipelineId && onEdit}
+                  <button
+                    onclick={onEdit}
+                    class="cursor-pointer text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-800 hover:underline"
+                    title="View pipeline configuration"
+                  >
+                    {execution.pipelineName}
+                  </button>
                 {:else}
-                  <WifiOff class="h-3 w-3" />
-                  <span>Disconnected</span>
+                  <span class="text-sm font-medium text-gray-600">
+                    {execution.pipelineName}
+                  </span>
                 {/if}
+              </div>
+            {:else if execution.pipelineId && onEdit}
+              <div class="mt-1 flex items-center gap-1.5">
+                <Workflow class="h-3.5 w-3.5 text-gray-400" />
+                <button
+                  onclick={onEdit}
+                  class="cursor-pointer text-sm font-medium text-gray-500 transition-colors hover:text-indigo-600 hover:underline"
+                  title="View pipeline configuration"
+                >
+                  View Pipeline Configuration
+                </button>
+              </div>
+            {:else if execution.pipelineId}
+              <div class="mt-1 flex items-center gap-1.5">
+                <Workflow class="h-3.5 w-3.5 text-gray-400" />
+                <span class="text-sm font-medium text-gray-500">
+                  Pipeline ID: {execution.pipelineId}
+                </span>
               </div>
             {/if}
           </div>
 
           <!-- Metadata Grid -->
-          <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-            <!-- Time Info -->
+          <div class="grid grid-cols-1 gap-y-2 text-sm">
+            <!-- Execution Start Time -->
             <div class="flex items-center gap-2 text-gray-600">
               <Calendar class="h-4 w-4 text-gray-400" />
-              <span title={formatDateTime(execution.startedAt)}>
+              <span class="font-medium">Started:</span>
+              <span title={new Date(execution.startedAt).toLocaleString()}>
                 {formatDateTime(execution.startedAt)}
-                <span class="ml-1 text-gray-400">({formatRelative(execution.startedAt)})</span>
+                <span class="ml-1 text-gray-400">({formatRelativeTime(execution.startedAt)})</span>
               </span>
-              {#if execution.completedAt}
-                <span class="text-gray-400">→</span>
-                <span title={formatDateTime(execution.completedAt)}>
-                  {formatDateTime(execution.completedAt)}
-                  <span class="ml-1 text-gray-400">({formatRelative(execution.completedAt)})</span>
-                </span>
-              {/if}
             </div>
 
-            <!-- Duration -->
-            <div class="flex items-center gap-2 text-gray-600">
-              <Clock class="h-4 w-4 text-gray-400" />
-              <span>{calculateDuration()}</span>
+            <!-- Duration and Log Count -->
+            <div class="flex items-center gap-6">
+              <!-- Duration -->
+              <div class="flex items-center gap-2 text-gray-600">
+                <Clock class="h-4 w-4 text-gray-400" />
+                <span class="font-medium">Duration:</span>
+                <span>{duration.formatted}</span>
+              </div>
+
+              <!-- Log Count (replacing Lines) -->
+              {#if execution.logStats?.totalLines}
+                <div class="flex items-center gap-2 text-gray-600">
+                  <svg
+                    class="h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <span class="font-medium">Logs:</span>
+                  <span>{execution.logStats.totalLines.toLocaleString()} entries</span>
+                </div>
+              {/if}
             </div>
 
             <!-- Git Info -->
             <div class="flex items-center gap-2 text-gray-600">
               <GitBranch class="h-4 w-4 text-gray-400" />
+              <span class="font-medium">Branch:</span>
               <span class="truncate">
                 {execution.branch || 'N/A'}
                 {#if execution.commitId}
                   <span class="mx-1 text-gray-400">•</span>
-                  <span class="font-mono">{execution.commitId.slice(0, 7)}</span>
+                  <span class="font-mono text-xs">{execution.commitId.slice(0, 7)}</span>
                 {/if}
               </span>
             </div>
 
             <!-- Author -->
-            {#if execution.author && execution.author !== 'Unknown'}
+            {#if execution.author && execution.author !== 'Unknown' && execution.author !== ''}
               <div class="flex items-center gap-2 text-gray-600">
                 <User class="h-4 w-4 text-gray-400" />
+                <span class="font-medium">Author:</span>
                 <span>{execution.author}</span>
               </div>
             {/if}
           </div>
-
-          <!-- Pipeline Info Row -->
-          {#if execution.pipelineName && !execution.pipelineName.includes('Unknown')}
-            <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-              <span>Pipeline: <span class="font-medium">{execution.pipelineName}</span></span>
-            </div>
-          {/if}
         </div>
       </div>
 
       <div class="flex items-center justify-end gap-2">
+        <!-- Keyboard shortcuts hint -->
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <Keyboard class="h-3.5 w-3.5" />
+          <span class="hidden lg:inline">
+            <kbd class="rounded bg-gray-100 px-1 py-0.5 text-[10px]">Shift+↑↓</kbd>
+            Logs •
+            <kbd class="rounded bg-gray-100 px-1 py-0.5 text-[10px]">ESC</kbd>
+            Close
+          </span>
+        </div>
+
         <!-- Action buttons group -->
         <div class="flex items-center gap-3">
           {#if onRerun}
             <button
               onclick={handleRerun}
-              disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
+              disabled={isRerunning ||
+                execution.status === 'RUNNING' ||
+                execution.status === 'PENDING'}
               class="flex h-9 cursor-pointer items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               title={execution.status === 'RUNNING' || execution.status === 'PENDING'
                 ? 'Pipeline is currently running'
@@ -279,15 +322,21 @@
             </button>
           {/if}
         </div>
-        
+
         <!-- Close button with extra spacing -->
         {#if onClose}
           <button
-            onclick={onClose}
-            class="ml-4 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-all hover:rotate-90 hover:bg-gray-100 hover:text-gray-800"
+            onclick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onClose();
+            }}
+            onpointerdown={(e) => e.stopPropagation()}
+            class="relative z-50 ml-4 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-all hover:rotate-90 hover:bg-gray-100 hover:text-gray-800"
             aria-label="Close drawer"
+            type="button"
           >
-            <X class="h-4 w-4" />
+            <X class="pointer-events-none h-4 w-4" />
           </button>
         {/if}
       </div>
