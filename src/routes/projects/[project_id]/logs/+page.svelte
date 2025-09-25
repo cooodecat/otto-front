@@ -6,7 +6,7 @@
   import ExecutionList from './components/ExecutionList.svelte';
   import ExecutionFilter from './components/ExecutionFilter.svelte';
   import LogDrawer from './components/LogDrawer/LogDrawer.svelte';
-  import { RefreshCw, ChevronRight } from 'lucide-svelte';
+  import { RefreshCw, ChevronRight, House } from 'lucide-svelte';
 
   const projectId = $page.params.project_id!;
   
@@ -77,8 +77,9 @@
     <nav aria-label="Breadcrumb">
       <ol class="flex items-center space-x-2 text-sm">
         <li>
-          <a href="/projects" class="text-gray-500 transition-colors hover:text-gray-700">
-            Projects
+          <a href="/projects" class="flex items-center gap-1 text-gray-500 transition-colors hover:text-gray-700">
+            <House class="h-4 w-4" />
+            <span>프로젝트</span>
           </a>
         </li>
         <li>
@@ -96,7 +97,7 @@
           <ChevronRight class="h-4 w-4 text-gray-400" />
         </li>
         <li>
-          <span class="font-medium text-gray-900">Logs</span>
+          <span class="font-medium text-gray-900">로그</span>
         </li>
       </ol>
     </nav>
@@ -111,10 +112,10 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-              Pipeline Logs
+              로그
             </h1>
             <p class="mt-2 text-sm text-gray-600">
-              Monitor and analyze your build and deployment executions
+              빌드 및 배포 실행 로그를 모니터링하고 분석합니다
             </p>
           </div>
 
