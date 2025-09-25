@@ -81,15 +81,15 @@
 
   <!-- Main Content -->
   <div
-    class="relative rounded-3xl border border-gray-700/50 bg-gray-900/50 p-8 backdrop-blur-sm sm:p-12"
+    class="relative rounded-3xl border border-gray-700/50 bg-gray-900/50 p-4 backdrop-blur-sm sm:p-6 md:p-8"
   >
     <!-- Desktop Grid -->
-    <div class="mb-8 hidden items-center gap-4 lg:grid lg:grid-cols-7">
+    <div class="mb-4 hidden items-stretch gap-2 lg:mb-8 lg:grid lg:grid-cols-7 lg:gap-4">
       {#each steps as step, index (step.id)}
         <!-- Step Card -->
-        <div class="col-span-1">
+        <div class="col-span-1 h-full">
           <div
-            class="group relative transition-all duration-500"
+            class="group relative h-full transition-all duration-500"
             class:scale-105={activeStep === index}
             class:opacity-50={activeStep !== index}
           >
@@ -102,33 +102,35 @@
 
             <!-- Card -->
             <div
-              class="relative rounded-2xl border border-gray-700/50 bg-gray-800/80 p-6 backdrop-blur-sm transition-all duration-500"
+              class="relative flex h-full flex-col rounded-2xl border border-gray-700/50 bg-gray-800/80 p-3 backdrop-blur-sm transition-all duration-500 lg:p-4"
               class:shadow-2xl={activeStep === index}
             >
               <!-- Icon -->
               <div
-                class="h-12 w-12 bg-gradient-to-r {step.bgGradient} mb-4 flex items-center justify-center rounded-xl transition-transform duration-500"
+                class="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r {step.bgGradient} transition-transform duration-500 lg:h-10 lg:w-10"
                 class:rotate-6={activeStep === index}
               >
                 {#if step.icon === GitBranch}
-                  <GitBranch class="h-6 w-6 {step.color}" />
+                  <GitBranch class="h-4 w-4 {step.color} lg:h-5 lg:w-5" />
                 {:else if step.icon === Hammer}
-                  <Hammer class="h-6 w-6 {step.color}" />
+                  <Hammer class="h-4 w-4 {step.color} lg:h-5 lg:w-5" />
                 {:else if step.icon === CheckCircle}
-                  <CheckCircle class="h-6 w-6 {step.color}" />
+                  <CheckCircle class="h-4 w-4 {step.color} lg:h-5 lg:w-5" />
                 {:else if step.icon === Rocket}
-                  <Rocket class="h-6 w-6 {step.color}" />
+                  <Rocket class="h-4 w-4 {step.color} lg:h-5 lg:w-5" />
                 {/if}
               </div>
 
               <!-- Content -->
-              <h3 class="mb-1 text-sm font-bold text-white">{step.title}</h3>
-              <p class="text-xs text-gray-400">{step.description}</p>
+              <div class="flex flex-1 flex-col text-center">
+                <h3 class="mb-1 text-sm font-bold text-white">{step.title}</h3>
+                <p class="text-xs text-gray-400">{step.description}</p>
+              </div>
 
               <!-- Active Indicator -->
               {#if activeStep === index}
                 <div
-                  class="absolute top-4 right-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
+                  class="absolute right-4 top-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
                 ></div>
               {/if}
             </div>
@@ -149,10 +151,10 @@
     </div>
 
     <!-- Mobile/Tablet Grid -->
-    <div class="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:hidden">
+    <div class="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:gap-3 lg:hidden">
       {#each steps as step, index (step.id)}
         <div
-          class="group relative transition-all duration-500"
+          class="group relative h-full transition-all duration-500"
           class:scale-105={activeStep === index}
           class:opacity-50={activeStep !== index}
         >
@@ -165,33 +167,35 @@
 
           <!-- Card -->
           <div
-            class="relative rounded-2xl border border-gray-700/50 bg-gray-800/80 p-6 backdrop-blur-sm transition-all duration-500"
+            class="relative flex h-full flex-col rounded-2xl border border-gray-700/50 bg-gray-800/80 p-3 backdrop-blur-sm transition-all duration-500 sm:p-4"
             class:shadow-2xl={activeStep === index}
           >
             <!-- Icon -->
             <div
-              class="h-12 w-12 bg-gradient-to-r {step.bgGradient} mb-4 flex items-center justify-center rounded-xl transition-transform duration-500"
+              class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-r {step.bgGradient} transition-transform duration-500 sm:h-10 sm:w-10"
               class:rotate-6={activeStep === index}
             >
               {#if step.icon === GitBranch}
-                <GitBranch class="h-6 w-6 {step.color}" />
+                <GitBranch class="h-4 w-4 {step.color} sm:h-5 sm:w-5" />
               {:else if step.icon === Hammer}
-                <Hammer class="h-6 w-6 {step.color}" />
+                <Hammer class="h-4 w-4 {step.color} sm:h-5 sm:w-5" />
               {:else if step.icon === CheckCircle}
-                <CheckCircle class="h-6 w-6 {step.color}" />
+                <CheckCircle class="h-4 w-4 {step.color} sm:h-5 sm:w-5" />
               {:else if step.icon === Rocket}
-                <Rocket class="h-6 w-6 {step.color}" />
+                <Rocket class="h-4 w-4 {step.color} sm:h-5 sm:w-5" />
               {/if}
             </div>
 
             <!-- Content -->
-            <h3 class="mb-2 text-lg font-bold text-white">{step.title}</h3>
-            <p class="text-sm text-gray-400">{step.description}</p>
+            <div class="flex flex-1 flex-col text-center">
+              <h3 class="mb-1 text-xs font-bold text-white sm:text-sm">{step.title}</h3>
+              <p class="text-xs text-gray-400">{step.description}</p>
+            </div>
 
             <!-- Active Indicator -->
             {#if activeStep === index}
               <div
-                class="absolute top-4 right-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
+                class="absolute right-4 top-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
               ></div>
             {/if}
           </div>
@@ -200,10 +204,10 @@
     </div>
 
     <!-- Mobile Flow Indicator -->
-    <div class="mb-8 flex justify-center space-x-2 lg:hidden">
+    <div class="mb-3 flex justify-center space-x-2 lg:hidden">
       {#each steps as _, index (index)}
         <div
-          class="h-3 w-3 rounded-full transition-all duration-500"
+          class="h-2 w-2 rounded-full transition-all duration-500 sm:h-3 sm:w-3"
           class:bg-purple-500={activeStep === index}
           class:bg-gray-600={activeStep !== index}
           class:scale-125={activeStep === index}
@@ -213,7 +217,7 @@
 
     <!-- Description -->
     <div class="text-center">
-      <p class="text-lg leading-relaxed text-gray-400">
+      <p class="text-sm leading-relaxed text-gray-400 sm:text-base lg:text-lg">
         블록을 드래그하여 CI/CD 파이프라인을 구성하고,
         <br class="hidden sm:block" />
         자동화된 워크플로우를 만들어보세요.
