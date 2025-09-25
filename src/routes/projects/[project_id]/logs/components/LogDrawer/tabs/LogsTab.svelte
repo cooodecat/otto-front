@@ -971,8 +971,8 @@
                 {@const isNewLog =
                   Date.now() - lastNewLogTime < 2000 && i === recentLogs.length - 1}
 
-                {#if showTransition}
-                  <!-- Phase Transition Separator -->
+                {#if showTransition && phase !== 'OTHER'}
+                  <!-- Phase Transition Separator (hide for OTHER) -->
                   <div class="my-3 flex items-center gap-3">
                     <div
                       class="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"
@@ -996,12 +996,14 @@
                   <span class="mr-4 w-6 text-right text-xs text-gray-600 tabular-nums select-none"
                     >{getGlobalLineNumber(log)}</span
                   >
-                  <!-- Phase Badge for better context -->
-                  <span
-                    class="mr-3 min-w-[100px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400"
-                  >
-                    {phase.replace(/_/g, ' ')}
-                  </span>
+                  <!-- Phase Badge for better context (hide OTHER) -->
+                  {#if phase !== 'OTHER'}
+                    <span
+                      class="mr-3 min-w-[100px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400"
+                    >
+                      {phase.replace(/_/g, ' ')}
+                    </span>
+                  {/if}
                   <pre
                     class="flex-1 overflow-hidden whitespace-pre-wrap text-white">{@html /* eslint-disable-line svelte/no-at-html-tags */ highlightSearchQuery(
                       log.message || ''

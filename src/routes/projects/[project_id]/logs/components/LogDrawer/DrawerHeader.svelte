@@ -251,15 +251,6 @@
       <div class="flex items-center justify-end gap-2">
         <!-- Action buttons group -->
         <div class="flex items-center gap-3">
-          {#if execution.pipelineId && onEdit}
-            <button
-              onclick={onEdit}
-              class="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-            >
-              <Edit3 class="h-3.5 w-3.5" />
-              Edit Pipeline
-            </button>
-          {/if}
           {#if onRerun}
             <button
               onclick={handleRerun}
@@ -276,6 +267,15 @@
                 <RefreshCw class="h-3.5 w-3.5" />
                 Re-run
               {/if}
+            </button>
+          {/if}
+          {#if execution.pipelineId && onEdit}
+            <button
+              onclick={onEdit}
+              class="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <Edit3 class="h-3.5 w-3.5" />
+              Edit Pipeline
             </button>
           {/if}
         </div>
