@@ -14,6 +14,8 @@
     RefreshCw
   } from 'lucide-svelte';
   import LogGroup from '../LogGroup.svelte';
+  import LogSegment from '../LogSegment.svelte';
+  import { LogParser } from '$lib/utils/log-parser';
 
   interface Props {
     executionId: string;
@@ -48,12 +50,13 @@
       normalizedStatus === 'SUCCESS' ||
       normalizedStatus === 'FAILED' ||
       normalizedStatus === 'SUCCEEDED' ||
-      normalizedStatus === 'COMPLETED';
+      normalizedStatus === 'COMPLETED' ||
+      normalizedStatus === 'CANCELLED';
     const isRunning = normalizedStatus === 'RUNNING' || normalizedStatus === 'PENDING';
 
     return {
       autoScroll: isRunning && !isCompleted,
-      showGrouped: isCompleted || !isRunning,
+      showGrouped: isCompleted, // Only show Grouped view when execution is completed
       isLiveMode: isRunning && !isCompleted
     };
   };
@@ -161,6 +164,13 @@
           showGrouped = true;
           autoScroll = false;
         });
+
+        // Ensure logs are available for grouped view
+        // If we're switching from live to grouped and have no logs,
+        // we need to wait for the parent to provide updated logs
+        if (logs.length === 0) {
+          console.warn('No logs available for grouped view, waiting for data...');
+        }
       } else if (isNowRunning) {
         console.log('LogsTab - Status is running:', $state.snapshot(executionStatus));
         untrack(() => {
@@ -248,7 +258,10 @@
         untrack(() => {
           isLiveMode = true;
           showGrouped = false;
-          autoScroll = true;
+          // Only enable auto-scroll if not manually disabled by user
+          if (!isUserScrolling) {
+            autoScroll = true;
+          }
         });
       } else if (isNowCompleted) {
         // When execution completes, switch to grouped view
@@ -256,7 +269,14 @@
           isLiveMode = false;
           showGrouped = true;
           autoScroll = false;
+          isUserScrolling = false; // Reset user scrolling state
         });
+
+        // Check if we have logs for grouped view
+        if (logs.length === 0) {
+          console.warn('No logs available for grouped view after WebSocket status change');
+        }
+
         // Release WebSocket control when completed
         untrack(() => {
           wsControlled = false;
@@ -523,7 +543,8 @@
     const logText = filteredLogs
       .map((log) => {
         const { phase } = getNormalizedData(log);
-        return `[${new Date(log.timestamp).toLocaleTimeString()}] [${log.level.toUpperCase()}] ${phase ? `[${phase}]` : ''} ${log.message}`;
+        const cleanedMessage = LogParser.cleanMessage(log.message || '');
+        return `[${new Date(log.timestamp).toLocaleTimeString()}] [${log.level.toUpperCase()}] ${phase ? `[${phase}]` : ''} ${cleanedMessage}`;
       })
       .join('\n');
 
@@ -540,7 +561,8 @@
     const logText = filteredLogs
       .map((log) => {
         const { phase } = getNormalizedData(log);
-        return `[${new Date(log.timestamp).toLocaleTimeString()}] [${log.level.toUpperCase()}] ${phase ? `[${phase}]` : ''} ${log.message}`;
+        const cleanedMessage = LogParser.cleanMessage(log.message || '');
+        return `[${new Date(log.timestamp).toLocaleTimeString()}] [${log.level.toUpperCase()}] ${phase ? `[${phase}]` : ''} ${cleanedMessage}`;
       })
       .join('\n');
 
@@ -614,22 +636,26 @@
     const target = event.target as HTMLElement;
     if (!target) return;
 
-    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
-
-    // If user scrolled up, pause auto-scroll
-    if (!isNearBottom) {
-      isUserScrolling = true;
-      autoScroll = false;
-    }
+    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 200;
 
     // Clear existing timeout
     if (scrollTimeout) clearTimeout(scrollTimeout);
+
+    // If user scrolled up, pause auto-scroll
+    if (!isNearBottom && autoScroll) {
+      isUserScrolling = true;
+      autoScroll = false;
+    }
 
     // Resume auto-scroll if user scrolls to bottom
     if (isNearBottom && isUserScrolling) {
       scrollTimeout = setTimeout(() => {
         isUserScrolling = false;
-        autoScroll = true;
+        // Only re-enable auto-scroll if execution is still running
+        const normalizedStatus = executionStatus?.toUpperCase();
+        if (normalizedStatus === 'RUNNING' || normalizedStatus === 'PENDING') {
+          autoScroll = true;
+        }
       }, 500);
     }
   }
@@ -656,48 +682,9 @@
     return currPhase !== prevPhase && currPhase !== 'OTHER';
   }
 
-  // Clean and format log message (remove timestamps, ANSI codes, etc.)
-  function cleanLogMessage(message: string): string {
-    // Handle undefined or null messages
-    if (!message) return '';
-
-    let cleanMessage = String(message); // Ensure it's a string
-
-    // Remove ANSI codes
-    // eslint-disable-next-line no-control-regex
-    cleanMessage = cleanMessage.replace(/\u001b\[[0-9;]*m/g, '');
-
-    // Remove timestamp patterns
-    cleanMessage = cleanMessage
-      // Remove full timestamps like 2025/09/23 18:28:48.340117
-      .replace(/\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2}:\d{2}(\.\d+)?/g, '')
-      // Remove ISO format timestamps
-      .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?/g, '')
-      // Remove time-only patterns at the start
-      .replace(/^\d{1,2}:\d{2}:\d{2}(\.\d+)?\s*/g, '')
-      // Remove bracketed timestamps
-      .replace(/\[\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2}:\d{2}(\.\d+)?\]/g, '')
-      .trim();
-
-    return cleanMessage;
-  }
-
-  // Highlight search query in terminal view
-  function highlightSearchQuery(text: string): string {
-    // Handle undefined or null text
-    if (!text) return '';
-
-    // First clean the message
-    const cleanedText = cleanLogMessage(text);
-
-    if (!searchQuery || !searchQuery.trim()) return cleanedText;
-
-    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(${escapedQuery})`, 'gi');
-    return cleanedText.replace(
-      regex,
-      '<mark class="bg-yellow-900/60 text-yellow-100 px-0.5 rounded">$1</mark>'
-    );
+  // Parse log message for rendering
+  function parseLogMessage(message: string): ReturnType<typeof LogParser.parseMessage> {
+    return LogParser.parseMessage(message, searchQuery);
   }
 
   // Expose scroll method for parent (LogDrawer) to navigate to a phase by index
@@ -732,7 +719,7 @@
   }
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col bg-gray-50/50">
+<div data-logs-tab class="flex min-h-0 flex-1 flex-col bg-gray-50/50">
   <!-- Fixed Toolbar -->
   <div class="m-4 mb-3 shrink-0 rounded-xl border border-gray-200 bg-white shadow-sm">
     <!-- Search and Filter Bar -->
@@ -801,7 +788,8 @@
       <div class="flex items-center gap-3">
         <!-- View Toggle -->
         <div class="flex items-center gap-1 rounded-lg border border-gray-300 p-1">
-          {#if executionStatus === 'RUNNING' || executionStatus === 'PENDING'}
+          {#if executionStatus?.toUpperCase() === 'RUNNING' || executionStatus?.toUpperCase() === 'PENDING'}
+            <!-- Live mode button for running executions -->
             <button
               onclick={() => {
                 // Only enable live mode during active execution
@@ -822,33 +810,51 @@
               </span>
               Live
             </button>
+            <!-- Terminal only button during execution -->
+            <button
+              onclick={() => {
+                showGrouped = false;
+                isLiveMode = false;
+              }}
+              class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {!isLiveMode
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-600 hover:bg-gray-100'}"
+            >
+              <Terminal class="h-3.5 w-3.5" />
+              Terminal
+            </button>
+          {:else if executionStatus?.toUpperCase() === 'SUCCESS' || executionStatus?.toUpperCase() === 'FAILED' || executionStatus?.toUpperCase() === 'SUCCEEDED' || executionStatus?.toUpperCase() === 'COMPLETED' || executionStatus?.toUpperCase() === 'CANCELLED'}
+            <!-- Show both Grouped and Terminal views after completion -->
+            <button
+              onclick={() => {
+                showGrouped = true;
+                isLiveMode = false;
+              }}
+              class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {showGrouped &&
+              !isLiveMode
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-600 hover:bg-gray-100'}"
+            >
+              <Layers class="h-3.5 w-3.5" />
+              Grouped
+            </button>
+            <button
+              onclick={() => {
+                showGrouped = false;
+                isLiveMode = false;
+              }}
+              class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {!showGrouped &&
+              !isLiveMode
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-600 hover:bg-gray-100'}"
+            >
+              <Terminal class="h-3.5 w-3.5" />
+              Terminal
+            </button>
+          {:else}
+            <!-- Default state (no buttons) -->
+            <span class="px-3 py-1 text-xs text-gray-500">Loading...</span>
           {/if}
-          <button
-            onclick={() => {
-              showGrouped = true;
-              isLiveMode = false;
-            }}
-            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {showGrouped &&
-            !isLiveMode
-              ? 'bg-gray-800 text-white'
-              : 'text-gray-600 hover:bg-gray-100'}"
-          >
-            <Layers class="h-3.5 w-3.5" />
-            Grouped
-          </button>
-          <button
-            onclick={() => {
-              showGrouped = false;
-              isLiveMode = false;
-            }}
-            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {!showGrouped &&
-            !isLiveMode
-              ? 'bg-gray-800 text-white'
-              : 'text-gray-600 hover:bg-gray-100'}"
-          >
-            <Terminal class="h-3.5 w-3.5" />
-            Terminal
-          </button>
         </div>
 
         {#if showGrouped}
@@ -951,12 +957,6 @@
                 </div>
               {/if}
             </div>
-            <button
-              onclick={() => (isLiveMode = false)}
-              class="cursor-pointer text-xs text-gray-500 underline hover:text-gray-700"
-            >
-              Switch to grouped view
-            </button>
           </div>
         </div>
 
@@ -971,8 +971,8 @@
                 {@const isNewLog =
                   Date.now() - lastNewLogTime < 2000 && i === recentLogs.length - 1}
 
-                {#if showTransition}
-                  <!-- Phase Transition Separator -->
+                {#if showTransition && phase !== 'OTHER'}
+                  <!-- Phase Transition Separator (hide for OTHER) -->
                   <div class="my-3 flex items-center gap-3">
                     <div
                       class="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"
@@ -996,16 +996,19 @@
                   <span class="mr-4 w-6 text-right text-xs text-gray-600 tabular-nums select-none"
                     >{getGlobalLineNumber(log)}</span
                   >
-                  <!-- Phase Badge for better context -->
-                  <span
-                    class="mr-3 min-w-[100px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400"
-                  >
-                    {phase.replace(/_/g, ' ')}
-                  </span>
-                  <pre
-                    class="flex-1 overflow-hidden whitespace-pre-wrap text-white">{@html /* eslint-disable-line svelte/no-at-html-tags */ highlightSearchQuery(
-                      log.message || ''
-                    )}</pre>
+                  <!-- Phase Badge for better context (hide OTHER) -->
+                  {#if phase !== 'OTHER'}
+                    <span
+                      class="mr-3 min-w-[100px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400"
+                    >
+                      {phase.replace(/_/g, ' ')}
+                    </span>
+                  {/if}
+                  <div class="flex-1 overflow-hidden whitespace-pre-wrap text-white">
+                    {#each parseLogMessage(log.message || '').segments as segment}
+                      <LogSegment {segment} />
+                    {/each}
+                  </div>
                 </div>
               {/each}
             </div>
@@ -1106,6 +1109,7 @@
             totalPhases={logsByPhase.length}
             {searchQuery}
             forceExpand={scrollTargetIndex === index}
+            externalExpanded={allExpanded}
           />
         {/each}
       </div>
@@ -1153,19 +1157,24 @@
                   {@const isNewLog =
                     Date.now() - lastNewLogTime < 2000 && i === phaseLogs.length - 1}
                   <div
-                    class="group flex py-0.5 hover:bg-gray-800/50 {isNewLog ? 'new-log-line' : ''}"
+                    data-log-entry
+                    data-log-index={getGlobalLineNumber(log) || i + 1}
+                    tabindex="-1"
+                    class="group flex py-0.5 transition-colors hover:bg-gray-800/50 focus:border-l-4 focus:border-blue-500 focus:bg-blue-100 focus:outline-none {isNewLog
+                      ? 'new-log-line'
+                      : ''}"
                   >
                     <span class="mr-4 w-8 text-right text-gray-500 tabular-nums select-none"
                       >{getGlobalLineNumber(log) || i + 1}</span
                     >
-                    <span
+                    <div
                       class="flex-1 break-all whitespace-pre-wrap {levelColors[log.level] ||
                         'text-gray-300'}"
                     >
-                      {@html /* eslint-disable-line svelte/no-at-html-tags */ highlightSearchQuery(
-                        log.message
-                      )}
-                    </span>
+                      {#each parseLogMessage(log.message || '').segments as segment}
+                        <LogSegment {segment} />
+                      {/each}
+                    </div>
                   </div>
                 {/each}
               </div>

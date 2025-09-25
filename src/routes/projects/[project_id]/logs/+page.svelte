@@ -7,6 +7,7 @@
   import ExecutionFilter from './components/ExecutionFilter.svelte';
   import LogDrawer from './components/LogDrawer/LogDrawer.svelte';
   import { RefreshCw, ChevronRight, House } from 'lucide-svelte';
+  import type { ExecutionMetadata } from '$lib/types/log.types';
 
   const projectId = $page.params.project_id!;
 
@@ -14,8 +15,14 @@
 
   let selectedExecutionId = $state<string | null>(null);
   let filterType = $state<'ALL' | 'BUILD' | 'DEPLOY'>('ALL');
+  let searchQuery = $state('');
   let isDrawerOpen = $state(false);
   let isRefreshing = $state(false);
+  let executionListRef = $state<{
+    refresh?: () => void;
+    getAllExecutions?: () => ExecutionMetadata[];
+  } | null>(null);
+  let savedScrollPosition = $state({ x: 0, y: 0 });
 
   onMount(async () => {
     await loadProjectInfo();
@@ -32,26 +39,114 @@
   }
 
   function handleExecutionSelect(executionId: string) {
+    console.log('[+page.svelte] handleExecutionSelect called');
+    console.log('[+page.svelte] Current scroll position before opening:', window.scrollY);
+
+    // Save scroll position BEFORE opening drawer
+    savedScrollPosition = {
+      x: window.scrollX,
+      y: window.scrollY
+    };
+
     selectedExecutionId = executionId;
     isDrawerOpen = true;
+
+    // Check scroll position after state change
+    requestAnimationFrame(() => {
+      console.log('[+page.svelte] Scroll position after opening drawer:', window.scrollY);
+    });
   }
 
-  function handleExecutionChange(newExecutionId: string) {
+  // Get all execution IDs for navigation
+  function getAllExecutionIds(): string[] {
+    if (!executionListRef?.getAllExecutions) return [];
+    const allExecutions = executionListRef.getAllExecutions();
+    return allExecutions.map((exec: ExecutionMetadata) => exec.executionId);
+  }
+
+  // Navigate to previous/next execution
+  function navigateExecution(direction: 'prev' | 'next') {
+    const allIds = getAllExecutionIds();
+    if (!selectedExecutionId || allIds.length === 0) return;
+
+    const currentIndex = allIds.indexOf(selectedExecutionId);
+    if (currentIndex === -1) return;
+
+    let newIndex;
+    if (direction === 'prev') {
+      newIndex = Math.max(0, currentIndex - 1);
+    } else {
+      newIndex = Math.min(allIds.length - 1, currentIndex + 1);
+    }
+
+    if (newIndex !== currentIndex) {
+      // Update the selected execution ID to load new data
+      selectedExecutionId = allIds[newIndex];
+      // Notify about the execution change if needed
+      if (handleExecutionChange) {
+        handleExecutionChange(allIds[newIndex]);
+      }
+    }
+  }
+
+  function handleExecutionChange(newExecutionId: string, isRerun?: boolean) {
     // Update the selected execution ID when re-run happens
     selectedExecutionId = newExecutionId;
+
+    // If this is from a re-run, refresh the execution list after a delay
+    if (isRerun && executionListRef?.refresh) {
+      // Wait a bit for the new execution to be created in the backend
+      setTimeout(() => {
+        if (executionListRef?.refresh) {
+          executionListRef.refresh();
+        }
+      }, 2000);
+    }
+  }
+
+  function handleRerunSuccess() {
+    // Immediately refresh the list when re-run is successful
+    if (executionListRef?.refresh) {
+      // Small delay to ensure the backend has created the new execution
+      setTimeout(() => {
+        if (executionListRef?.refresh) {
+          executionListRef.refresh();
+        }
+      }, 1500);
+    }
   }
 
   function handleDrawerClose() {
+    console.log('handleDrawerClose called');
     isDrawerOpen = false;
     selectedExecutionId = null;
+
+    // Optionally refresh the list when drawer closes
+    // This ensures any status changes during viewing are reflected
+    if (executionListRef?.refresh) {
+      executionListRef?.refresh();
+    }
   }
 
   async function handleRefresh() {
+    if (isRefreshing) return;
+
     isRefreshing = true;
-    // TODO: Refresh execution list
+
+    // Call the refresh method on ExecutionList component
+    if (executionListRef?.refresh) {
+      executionListRef.refresh();
+    }
+
+    // Reset the refreshing state after animation
     setTimeout(() => {
       isRefreshing = false;
-    }, 1000);
+    }, 1500);
+  }
+
+  function handleSearch(query: string) {
+    // Search will be handled by ExecutionList component via reactive prop
+    console.log('Search query:', query);
   }
 
   // Keyboard navigation
@@ -59,12 +154,17 @@
     if (typeof window === 'undefined') return;
     function handleKeydown(e: KeyboardEvent) {
       if (e.key === 'Escape' && isDrawerOpen) {
+        e.preventDefault();
+        e.stopPropagation();
         handleDrawerClose();
       }
     }
 
-    window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
+    // Only add listener when drawer is open
+    if (isDrawerOpen) {
+      window.addEventListener('keydown', handleKeydown, true);
+      return () => window.removeEventListener('keydown', handleKeydown, true);
+    }
   });
 </script>
 
@@ -124,17 +224,26 @@
           <button
             onclick={handleRefresh}
             disabled={isRefreshing}
-            class="flex cursor-pointer items-center gap-2.5 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-md transition-all duration-200 hover:bg-gray-50 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            class="group relative flex cursor-pointer items-center gap-2.5 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-md transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100"
           >
-            <RefreshCw class="h-4 w-4 {isRefreshing ? 'animate-spin' : ''}" />
-            Refresh
+            <RefreshCw
+              class="h-4 w-4 transition-transform duration-500 {isRefreshing
+                ? 'animate-spin'
+                : 'group-hover:rotate-180'}"
+            />
+            <span class={isRefreshing ? 'text-blue-600' : ''}>
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </span>
+            {#if isRefreshing}
+              <div class="absolute inset-0 animate-pulse rounded-xl bg-blue-500/10"></div>
+            {/if}
           </button>
         </div>
       </div>
 
       <!-- Filter Section -->
       <div class="bg-gray-50/50 px-8 py-4">
-        <ExecutionFilter bind:filterType />
+        <ExecutionFilter bind:filterType bind:searchQuery onSearch={handleSearch} />
       </div>
     </div>
 
@@ -146,9 +255,12 @@
     >
       <div class="h-full {isDrawerOpen ? 'overflow-hidden' : 'overflow-y-auto'}">
         <ExecutionList
+          bind:this={executionListRef}
           {projectId}
           {filterType}
+          {searchQuery}
           {selectedExecutionId}
+          {isDrawerOpen}
           onSelect={handleExecutionSelect}
         />
       </div>
@@ -161,7 +273,10 @@
   <LogDrawer
     executionId={selectedExecutionId}
     {projectId}
+    initialScrollPosition={savedScrollPosition}
     onClose={handleDrawerClose}
     onExecutionChange={handleExecutionChange}
+    onNavigate={navigateExecution}
+    onRerunSuccess={handleRerunSuccess}
   />
 {/if}
