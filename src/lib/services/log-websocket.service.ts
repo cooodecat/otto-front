@@ -79,6 +79,15 @@ export class LogWebSocketService {
         socketOptions.auth = { token };
       }
 
+      console.log(
+        `🔌 [WebSocket] Attempting connection:\n` +
+          `  - URL: ${logsNamespace}\n` +
+          `  - Transports: ${socketOptions.transports?.join(', ')}\n` +
+          `  - Reconnection: ${socketOptions.reconnection}\n` +
+          `  - Token present: ${!!token}\n` +
+          `  - Token length: ${token ? String(token).length : 0}`
+      );
+
       this.socket = io(logsNamespace, socketOptions);
 
       this.setupEventHandlers();
@@ -87,15 +96,33 @@ export class LogWebSocketService {
       // Set a timeout for the connection attempt
       this.connectionAttemptTimeout = setTimeout(() => {
         if (!this.socket?.connected) {
-          console.error('WebSocket connection timeout');
-          this.error.set('Connection timeout - unable to establish WebSocket connection');
+          console.error(
+            `❌ [WebSocket] Connection timeout:\n` +
+              `  - URL: ${logsNamespace}\n` +
+              `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+              `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
+              `  - Timeout: 15 seconds\n` +
+              `  - Reconnect attempts: ${this.reconnectAttempts}/${this.maxReconnectAttempts}`
+          );
+          this.error.set(
+            'Connection timeout - unable to establish WebSocket connection within 15 seconds'
+          );
           this.isConnecting = false;
           this.socket?.disconnect();
         }
       }, 15000);
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      this.error.set('Failed to create WebSocket connection');
+      console.error(
+        `❌ [WebSocket] Failed to create connection:\n` +
+          `  - URL: ${logsNamespace}\n` +
+          `  - Error: ${error instanceof Error ? error.message : String(error)}\n` +
+          `  - Token present: ${!!token}\n` +
+          `  - Reconnect attempts: ${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
+        error
+      );
+      this.error.set(
+        `Failed to create WebSocket connection: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
       this.isConnecting = false;
       throw error;
     }
@@ -117,10 +144,18 @@ export class LogWebSocketService {
         this.connectionAttemptTimeout = null;
       }
 
-      console.log('WebSocket connected');
+      console.log(
+        `✅ [WebSocket] Successfully connected:\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+          `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
+          `  - URL: ${this.socket?.io?.uri || 'unknown'}\n` +
+          `  - Auth: ${this.socket?.auth?.token ? 'authenticated' : 'no auth'}\n` +
+          `  - Previous execution ID: ${this.executionId || 'none'}`
+      );
 
       // Re-subscribe if we were subscribed before
       if (this.executionId) {
+        console.log(`🔔 [WebSocket] Auto-resubscribing to execution: ${this.executionId}`);
         this.socket!.emit('subscribe', { executionId: this.executionId });
       }
     });
@@ -128,18 +163,62 @@ export class LogWebSocketService {
     this.socket.on('disconnect', (reason) => {
       this.connected.set(false);
       this.isConnecting = false;
-      console.log('WebSocket disconnected:', reason);
+
+      console.log(
+        `🔌 [WebSocket] Disconnected:\n` +
+          `  - Reason: ${reason}\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+          `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
+          `  - Execution ID: ${this.executionId || 'none'}\n` +
+          `  - Will reconnect: ${reason !== 'io client disconnect'}`
+      );
 
       // Clear connection timeout
       if (this.connectionAttemptTimeout) {
         clearTimeout(this.connectionAttemptTimeout);
         this.connectionAttemptTimeout = null;
       }
+
+      if (reason !== 'io client disconnect') {
+        this.error.set(`WebSocket disconnected: ${reason}. Attempting to reconnect...`);
+      }
+    });
+
+    this.socket.on('connect_error', (error: Error & { data?: unknown }) => {
+      console.error(
+        `❌ [WebSocket] Connection error:\n` +
+          `  - Error: ${error?.message || 'Unknown connection error'}\n` +
+          `  - Data: ${typeof error?.data === 'string' ? error.data : JSON.stringify(error?.data) || 'none'}\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+          `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
+          `  - Reconnect attempt: ${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
+        error
+      );
+      const message =
+        error?.message ||
+        (typeof error?.data === 'string' ? error.data : 'Failed to connect to WebSocket server');
+      this.error.set(`Connection error: ${message}`);
+    });
+
+    this.socket.on('connect_timeout', () => {
+      console.error('WebSocket connect_timeout');
+      this.error.set('WebSocket connection timed out');
+    });
+
+    this.socket.on('reconnect_error', (error: Error) => {
+      console.error('WebSocket reconnect_error:', error);
+      this.error.set(error.message || 'WebSocket reconnection error');
     });
 
     // Log events
     this.socket.on('logs:buffered', (data: LogEntry[]) => {
-      console.log('Received buffered logs:', data.length);
+      console.log(
+        `📦 [WebSocket] Received buffered logs:\n` +
+          `  - Count: ${data.length}\n` +
+          `  - Execution ID: ${this.executionId || 'none'}\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+          `  - Time range: ${data.length > 0 ? `${data[0]?.timestamp} to ${data[data.length - 1]?.timestamp}` : 'none'}`
+      );
       this.logs.update((logs) => {
         // Merge existing logs with new buffered logs
         const allLogs = [...logs, ...data];
@@ -153,8 +232,15 @@ export class LogWebSocketService {
     });
 
     this.socket.on('logs:historical', (data: LogEntry[]) => {
-      console.log('Received historical logs:', data.length);
       this.logs.update((logs) => {
+        console.log(
+          `📦 [WebSocket] Received historical logs:\n` +
+            `  - Count: ${data.length}\n` +
+            `  - Execution ID: ${this.executionId || 'none'}\n` +
+            `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+            `  - Time range: ${data.length > 0 ? `${data[0]?.timestamp} to ${data[data.length - 1]?.timestamp}` : 'none'}\n` +
+            `  - Current logs count: ${logs.length}`
+        );
         // Historical logs should come before existing logs (older)
         const allLogs = [...logs, ...data];
         const uniqueLogs = Array.from(
@@ -167,11 +253,24 @@ export class LogWebSocketService {
     });
 
     this.socket.on('logs:new', (data: LogEntry) => {
-      console.log('Received new log:', data.message || '[no message]', 'Phase:', data.phase);
+      console.log(
+        `📦 [WebSocket] Received new log:\n` +
+          `  - Message: ${data.message || '[no message]'}\n` +
+          `  - Phase: ${data.phase || 'unknown'}\n` +
+          `  - Level: ${data.level || 'info'}\n` +
+          `  - Timestamp: ${data.timestamp || 'missing'}\n` +
+          `  - Execution ID: ${this.executionId || 'none'}\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}`
+      );
 
       // Validate log entry has required fields
       if (!data || !data.timestamp) {
-        console.warn('Invalid log entry received:', data);
+        console.warn(
+          `❌ [WebSocket] Invalid log entry received:\n` +
+            `  - Data: ${JSON.stringify(data)}\n` +
+            `  - Missing timestamp: ${!data?.timestamp}\n` +
+            `  - Socket ID: ${this.socket?.id || 'unknown'}`
+        );
         return;
       }
 
@@ -233,12 +332,39 @@ export class LogWebSocketService {
       this.phases.set(data);
     });
 
+    // Subscription events
+    this.socket.on('subscribed', (data: { executionId: string }) => {
+      console.log(
+        `🔔 [WebSocket] Successfully subscribed:\n` +
+          `  - Execution ID: ${data.executionId}\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+          `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}`
+      );
+    });
+
+    this.socket.on('unsubscribed', (data: { executionId: string }) => {
+      console.log(
+        `🔔 [WebSocket] Successfully unsubscribed:\n` +
+          `  - Execution ID: ${data.executionId}\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+          `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}`
+      );
+    });
+
     // Error handling
     this.socket.on('error', (error: Error | { message?: string }) => {
-      console.error('WebSocket error:', error);
+      console.error(
+        `❌ [WebSocket] Socket error:\n` +
+          `  - Error: ${error instanceof Error ? error.message : error.message || 'Unknown socket error'}\n` +
+          `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+          `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
+          `  - Execution ID: ${this.executionId || 'none'}\n` +
+          `  - Connected: ${this.socket?.connected || false}`,
+        error
+      );
       const errorMessage =
-        error instanceof Error ? error.message : error.message || 'WebSocket connection error';
-      this.error.set(errorMessage);
+        error instanceof Error ? error.message : error.message || 'WebSocket socket error occurred';
+      this.error.set(`Socket error: ${errorMessage}`);
     });
   }
 
@@ -251,6 +377,7 @@ export class LogWebSocketService {
     });
 
     this.socket.on('reconnect_failed', () => {
+      console.error('WebSocket reconnect_failed after maximum attempts');
       this.error.set('Failed to reconnect after maximum attempts');
     });
 
@@ -273,7 +400,13 @@ export class LogWebSocketService {
     this.executionId = executionId;
     // Changed to match backend handler: 'subscribe' instead of 'execution:subscribe'
     this.socket.emit('subscribe', { executionId });
-    console.log('Subscribing to execution:', executionId);
+    console.log(
+      `🔔 [WebSocket] Subscribing to execution:\n` +
+        `  - Execution ID: ${executionId}\n` +
+        `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+        `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
+        `  - Connected: ${this.socket?.connected || false}`
+    );
 
     // Request historical logs after subscribing
     // Try to request historical logs - backend might support this
@@ -288,6 +421,13 @@ export class LogWebSocketService {
   unsubscribe(): void {
     if (!this.socket || !this.executionId) return;
 
+    console.log(
+      `🔔 [WebSocket] Unsubscribing from execution:\n` +
+        `  - Execution ID: ${this.executionId}\n` +
+        `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
+        `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
+        `  - Connected: ${this.socket?.connected || false}`
+    );
     this.socket.emit('unsubscribe', { executionId: this.executionId });
     this.executionId = null;
     // Don't clear logs and phases here - let the component manage them
