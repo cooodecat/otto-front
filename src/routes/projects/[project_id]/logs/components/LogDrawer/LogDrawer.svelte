@@ -586,40 +586,46 @@
               <span class="text-xs font-medium text-gray-600">Progress:</span>
               <div class="flex flex-1 items-center gap-2">
                 {#each phases as phase, index}
-                  <button
-                    type="button"
-                    class="group relative flex-1 cursor-pointer"
-                    onclick={() => {
-                      logsTabRef?.scrollToPhaseIndex?.(index);
-                    }}
-                  >
-                    <div class="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        class="h-full transition-all duration-300 {phase.status === 'completed'
-                          ? 'bg-green-500'
-                          : phase.status === 'running'
-                            ? 'animate-pulse bg-blue-500'
-                            : phase.status === 'failed'
-                              ? 'bg-red-500'
-                              : 'bg-gray-300'}"
-                        style="width: {phase.status === 'completed'
-                          ? '100%'
-                          : phase.status === 'running'
-                            ? `${phase.progress || 50}%`
-                            : '0%'}"
-                      ></div>
-                    </div>
-                    <!-- Tooltip -->
-                    <div
-                      class="pointer-events-none absolute -top-8 left-1/2 z-20 -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  {@const phaseName = phase.name || `Phase ${index + 1}`}
+                  {@const isValidPhase = phase.name && phase.name !== ''}
+                  {#if isValidPhase}
+                    <button
+                      type="button"
+                      class="group relative flex-1 cursor-pointer"
+                      onclick={() => {
+                        logsTabRef?.scrollToPhaseIndex?.(index);
+                      }}
                     >
-                      {phase.name}
-                    </div>
-                  </button>
+                      <div class="h-1.5 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          class="h-full transition-all duration-300 {phase.status === 'completed'
+                            ? 'bg-green-500'
+                            : phase.status === 'running'
+                              ? 'animate-pulse bg-blue-500'
+                              : phase.status === 'failed'
+                                ? 'bg-red-500'
+                                : 'bg-gray-300'}"
+                          style="width: {phase.status === 'completed'
+                            ? '100%'
+                            : phase.status === 'running'
+                              ? `${phase.progress || 50}%`
+                              : phase.status === 'failed'
+                                ? '100%'
+                                : '0%'}"
+                        ></div>
+                      </div>
+                      <!-- Tooltip -->
+                      <div
+                        class="pointer-events-none absolute -top-8 left-1/2 z-20 -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        {phaseName}
+                      </div>
+                    </button>
+                  {/if}
                 {/each}
               </div>
               <span class="text-xs text-gray-500">
-                {phases.filter((p) => p.status === 'completed').length}/{phases.length} completed
+                {phases.filter((p) => p.name && p.status === 'completed').length}/{phases.filter((p) => p.name && p.name !== '').length} completed
               </span>
             </div>
           </div>
