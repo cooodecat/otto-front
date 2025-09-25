@@ -93,8 +93,8 @@
 
 <button
   onclick={handleClick}
-  class="w-full cursor-pointer rounded-xl border bg-white p-5 text-left transition-all duration-200 hover:shadow-lg hover:border-blue-200 hover:translate-y-[-2px] {isSelected
-    ? 'border-blue-400 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50'
+  class="w-full cursor-pointer rounded-xl border bg-white p-5 text-left transition-all duration-200 hover:translate-y-[-2px] hover:border-blue-200 hover:shadow-lg {isSelected
+    ? 'border-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg'
     : 'border-gray-200 shadow-sm'} {isFocused ? 'ring-2 ring-blue-300' : ''}"
 >
   <div class="flex items-start justify-between gap-4">

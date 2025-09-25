@@ -1,9 +1,19 @@
 <script lang="ts">
-import { onMount, tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-import { Plus, Search, Filter, Calendar, GitBranch, FileText, Trash2, Check, X } from 'lucide-svelte';
+  import {
+    Plus,
+    Search,
+    Filter,
+    Calendar,
+    GitBranch,
+    FileText,
+    Trash2,
+    Check,
+    X
+  } from 'lucide-svelte';
   import { getProject } from '$lib/sdk/functional/projects';
 
   let projects = $state<getProject.Output[]>([]);
@@ -16,12 +26,12 @@ import { Plus, Search, Filter, Calendar, GitBranch, FileText, Trash2, Check, X }
     projectId: '',
     projectName: ''
   });
-let isDeleting = $state(false);
-let editingProjectName = $state<{ id: string; value: string } | null>(null);
-let editingProjectDescription = $state<{ id: string; value: string } | null>(null);
-let projectNameInputRef = $state<HTMLInputElement | null>(null);
-let projectDescriptionRef = $state<HTMLTextAreaElement | null>(null);
-let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | null>(null);
+  let isDeleting = $state(false);
+  let editingProjectName = $state<{ id: string; value: string } | null>(null);
+  let editingProjectDescription = $state<{ id: string; value: string } | null>(null);
+  let projectNameInputRef = $state<HTMLInputElement | null>(null);
+  let projectDescriptionRef = $state<HTMLTextAreaElement | null>(null);
+  let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | null>(null);
 
   // 검색 필터링
   const filteredProjects = $derived(
@@ -42,12 +52,19 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
     error = '';
 
     try {
-      const data: any = await api.functional.projects.getProjects(makeFetch({ fetch }));
+      const data = (await api.functional.projects.getProjects(makeFetch({ fetch }))) as
+        | getProject.Output[]
+        | { projects: getProject.Output[] };
 
       // 데이터 설정
       if (Array.isArray(data)) {
         projects = [...data]; // 새로운 배열로 할당
-      } else if (data && Array.isArray(data.projects)) {
+      } else if (
+        data &&
+        typeof data === 'object' &&
+        'projects' in data &&
+        Array.isArray(data.projects)
+      ) {
         projects = [...data.projects]; // 새로운 배열로 할당
       } else {
         projects = [];
@@ -364,7 +381,7 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                         bind:this={projectNameInputRef}
                         bind:value={editingProjectName.value}
                         type="text"
-                        class="flex-1 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        class="flex-1 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                         placeholder="프로젝트 이름"
                         onclick={(event) => event.stopPropagation()}
                         onkeydown={(event) => onProjectNameKeydown(event, project)}
@@ -376,7 +393,8 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                           event.stopPropagation();
                           void saveProjectName(project);
                         }}
-                        disabled={savingProjectField?.id === project.projectId && savingProjectField.field === 'name'}
+                        disabled={savingProjectField?.id === project.projectId &&
+                          savingProjectField.field === 'name'}
                         aria-label="프로젝트 이름 저장"
                       >
                         <Check class="h-4 w-4" />
@@ -396,7 +414,7 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                   {:else}
                     <button
                       type="button"
-                      class="text-left text-lg font-semibold text-gray-900 cursor-pointer bg-transparent p-0 transition-colors hover:text-purple-600 hover:underline focus:outline-none"
+                      class="cursor-pointer bg-transparent p-0 text-left text-lg font-semibold text-gray-900 transition-colors hover:text-purple-600 hover:underline focus:outline-none"
                       onclick={(e) => handleEditProjectName(project, e)}
                       aria-label="프로젝트 이름 편집"
                     >
@@ -412,7 +430,7 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                     title="로그 보기"
                     aria-label="로그 보기"
                   >
-                    <FileText class="h-4 w-4 text-blue-500 cursor-pointer" />
+                    <FileText class="h-4 w-4 cursor-pointer text-blue-500" />
                   </button>
                   <button
                     type="button"
@@ -432,7 +450,7 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                       bind:this={projectDescriptionRef}
                       bind:value={editingProjectDescription.value}
                       rows="3"
-                      class="w-full resize-none rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      class="w-full resize-none rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                       placeholder="프로젝트 설명"
                       onclick={(event) => event.stopPropagation()}
                       onkeydown={(event) => onProjectDescriptionKeydown(event, project)}
@@ -445,7 +463,8 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                           event.stopPropagation();
                           void saveProjectDescription(project);
                         }}
-                        disabled={savingProjectField?.id === project.projectId && savingProjectField.field === 'description'}
+                        disabled={savingProjectField?.id === project.projectId &&
+                          savingProjectField.field === 'description'}
                       >
                         <Check class="h-4 w-4" />
                       </button>
@@ -461,26 +480,24 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                       </button>
                     </div>
                   </div>
+                {:else if project.projectDescription && project.projectDescription.trim() !== ''}
+                  <button
+                    type="button"
+                    class="line-clamp-2 w-full cursor-pointer bg-transparent p-0 text-left transition-colors hover:text-purple-500 hover:underline focus:outline-none"
+                    onclick={(e) => handleEditProjectDescription(project, e)}
+                    aria-label="프로젝트 설명 편집"
+                  >
+                    {project.projectDescription}
+                  </button>
                 {:else}
-                  {#if project.projectDescription && project.projectDescription.trim() !== ''}
-                    <button
-                      type="button"
-                      class="w-full text-left line-clamp-2 cursor-pointer bg-transparent p-0 transition-colors hover:text-purple-500 hover:underline focus:outline-none"
-                      onclick={(e) => handleEditProjectDescription(project, e)}
-                      aria-label="프로젝트 설명 편집"
-                    >
-                      {project.projectDescription}
-                    </button>
-                  {:else}
-                    <button
-                      type="button"
-                      class="text-left italic text-gray-400 cursor-pointer bg-transparent p-0 transition-colors hover:text-purple-500 hover:underline focus:outline-none"
-                      onclick={(e) => handleEditProjectDescription(project, e)}
-                      aria-label="프로젝트 설명 편집"
-                    >
-                      설명이 없습니다
-                    </button>
-                  {/if}
+                  <button
+                    type="button"
+                    class="cursor-pointer bg-transparent p-0 text-left text-gray-400 italic transition-colors hover:text-purple-500 hover:underline focus:outline-none"
+                    onclick={(e) => handleEditProjectDescription(project, e)}
+                    aria-label="프로젝트 설명 편집"
+                  >
+                    설명이 없습니다
+                  </button>
                 {/if}
               </div>
 
@@ -521,7 +538,7 @@ let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | 
                   <button
                     type="button"
                     onclick={() => handleProjectClick(project.projectId)}
-                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none cursor-pointer"
+                    class="cursor-pointer text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
                   >
                     파이프라인 이동 →
                   </button>

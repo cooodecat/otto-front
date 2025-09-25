@@ -1,5 +1,5 @@
 <script lang="ts">
-import { onMount, tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import api from '$lib/sdk';
@@ -22,22 +22,22 @@ import { onMount, tick } from 'svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
 
-const projectId = $page.params.project_id!;
+  const projectId = $page.params.project_id!;
 
   let pipelines = $state<getPipelineById.Output[]>([]);
   let projectInfo = $state<{ name: string } | null>(null);
   let loading = $state(false);
   let searchTerm = $state('');
   let error = $state('');
-let deleteModal = $state<{ show: boolean; pipelineId: string; pipelineName: string }>({
-  show: false,
-  pipelineId: '',
-  pipelineName: ''
-});
-let isDeleting = $state(false);
-let editingPipelineName = $state<{ id: string; value: string } | null>(null);
-let pipelineNameInputRef = $state<HTMLInputElement | null>(null);
-let savingPipelineId = $state<string | null>(null);
+  let deleteModal = $state<{ show: boolean; pipelineId: string; pipelineName: string }>({
+    show: false,
+    pipelineId: '',
+    pipelineName: ''
+  });
+  let isDeleting = $state(false);
+  let editingPipelineName = $state<{ id: string; value: string } | null>(null);
+  let pipelineNameInputRef = $state<HTMLInputElement | null>(null);
+  let savingPipelineId = $state<string | null>(null);
 
   // 검색 필터링
   const filteredPipelines = $derived(
@@ -126,9 +126,13 @@ let savingPipelineId = $state<string | null>(null);
     savingPipelineId = pipeline.pipelineId;
     try {
       const connection = makeFetch({ fetch });
-      const updated = await api.functional.pipelines.updatePipeline(connection, pipeline.pipelineId, {
-        pipelineName: trimmed
-      });
+      const updated = await api.functional.pipelines.updatePipeline(
+        connection,
+        pipeline.pipelineId,
+        {
+          pipelineName: trimmed
+        }
+      );
       pipelines = pipelines.map((p) =>
         p.pipelineId === pipeline.pipelineId ? { ...p, ...updated } : p
       );
@@ -216,7 +220,7 @@ let savingPipelineId = $state<string | null>(null);
     <nav class="mb-6 flex items-center gap-2 text-sm">
       <button
         onclick={() => goto('/projects')}
-        class="flex items-center gap-1 text-gray-600 transition-colors hover:text-purple-600 cursor-pointer"
+        class="flex cursor-pointer items-center gap-1 text-gray-600 transition-colors hover:text-purple-600"
       >
         <House class="h-4 w-4" />
         <span>프로젝트</span>
@@ -239,7 +243,7 @@ let savingPipelineId = $state<string | null>(null);
     <div class="mb-4 flex items-center gap-4 sm:hidden">
       <button
         onclick={() => window.history.back()}
-        class="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm transition-colors hover:bg-gray-50 cursor-pointer"
+        class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm transition-colors hover:bg-gray-50"
       >
         <ArrowLeft class="h-4 w-4" />
         <span>뒤로</span>
@@ -255,12 +259,12 @@ let savingPipelineId = $state<string | null>(null);
 
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="파이프라인 검색..."
             bind:value={searchTerm}
-            class="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 sm:w-64"
+            class="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none sm:w-64"
           />
         </div>
 
@@ -329,7 +333,7 @@ let savingPipelineId = $state<string | null>(null);
           <button
             type="button"
             onclick={handleCreatePipeline}
-            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
           >
             <div class="text-center">
               <div
@@ -368,7 +372,7 @@ let savingPipelineId = $state<string | null>(null);
                           bind:this={pipelineNameInputRef}
                           bind:value={editingPipelineName.value}
                           type="text"
-                          class="flex-1 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          class="flex-1 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                           placeholder="파이프라인 이름"
                           onclick={(event) => event.stopPropagation()}
                           onkeydown={(event) => onPipelineNameKeydown(event, pipeline)}
@@ -400,7 +404,7 @@ let savingPipelineId = $state<string | null>(null);
                     {:else}
                       <button
                         type="button"
-                        class="text-left text-lg font-semibold text-gray-900 cursor-pointer bg-transparent p-0 transition-colors hover:text-purple-600 hover:underline focus:outline-none"
+                        class="cursor-pointer bg-transparent p-0 text-left text-lg font-semibold text-gray-900 transition-colors hover:text-purple-600 hover:underline focus:outline-none"
                         onclick={(e) => handleEditPipelineName(pipeline, e)}
                         aria-label="파이프라인 이름 편집"
                       >
@@ -439,7 +443,6 @@ let savingPipelineId = $state<string | null>(null);
                   </button>
                 </div>
               </div>
-
 
               <div class="space-y-2 text-sm">
                 {#if pipeline.imageTag}
@@ -485,7 +488,7 @@ let savingPipelineId = $state<string | null>(null);
                   <button
                     type="button"
                     onclick={() => handlePipelineClick(pipeline.pipelineId)}
-                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none cursor-pointer"
+                    class="cursor-pointer text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
                   >
                     파이프라인 편집 →
                   </button>
@@ -505,7 +508,7 @@ let savingPipelineId = $state<string | null>(null);
     <!-- Backdrop with glass effect -->
     <button
       type="button"
-      class="absolute inset-0 bg-opacity-20 backdrop-blur-sm transition-opacity"
+      class="bg-opacity-20 absolute inset-0 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
       aria-label="Cancel delete"
     ></button>

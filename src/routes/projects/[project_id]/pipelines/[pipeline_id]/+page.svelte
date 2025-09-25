@@ -8,7 +8,9 @@
   import {
     SvelteFlowProvider,
     type NodeTargetEventWithPointer,
-    type Connection
+    type Connection,
+    type Node,
+    type Edge
   } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
@@ -18,11 +20,12 @@
   import { CICDBlockType } from '$lib/types/flow-node.types';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
   import Toast from '$lib/components/Toast.svelte';
+  import type { PipelineResponseDto } from '$lib/sdk/structures/PipelineResponseDto';
 
   const projectId = $page.params.project_id;
   const pipelineId = $page.params.pipeline_id;
 
-  let pipeline = $state<any>(null);
+  let pipeline = $state<PipelineResponseDto | null>(null);
   let loading = $state(true);
   let error = $state('');
   let isSaving = $state(false);
@@ -56,10 +59,10 @@
   );
 
   // Flow 관련 상태
-  let nodes = $state<any[]>([]);
-  let edges = $state<any[]>([]);
+  let nodes = $state<Node[]>([]);
+  let edges = $state<Edge[]>([]);
   let initialized = $state(false);
-  let _flowInstance = $state<any>(null);
+  let _flowInstance = $state<unknown>(null);
   let showResetConfirm = $state(false);
 
   onMount(async () => {
@@ -727,7 +730,6 @@
   };
 
   // 엣지 변경 핸들러 (현재 미사용 - SvelteFlow에서 직접 지원하지 않음)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function _onEdgesChange(changes: Array<{ type: string; id?: string }>) {
     console.log('🔗 Edges changed:', changes);
 

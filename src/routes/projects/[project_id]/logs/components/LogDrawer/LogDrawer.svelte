@@ -544,7 +544,7 @@
             setupWebSocket();
           }
         }, 1000);
-        
+
         // Cleanup timeout on effect cleanup
         return () => clearTimeout(timeoutId);
       }
@@ -585,7 +585,7 @@
       <!-- Close Button -->
       <button
         onclick={onClose}
-        class="absolute top-6 right-6 z-10 cursor-pointer rounded-full bg-white/80 backdrop-blur p-2.5 shadow-lg transition-all hover:rotate-90 hover:bg-white hover:shadow-xl"
+        class="absolute top-6 right-6 z-10 cursor-pointer rounded-full bg-white/80 p-2.5 shadow-lg backdrop-blur transition-all hover:rotate-90 hover:bg-white hover:shadow-xl"
         aria-label="Close drawer"
       >
         <X class="h-5 w-5 text-gray-700" />

@@ -40,7 +40,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Search pipeline logs..."
-        class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pr-4 pl-10 text-sm shadow-sm transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none hover:shadow-md"
+        class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pr-4 pl-10 text-sm shadow-sm transition-all duration-200 hover:shadow-md focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none"
       />
     </div>
   </div>

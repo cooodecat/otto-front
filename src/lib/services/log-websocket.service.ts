@@ -13,9 +13,7 @@ function sanitizeWebsocketBaseUrl(input: string): string {
 
   try {
     const parsed = new URL(input);
-    const sanitizedPath = parsed.pathname
-      .replace(/\/+$/, '')
-      .replace(/\/api(\/v\d+)?$/i, '');
+    const sanitizedPath = parsed.pathname.replace(/\/+$/, '').replace(/\/api(\/v\d+)?$/i, '');
 
     parsed.pathname = sanitizedPath || '/';
     parsed.search = '';
@@ -24,9 +22,7 @@ function sanitizeWebsocketBaseUrl(input: string): string {
     // Trim trailing slash for consistent concatenation
     return parsed.toString().replace(/\/$/, '');
   } catch {
-    return input
-      .replace(/\/+$/, '')
-      .replace(/\/api(\/v\d+)?$/i, '');
+    return input.replace(/\/+$/, '').replace(/\/api(\/v\d+)?$/i, '');
   }
 }
 
@@ -55,11 +51,20 @@ export class LogWebSocketService {
     const url = websocketUrl || PUBLIC_BACKEND_URL || 'http://localhost:4000';
     const baseUrl = sanitizeWebsocketBaseUrl(url);
     const logsNamespace = baseUrl.endsWith('/logs') ? baseUrl : `${baseUrl}/logs`;
-    
+
     console.log('Connecting to WebSocket:', logsNamespace);
 
     try {
-      const socketOptions: any = {
+      const socketOptions: {
+        withCredentials: boolean;
+        reconnection: boolean;
+        reconnectionAttempts: number;
+        reconnectionDelay: number;
+        reconnectionDelayMax: number;
+        timeout: number;
+        transports: string[];
+        auth?: { token: string };
+      } = {
         withCredentials: true,
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
@@ -68,17 +73,17 @@ export class LogWebSocketService {
         timeout: 10000, // Add connection timeout
         transports: ['websocket', 'polling'] // Explicitly set transports
       };
-      
+
       // Only add auth if token exists
       if (token) {
         socketOptions.auth = { token };
       }
-      
+
       this.socket = io(logsNamespace, socketOptions);
 
       this.setupEventHandlers();
       this.setupReconnectionHandlers();
-      
+
       // Set a timeout for the connection attempt
       this.connectionAttemptTimeout = setTimeout(() => {
         if (!this.socket?.connected) {
@@ -105,13 +110,13 @@ export class LogWebSocketService {
       this.error.set(null);
       this.reconnectAttempts = 0;
       this.isConnecting = false;
-      
+
       // Clear connection timeout
       if (this.connectionAttemptTimeout) {
         clearTimeout(this.connectionAttemptTimeout);
         this.connectionAttemptTimeout = null;
       }
-      
+
       console.log('WebSocket connected');
 
       // Re-subscribe if we were subscribed before
@@ -124,7 +129,7 @@ export class LogWebSocketService {
       this.connected.set(false);
       this.isConnecting = false;
       console.log('WebSocket disconnected:', reason);
-      
+
       // Clear connection timeout
       if (this.connectionAttemptTimeout) {
         clearTimeout(this.connectionAttemptTimeout);
@@ -295,7 +300,7 @@ export class LogWebSocketService {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     if (this.connectionAttemptTimeout) {
       clearTimeout(this.connectionAttemptTimeout);
       this.connectionAttemptTimeout = null;

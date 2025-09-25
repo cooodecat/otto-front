@@ -9,7 +9,7 @@
   import { RefreshCw, ChevronRight, House } from 'lucide-svelte';
 
   const projectId = $page.params.project_id!;
-  
+
   let projectName = $state('Loading...');
 
   let selectedExecutionId = $state<string | null>(null);
@@ -23,10 +23,7 @@
 
   async function loadProjectInfo() {
     try {
-      const project = await api.functional.projects.getProject(
-        makeFetch({ fetch }), 
-        projectId
-      );
+      const project = await api.functional.projects.getProject(makeFetch({ fetch }), projectId);
       projectName = project.projectName;
     } catch (err) {
       console.error('Error loading project info:', err);
@@ -77,7 +74,10 @@
     <nav aria-label="Breadcrumb">
       <ol class="flex items-center space-x-2 text-sm">
         <li>
-          <a href="/projects" class="flex items-center gap-1 text-gray-500 transition-colors hover:text-gray-700">
+          <a
+            href="/projects"
+            class="flex items-center gap-1 text-gray-500 transition-colors hover:text-gray-700"
+          >
             <House class="h-4 w-4" />
             <span>프로젝트</span>
           </a>
@@ -111,7 +111,9 @@
       <div class="border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 px-8 py-6">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+            <h1
+              class="bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-3xl font-bold text-transparent"
+            >
               로그
             </h1>
             <p class="mt-2 text-sm text-gray-600">
@@ -122,7 +124,7 @@
           <button
             onclick={handleRefresh}
             disabled={isRefreshing}
-            class="flex cursor-pointer items-center gap-2.5 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            class="flex cursor-pointer items-center gap-2.5 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-md transition-all duration-200 hover:bg-gray-50 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             <RefreshCw class="h-4 w-4 {isRefreshing ? 'animate-spin' : ''}" />
             Refresh
@@ -137,7 +139,11 @@
     </div>
 
     <!-- Execution List Card -->
-    <div class="overflow-hidden rounded-2xl bg-white shadow-lg {isDrawerOpen ? 'h-[calc(100vh-320px)]' : 'min-h-[calc(100vh-320px)]'}">
+    <div
+      class="overflow-hidden rounded-2xl bg-white shadow-lg {isDrawerOpen
+        ? 'h-[calc(100vh-320px)]'
+        : 'min-h-[calc(100vh-320px)]'}"
+    >
       <div class="h-full {isDrawerOpen ? 'overflow-hidden' : 'overflow-y-auto'}">
         <ExecutionList
           {projectId}

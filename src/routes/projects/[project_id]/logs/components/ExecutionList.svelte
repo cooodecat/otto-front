@@ -198,33 +198,46 @@
   {#if loading}
     <div class="flex justify-center py-16">
       <div class="flex flex-col items-center gap-3">
-        <div class="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
+        <div
+          class="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"
+        ></div>
         <p class="text-sm text-gray-500">Loading executions...</p>
       </div>
     </div>
   {:else if error}
-    <div class="rounded-xl border border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50 p-5 shadow-sm">
+    <div
+      class="rounded-xl border border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50 p-5 shadow-sm"
+    >
       <p class="text-sm font-medium text-yellow-800">
         ⚠️ Using mock data: {error}
       </p>
     </div>
   {:else if executionGroups.length === 0}
     <div class="flex flex-col items-center justify-center py-20">
-      <div class="rounded-full bg-gray-100 p-4 mb-4">
+      <div class="mb-4 rounded-full bg-gray-100 p-4">
         <svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
         </svg>
       </div>
-      <p class="text-lg font-medium text-gray-700 mb-1">No executions yet</p>
+      <p class="mb-1 text-lg font-medium text-gray-700">No executions yet</p>
       <p class="text-sm text-gray-500">Pipeline executions will appear here</p>
     </div>
   {:else}
     {#each executionGroups as group}
       <div class="mb-8">
-        <h3 class="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-2">
-          <span class="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></span>
+        <h3
+          class="mb-4 flex items-center gap-2 text-xs font-semibold tracking-wider text-gray-500 uppercase"
+        >
+          <span class="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"
+          ></span>
           <span>{group.date}</span>
-          <span class="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"></span>
+          <span class="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-transparent"
+          ></span>
         </h3>
         <div class="space-y-3">
           {#each group.items as execution}

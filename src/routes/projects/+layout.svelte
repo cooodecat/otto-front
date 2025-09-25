@@ -15,8 +15,8 @@
   // Full-width layout paths (no sidebar)
   function isFullWidthLayoutPath(pathname: string): boolean {
     return (
-      pathname === '/projects/new' || 
-      pathname === '/projects' || 
+      pathname === '/projects/new' ||
+      pathname === '/projects' ||
       pathname.includes('/pipelines') ||
       pathname.includes('/logs')
     );

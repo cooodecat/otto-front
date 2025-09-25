@@ -62,7 +62,7 @@ export interface ExecutionMetadata {
 
   // Additional metadata
   metadata?: {
-    [key: string]: any;
+    [key: string]: unknown;
     steps?: Array<{
       name: string;
       command?: string;
@@ -99,7 +99,7 @@ export interface LogEntry {
   step?: string;
   stepOrder?: number;
   duration?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ExecutionLog {
