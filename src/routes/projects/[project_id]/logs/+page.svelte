@@ -1,5 +1,8 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+  import api from '$lib/sdk';
+  import { makeFetch } from '$lib/utils/make-fetch';
   import ExecutionList from './components/ExecutionList.svelte';
   import ExecutionFilter from './components/ExecutionFilter.svelte';
   import LogDrawer from './components/LogDrawer/LogDrawer.svelte';
@@ -7,13 +10,29 @@
 
   const projectId = $page.params.project_id!;
   
-  // TODO: Get actual project name from API
-  const projectName = 'My Project';
+  let projectName = $state('Loading...');
 
   let selectedExecutionId = $state<string | null>(null);
   let filterType = $state<'ALL' | 'BUILD' | 'DEPLOY'>('ALL');
   let isDrawerOpen = $state(false);
   let isRefreshing = $state(false);
+
+  onMount(async () => {
+    await loadProjectInfo();
+  });
+
+  async function loadProjectInfo() {
+    try {
+      const project = await api.functional.projects.getProject(
+        makeFetch({ fetch }), 
+        projectId
+      );
+      projectName = project.projectName;
+    } catch (err) {
+      console.error('Error loading project info:', err);
+      projectName = 'Project';
+    }
+  }
 
   function handleExecutionSelect(executionId: string) {
     selectedExecutionId = executionId;
@@ -53,8 +72,8 @@
 </script>
 
 <!-- Breadcrumb Navigation -->
-<div class="border-b bg-white">
-  <div class="mx-auto max-w-7xl px-6 py-3">
+<div class="bg-white/90 backdrop-blur">
+  <div class="mx-auto max-w-7xl px-6 py-4">
     <nav aria-label="Breadcrumb">
       <ol class="flex items-center space-x-2 text-sm">
         <li>
@@ -66,7 +85,10 @@
           <ChevronRight class="h-4 w-4 text-gray-400" />
         </li>
         <li>
-          <a href="/projects/{projectId}" class="text-gray-500 transition-colors hover:text-gray-700">
+          <a
+            href={`/projects/${projectId}/pipelines`}
+            class="text-gray-500 transition-colors hover:text-gray-700"
+          >
             {projectName}
           </a>
         </li>

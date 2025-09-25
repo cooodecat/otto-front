@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X } from 'lucide-svelte';
   import { fade, fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { onMount, onDestroy } from 'svelte';
   import type {
     ExecutionMetadata,
@@ -577,7 +578,7 @@
   <!-- Drawer with Floating Style (Full Width) -->
   <div
     class="pointer-events-auto relative ml-auto flex h-full min-h-0 w-[90%] max-w-7xl flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-white to-gray-50 shadow-2xl ring-1 ring-gray-200/60"
-    transition:fly={{ x: '100%', duration: 300, easing: 'cubicOut' }}
+    transition:fly={{ x: 600, duration: 300, easing: cubicOut }}
   >
     <!-- Main Content Panel -->
     <div class="flex min-h-0 flex-1 flex-col">
