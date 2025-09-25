@@ -18,14 +18,14 @@
 
 <div class="flex items-center gap-4">
   <!-- Filter Tabs -->
-  <div class="flex rounded-lg border border-gray-200 bg-white p-1">
+  <div class="flex rounded-xl bg-gray-100 p-1 shadow-inner">
     {#each filterOptions as option (option)}
       <button
         onclick={() => (filterType = option.value)}
-        class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition-colors {filterType ===
+        class="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 {filterType ===
         option.value
-          ? 'bg-blue-500 text-white'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
+          ? 'bg-white text-blue-600 shadow-md'
+          : 'text-gray-600 hover:text-gray-900'}"
       >
         {option.label}
       </button>
@@ -40,7 +40,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Search pipeline logs..."
-        class="w-full rounded-lg border border-gray-200 py-2 pr-4 pl-10 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pr-4 pl-10 text-sm shadow-sm transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none hover:shadow-md"
       />
     </div>
   </div>

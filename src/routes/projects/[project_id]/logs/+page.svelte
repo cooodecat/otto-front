@@ -49,39 +49,49 @@
   });
 </script>
 
-<div class="flex h-screen flex-col overflow-hidden">
-  <!-- Header -->
-  <div class="flex-shrink-0 border-b bg-white px-6 py-4">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold text-gray-900">Pipeline Logs</h1>
-        <p class="mt-1 text-sm text-gray-500">View build and deployment logs for your pipelines</p>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-gray-100">
+  <div class="mx-auto max-w-7xl p-6">
+    <!-- Header Card -->
+    <div class="mb-6 overflow-hidden rounded-2xl bg-white shadow-lg">
+      <div class="border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 px-8 py-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+              Pipeline Logs
+            </h1>
+            <p class="mt-2 text-sm text-gray-600">
+              Monitor and analyze your build and deployment executions
+            </p>
+          </div>
+
+          <button
+            onclick={handleRefresh}
+            disabled={isRefreshing}
+            class="flex cursor-pointer items-center gap-2.5 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          >
+            <RefreshCw class="h-4 w-4 {isRefreshing ? 'animate-spin' : ''}" />
+            Refresh
+          </button>
+        </div>
       </div>
 
-      <button
-        onclick={handleRefresh}
-        disabled={isRefreshing}
-        class="flex cursor-pointer items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <RefreshCw class="h-4 w-4 {isRefreshing ? 'animate-spin' : ''}" />
-        Refresh
-      </button>
+      <!-- Filter Section -->
+      <div class="px-8 py-4 bg-gray-50/50">
+        <ExecutionFilter bind:filterType />
+      </div>
     </div>
 
-    <!-- Filter -->
-    <div class="mt-4">
-      <ExecutionFilter bind:filterType />
+    <!-- Execution List Card -->
+    <div class="overflow-hidden rounded-2xl bg-white shadow-lg {isDrawerOpen ? 'h-[calc(100vh-280px)]' : 'min-h-[calc(100vh-280px)]'}">
+      <div class="h-full {isDrawerOpen ? 'overflow-hidden' : 'overflow-y-auto'}">
+        <ExecutionList
+          {projectId}
+          {filterType}
+          {selectedExecutionId}
+          onSelect={handleExecutionSelect}
+        />
+      </div>
     </div>
-  </div>
-
-  <!-- Execution List -->
-  <div class="flex-1 bg-gray-50 {isDrawerOpen ? 'overflow-hidden' : 'overflow-y-auto'}">
-    <ExecutionList
-      {projectId}
-      {filterType}
-      {selectedExecutionId}
-      onSelect={handleExecutionSelect}
-    />
   </div>
 </div>
 

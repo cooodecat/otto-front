@@ -565,7 +565,7 @@
 
 <!-- Backdrop -->
 <button
-  class="fixed inset-0 z-40 cursor-pointer bg-black/30 backdrop-blur-sm"
+  class="fixed inset-0 z-40 cursor-pointer bg-black/40 backdrop-blur-md"
   transition:fade={{ duration: 200 }}
   onclick={onClose}
   aria-label="Close drawer"
@@ -573,18 +573,18 @@
 ></button>
 
 <!-- Floating Drawer Container -->
-<div class="pointer-events-none fixed inset-0 z-50 p-6">
+<div class="pointer-events-none fixed inset-0 z-50 p-8">
   <!-- Drawer with Floating Style (Full Width) -->
   <div
-    class="pointer-events-auto relative ml-auto flex h-full min-h-0 w-[85%] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200/50"
-    transition:fly={{ x: '100%', duration: 300 }}
+    class="pointer-events-auto relative ml-auto flex h-full min-h-0 w-[90%] max-w-7xl flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-white to-gray-50 shadow-2xl ring-1 ring-gray-200/60"
+    transition:fly={{ x: '100%', duration: 300, easing: 'cubicOut' }}
   >
     <!-- Main Content Panel -->
     <div class="flex min-h-0 flex-1 flex-col">
       <!-- Close Button -->
       <button
         onclick={onClose}
-        class="absolute top-4 right-4 z-10 cursor-pointer rounded-full bg-gray-100 p-2 transition-all hover:rotate-90 hover:bg-gray-200"
+        class="absolute top-6 right-6 z-10 cursor-pointer rounded-full bg-white/80 backdrop-blur p-2.5 shadow-lg transition-all hover:rotate-90 hover:bg-white hover:shadow-xl"
         aria-label="Close drawer"
       >
         <X class="h-5 w-5 text-gray-700" />
