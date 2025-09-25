@@ -11,15 +11,12 @@
     PhaseName
   } from '$lib/types/log.types';
   import DrawerHeader from './DrawerHeader.svelte';
-  import DrawerTabs from './DrawerTabs.svelte';
   import LogsTab from './tabs/LogsTab.svelte';
-  import PipelineTab from './tabs/PipelineTab.svelte';
-  import ArtifactsTab from './tabs/ArtifactsTab.svelte';
   import { logApiService } from '$lib/services/log-api.service';
   import { LogWebSocketService } from '$lib/services/log-websocket.service';
-  import { tick } from 'svelte';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
+  import { goto } from '$app/navigation';
 
   interface Props {
     executionId: string;
@@ -30,7 +27,6 @@
 
   let { executionId, projectId, onClose, onExecutionChange }: Props = $props();
 
-  let activeTab = $state<'logs' | 'pipeline' | 'artifacts'>('logs');
   let loading = $state(true);
   let execution = $state<ExecutionMetadata | null>(null);
   let phases = $state<PhaseInfo[]>([]);
@@ -254,9 +250,6 @@
     phases = [];
     execution = null;
     loading = true;
-
-    // Switch to logs tab immediately to show loading
-    activeTab = 'logs';
 
     // Wait for the new execution to be created in the backend
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -550,18 +543,6 @@
       }
     }
   });
-
-  // Keyboard shortcut for tabs
-  $effect(() => {
-    function handleKeydown(e: KeyboardEvent) {
-      if (e.key === '1') activeTab = 'logs';
-      else if (e.key === '2') activeTab = 'pipeline';
-      else if (e.key === '3') activeTab = 'artifacts';
-    }
-
-    window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
-  });
 </script>
 
 <!-- Backdrop -->
@@ -597,7 +578,14 @@
           <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
         </div>
       {:else if execution}
-        <DrawerHeader {execution} {isConnected} />
+        <DrawerHeader
+          {execution}
+          {isConnected}
+          onRerun={() => execution && handleRerun(execution)}
+          onEdit={() =>
+            execution?.pipelineId &&
+            goto(`/projects/${projectId}/pipelines/${execution.pipelineId}`)}
+        />
 
         <!-- Compact Phase Progress Indicator -->
         {#if phases.length > 0}
@@ -609,14 +597,8 @@
                   <button
                     type="button"
                     class="group relative flex-1 cursor-pointer"
-                    onclick={async () => {
-                      activeTab = 'logs';
-                      // Wait for LogsTab to mount/bind
-                      await tick();
-                      // Give the child a moment if switching tabs
-                      setTimeout(() => {
-                        logsTabRef?.scrollToPhaseIndex?.(index);
-                      }, 0);
+                    onclick={() => {
+                      logsTabRef?.scrollToPhaseIndex?.(index);
                     }}
                   >
                     <div class="h-1.5 overflow-hidden rounded-full bg-gray-200">
@@ -652,29 +634,20 @@
         {/if}
       {/if}
 
-      <!-- Tabs -->
-      <DrawerTabs bind:activeTab />
-
-      <!-- Tab Content -->
+      <!-- Log Content -->
       <div class="flex min-h-0 flex-1 flex-col">
         {#if execution}
-          {#if activeTab === 'logs'}
-            <LogsTab
-              bind:this={logsTabRef}
-              executionId={execution.executionId}
-              executionStatus={execution.status}
-              executionStartedAt={execution.startedAt}
-              {phases}
-              {logs}
-              {wsService}
-              isLoading={loading}
-              onRerun={() => execution && handleRerun(execution)}
-            />
-          {:else if activeTab === 'pipeline'}
-            <PipelineTab {execution} onNewExecution={handleNewExecution} />
-          {:else if activeTab === 'artifacts'}
-            <ArtifactsTab executionId={execution.executionId} />
-          {/if}
+          <LogsTab
+            bind:this={logsTabRef}
+            executionId={execution.executionId}
+            executionStatus={execution.status}
+            executionStartedAt={execution.startedAt}
+            {phases}
+            {logs}
+            {wsService}
+            isLoading={loading}
+            onRerun={() => execution && handleRerun(execution)}
+          />
         {/if}
       </div>
     </div>

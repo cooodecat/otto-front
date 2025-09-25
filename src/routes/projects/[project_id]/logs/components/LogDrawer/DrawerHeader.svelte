@@ -9,15 +9,30 @@
     Rocket,
     Wifi,
     WifiOff,
-    Copy
+    Edit3,
+    RefreshCw,
+    Loader2
   } from 'lucide-svelte';
 
   interface Props {
     execution: ExecutionMetadata;
     isConnected?: boolean;
+    onRerun?: () => void;
+    onEdit?: () => void;
   }
 
-  let { execution, isConnected = false }: Props = $props();
+  let { execution, isConnected = false, onRerun, onEdit }: Props = $props();
+  let isRerunning = $state(false);
+
+  async function handleRerun() {
+    if (isRerunning || !onRerun) return;
+    isRerunning = true;
+    try {
+      await onRerun();
+    } finally {
+      isRerunning = false;
+    }
+  }
 
   function formatDateTime(dateStr: string): string {
     const date = new Date(dateStr);
@@ -82,14 +97,6 @@
   // Helper to get normalized status
   function getNormalizedStatus(status: string): string {
     return status?.toUpperCase() || 'PENDING';
-  }
-
-  async function copy(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (e) {
-      console.error('Copy failed', e);
-    }
   }
 </script>
 
@@ -166,13 +173,6 @@
             {#if execution.commitId}
               <span class="mx-1 text-gray-400">•</span>
               <span class="font-mono">{execution.commitId.slice(0, 7)}</span>
-              <button
-                class="inline-flex items-center rounded border border-gray-200 px-1.5 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50"
-                title="Copy full SHA"
-                onclick={() => copy(execution.commitId)}
-              >
-                <Copy class="h-3 w-3" />
-              </button>
             {/if}
           </span>
         </div>
@@ -186,53 +186,46 @@
         {/if}
       </div>
 
-      <!-- Commit / IDs / Trigger Row -->
+      <!-- Trigger Info Row -->
       <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-        {#if execution.commitMessage}
-          <span class="inline-flex max-w-full items-center gap-1">
-            Commit:
-            <span class="truncate text-gray-700" title={execution.commitMessage}
-              >"{execution.commitMessage}"</span
-            >
-            {#if execution.commitId}
-              <span class="mx-1 text-gray-400">•</span>
-              <span class="font-mono text-gray-700">{execution.commitId.slice(0, 7)}</span>
-              <button
-                class="inline-flex items-center rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50"
-                title="Copy full SHA"
-                onclick={() => copy(execution.commitId)}
-              >
-                <Copy class="h-3 w-3" />
-              </button>
-            {/if}
-          </span>
-        {/if}
-
         <span
           >Triggered by: <span class="font-medium">{execution.triggeredBy || 'manual'}</span></span
         >
         {#if execution.pipelineName && !execution.pipelineName.includes('Unknown')}
           <span>• Pipeline: <span class="font-medium">{execution.pipelineName}</span></span>
         {/if}
-        <span class="inline-flex items-center gap-1">
-          • Exec ID:
-          <span class="font-mono text-gray-700">{execution.executionId}</span>
-          <button
-            class="ml-1 inline-flex items-center rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50"
-            title="Copy execution ID"
-            onclick={() => copy(execution.executionId)}
-          >
-            <Copy class="h-3 w-3" />
-          </button>
-        </span>
       </div>
-
-      <!-- Commit Message -->
-      {#if execution.commitMessage && execution.commitMessage.trim() !== ''}
-        <div class="mt-3 rounded bg-gray-50 p-2 text-sm text-gray-700">
-          {execution.commitMessage}
-        </div>
-      {/if}
     </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex gap-2 border-t border-gray-100 px-6 pt-3 pb-2">
+    {#if execution.pipelineId && onEdit}
+      <button
+        onclick={onEdit}
+        class="flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+      >
+        <Edit3 class="h-3.5 w-3.5" />
+        Edit Pipeline
+      </button>
+    {/if}
+    {#if onRerun}
+      <button
+        onclick={handleRerun}
+        disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
+        class="flex cursor-pointer items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        title={execution.status === 'RUNNING' || execution.status === 'PENDING'
+          ? 'Pipeline is currently running'
+          : 'Re-run this pipeline'}
+      >
+        {#if isRerunning}
+          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          Re-running...
+        {:else}
+          <RefreshCw class="h-3.5 w-3.5" />
+          Re-run
+        {/if}
+      </button>
+    {/if}
   </div>
 </div>

@@ -1,16 +1,15 @@
 <script lang="ts">
-  import { FileText, GitMerge, Package } from 'lucide-svelte';
+  import { FileText, GitMerge } from 'lucide-svelte';
 
   interface Props {
-    activeTab: 'logs' | 'pipeline' | 'artifacts';
+    activeTab: 'logs' | 'pipeline';
   }
 
   let { activeTab = $bindable() }: Props = $props();
 
   const tabs = [
     { id: 'logs', label: 'Logs', icon: FileText, shortcut: '1' },
-    { id: 'pipeline', label: 'Pipeline', icon: GitMerge, shortcut: '2' },
-    { id: 'artifacts', label: 'Artifacts', icon: Package, shortcut: '3' }
+    { id: 'pipeline', label: 'Pipeline', icon: GitMerge, shortcut: '2' }
   ] as const;
 </script>
 
