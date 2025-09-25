@@ -14,6 +14,8 @@ export class LogWebSocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private isConnecting = false;
+  private connectionAttemptTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Stores
   public logs: Writable<LogEntry[]> = writable([]);
@@ -23,22 +25,52 @@ export class LogWebSocketService {
   public error: Writable<string | null> = writable(null);
 
   async connect(token: string, websocketUrl?: string): Promise<void> {
-    if (this.socket?.connected) return;
+    if (this.socket?.connected || this.isConnecting) return;
 
+    this.isConnecting = true;
+
+    // Determine the correct URL based on environment
     const url = websocketUrl || PUBLIC_BACKEND_URL || 'http://localhost:4000';
-    const logsNamespace = `${url}/logs`;
+    
+    // Ensure we use the correct protocol for production
+    const wsUrl = url.startsWith('https://') 
+      ? url.replace('https://', 'wss://').replace('wss://', 'https://') // Keep https for socket.io
+      : url;
+    
+    const logsNamespace = `${wsUrl}/logs`;
+    
+    console.log('Connecting to WebSocket:', logsNamespace);
 
-    this.socket = io(logsNamespace, {
-      auth: { token },
-      withCredentials: true,
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
-    });
+    try {
+      this.socket = io(logsNamespace, {
+        auth: { token },
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000, // Add connection timeout
+        transports: ['websocket', 'polling'] // Explicitly set transports
+      });
 
-    this.setupEventHandlers();
-    this.setupReconnectionHandlers();
+      this.setupEventHandlers();
+      this.setupReconnectionHandlers();
+      
+      // Set a timeout for the connection attempt
+      this.connectionAttemptTimeout = setTimeout(() => {
+        if (!this.socket?.connected) {
+          console.error('WebSocket connection timeout');
+          this.error.set('Connection timeout - unable to establish WebSocket connection');
+          this.isConnecting = false;
+          this.socket?.disconnect();
+        }
+      }, 15000);
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      this.error.set('Failed to create WebSocket connection');
+      this.isConnecting = false;
+      throw error;
+    }
   }
 
   private setupEventHandlers(): void {
@@ -49,17 +81,32 @@ export class LogWebSocketService {
       this.connected.set(true);
       this.error.set(null);
       this.reconnectAttempts = 0;
+      this.isConnecting = false;
+      
+      // Clear connection timeout
+      if (this.connectionAttemptTimeout) {
+        clearTimeout(this.connectionAttemptTimeout);
+        this.connectionAttemptTimeout = null;
+      }
+      
       console.log('WebSocket connected');
 
       // Re-subscribe if we were subscribed before
       if (this.executionId) {
-        this.socket!.emit('execution:subscribe', { executionId: this.executionId });
+        this.socket!.emit('subscribe', { executionId: this.executionId });
       }
     });
 
-    this.socket.on('disconnect', () => {
+    this.socket.on('disconnect', (reason) => {
       this.connected.set(false);
-      console.log('WebSocket disconnected');
+      this.isConnecting = false;
+      console.log('WebSocket disconnected:', reason);
+      
+      // Clear connection timeout
+      if (this.connectionAttemptTimeout) {
+        clearTimeout(this.connectionAttemptTimeout);
+        this.connectionAttemptTimeout = null;
+      }
     });
 
     // Log events
@@ -220,16 +267,22 @@ export class LogWebSocketService {
   }
 
   disconnect(): void {
-    // Clear reconnection timer
+    // Clear timers
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+    
+    if (this.connectionAttemptTimeout) {
+      clearTimeout(this.connectionAttemptTimeout);
+      this.connectionAttemptTimeout = null;
     }
 
     this.unsubscribe();
     this.socket?.disconnect();
     this.socket = null;
     this.connected.set(false);
+    this.isConnecting = false;
     this.reconnectAttempts = 0;
     // Clear data when disconnecting
     this.logs.set([]);
