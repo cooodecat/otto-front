@@ -98,17 +98,17 @@
     if (!status) return -1;
     return STATUS_PRIORITY[status] ?? -1;
   }
-  
+
   // Update execution status when prop changes (only if WebSocket hasn't taken control)
   $effect(() => {
     // Skip if WebSocket is controlling the status
     if (wsControlled) {
       return;
     }
-    
+
     // Normalize the status for comparison
     const normalizedInitial = initialExecutionStatus?.toUpperCase();
-    
+
     // Skip if this is the same status we just processed
     if (normalizedInitial === lastProcessedStatus) {
       return;
@@ -180,7 +180,7 @@
       // Normalize the incoming status
       const normalizedV = v?.toUpperCase();
       const normalizedCurrent = executionStatus?.toUpperCase();
-      
+
       // Skip if status hasn't actually changed or if we just processed this
       if (normalizedV === normalizedCurrent || normalizedV === lastProcessedStatus) {
         return;
@@ -207,7 +207,7 @@
       );
 
       const previousStatus = executionStatus;
-      
+
       // Normalize previous status for comparison
       const normalizedPrevious = previousStatus?.toUpperCase();
 
@@ -219,7 +219,10 @@
         normalizedPrevious === 'COMPLETED';
       const isNowRunning = normalizedV === 'RUNNING' || normalizedV === 'PENDING';
       const isNowCompleted =
-        normalizedV === 'SUCCESS' || normalizedV === 'FAILED' || normalizedV === 'SUCCEEDED' || normalizedV === 'COMPLETED';
+        normalizedV === 'SUCCESS' ||
+        normalizedV === 'FAILED' ||
+        normalizedV === 'SUCCEEDED' ||
+        normalizedV === 'COMPLETED';
 
       if (wasCompleted && isNowRunning) {
         console.warn(
@@ -260,7 +263,7 @@
         });
       }
     });
-    
+
     return () => {
       untrack(() => {
         wsControlled = false;

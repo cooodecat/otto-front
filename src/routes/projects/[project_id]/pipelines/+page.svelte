@@ -1,16 +1,31 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { Plus, Search, Filter, Calendar, Settings, Play, Trash2, FileText } from 'lucide-svelte';
+  import {
+    Plus,
+    Search,
+    SlidersHorizontal,
+    Calendar,
+    Settings,
+    Play,
+    Trash2,
+    FileText,
+    ArrowLeft,
+    House,
+    ChevronRight,
+    Check,
+    X
+  } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
 
-  const projectId = $page.params.project_id;
+  const projectId = $page.params.project_id!;
 
   let pipelines = $state<getPipelineById.Output[]>([]);
+  let projectInfo = $state<{ name: string } | null>(null);
   let loading = $state(false);
   let searchTerm = $state('');
   let error = $state('');
@@ -20,6 +35,9 @@
     pipelineName: ''
   });
   let isDeleting = $state(false);
+  let editingPipelineName = $state<{ id: string; value: string } | null>(null);
+  let pipelineNameInputRef = $state<HTMLInputElement | null>(null);
+  let savingPipelineId = $state<string | null>(null);
 
   // 검색 필터링
   const filteredPipelines = $derived(
@@ -29,8 +47,21 @@
   );
 
   onMount(async () => {
-    await loadPipelines();
+    await Promise.all([loadPipelines(), loadProjectInfo()]);
   });
+
+  async function loadProjectInfo() {
+    try {
+      const project = await api.functional.projects.getProject(makeFetch({ fetch }), projectId!);
+      if (project) {
+        projectInfo = { name: project.projectName };
+      }
+    } catch (err) {
+      console.error('Error loading project info:', err);
+      // 프로젝트 정보 로드 실패 시 기본값 사용
+      projectInfo = { name: '프로젝트' };
+    }
+  }
 
   async function loadPipelines() {
     loading = true;
@@ -64,6 +95,63 @@
   function handleViewLogs(e: Event) {
     e.stopPropagation(); // Prevent card click
     goto(`/projects/${projectId}/logs`);
+  }
+
+  async function handleEditPipelineName(pipeline: getPipelineById.Output, e: Event) {
+    e.stopPropagation();
+    editingPipelineName = {
+      id: pipeline.pipelineId,
+      value: pipeline.pipelineName || ''
+    };
+    await tick();
+    pipelineNameInputRef?.focus();
+    pipelineNameInputRef?.select();
+  }
+
+  function cancelPipelineNameEdit() {
+    editingPipelineName = null;
+    pipelineNameInputRef = null;
+  }
+
+  async function savePipelineName(pipeline: getPipelineById.Output) {
+    if (!editingPipelineName || editingPipelineName.id !== pipeline.pipelineId) return;
+    const trimmed = editingPipelineName.value.trim();
+    const current = pipeline.pipelineName || '';
+
+    if (trimmed === current.trim()) {
+      cancelPipelineNameEdit();
+      return;
+    }
+
+    savingPipelineId = pipeline.pipelineId;
+    try {
+      const connection = makeFetch({ fetch });
+      const updated = await api.functional.pipelines.updatePipeline(
+        connection,
+        pipeline.pipelineId,
+        {
+          pipelineName: trimmed
+        }
+      );
+      pipelines = pipelines.map((p) =>
+        p.pipelineId === pipeline.pipelineId ? { ...p, ...updated } : p
+      );
+    } catch (error) {
+      console.error('파이프라인 이름 업데이트 실패:', error);
+    } finally {
+      savingPipelineId = null;
+      cancelPipelineNameEdit();
+    }
+  }
+
+  function onPipelineNameKeydown(event: KeyboardEvent, pipeline: getPipelineById.Output) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void savePipelineName(pipeline);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelPipelineNameEdit();
+    }
   }
 
   function formatDate(dateString: string) {
@@ -128,6 +216,40 @@
 
 <div class="min-h-screen bg-gray-50">
   <div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb Navigation -->
+    <nav class="mb-6 flex items-center gap-2 text-sm">
+      <button
+        onclick={() => goto('/projects')}
+        class="flex cursor-pointer items-center gap-1 text-gray-600 transition-colors hover:text-purple-600"
+      >
+        <House class="h-4 w-4" />
+        <span>프로젝트</span>
+      </button>
+
+      <ChevronRight class="h-4 w-4 text-gray-400" />
+
+      {#if projectInfo}
+        <span class="font-medium text-gray-900">{projectInfo.name}</span>
+      {:else}
+        <span class="h-4 w-20 animate-pulse rounded bg-gray-200"></span>
+      {/if}
+
+      <ChevronRight class="h-4 w-4 text-gray-400" />
+
+      <span class="font-medium text-purple-600">파이프라인</span>
+    </nav>
+
+    <!-- Back Button for Mobile -->
+    <div class="mb-4 flex items-center gap-4 sm:hidden">
+      <button
+        onclick={() => window.history.back()}
+        class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm transition-colors hover:bg-gray-50"
+      >
+        <ArrowLeft class="h-4 w-4" />
+        <span>뒤로</span>
+      </button>
+    </div>
+
     <!-- Pipeline Header -->
     <div class="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
       <div>
@@ -149,7 +271,7 @@
         <button
           class="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 transition-colors hover:bg-gray-50"
         >
-          <Filter class="h-4 w-4" />
+          <SlidersHorizontal class="h-4 w-4" />
           <span>필터</span>
         </button>
 
@@ -228,14 +350,68 @@
 
           <!-- Existing Pipeline Cards -->
           {#each filteredPipelines as pipeline}
-            <article
-              class="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+            <div
+              class="group relative cursor-pointer rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-purple-200 hover:shadow-lg"
+              role="button"
+              tabindex="0"
+              onclick={() => handlePipelineClick(pipeline.pipelineId)}
+              onkeydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handlePipelineClick(pipeline.pipelineId);
+                }
+              }}
+              aria-label={`${pipeline.pipelineName} 파이프라인 편집`}
             >
-              <div class="mb-4 flex items-start justify-between">
+              <div class="mb-4 flex items-start justify-between gap-4">
                 <div class="flex-1">
-                  <h3 class="text-lg font-semibold text-gray-900">
-                    {pipeline.pipelineName}
-                  </h3>
+                  <div class="flex items-start gap-2">
+                    {#if editingPipelineName?.id === pipeline.pipelineId}
+                      <div class="flex w-full items-center gap-2">
+                        <input
+                          bind:this={pipelineNameInputRef}
+                          bind:value={editingPipelineName.value}
+                          type="text"
+                          class="flex-1 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                          placeholder="파이프라인 이름"
+                          onclick={(event) => event.stopPropagation()}
+                          onkeydown={(event) => onPipelineNameKeydown(event, pipeline)}
+                        />
+                        <button
+                          type="button"
+                          class="cursor-pointer rounded-lg bg-purple-600 p-2 text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+                          onclick={(event) => {
+                            event.stopPropagation();
+                            void savePipelineName(pipeline);
+                          }}
+                          disabled={savingPipelineId === pipeline.pipelineId}
+                          aria-label="파이프라인 이름 저장"
+                        >
+                          <Check class="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          class="cursor-pointer rounded-lg border border-gray-300 p-2 text-gray-500 transition-colors hover:bg-gray-100"
+                          onclick={(event) => {
+                            event.stopPropagation();
+                            cancelPipelineNameEdit();
+                          }}
+                          aria-label="파이프라인 이름 편집 취소"
+                        >
+                          <X class="h-4 w-4" />
+                        </button>
+                      </div>
+                    {:else}
+                      <button
+                        type="button"
+                        class="cursor-pointer bg-transparent p-0 text-left text-lg font-semibold text-gray-900 transition-colors hover:text-purple-600 hover:underline focus:outline-none"
+                        onclick={(e) => handleEditPipelineName(pipeline, e)}
+                        aria-label="파이프라인 이름 편집"
+                      >
+                        {pipeline.pipelineName}
+                      </button>
+                    {/if}
+                  </div>
                   {#if pipeline.ecrImageUri || pipeline.imageTag}
                     <div class="mt-2">
                       <BuildStatus status="SUCCEEDED" compact={true} />
@@ -252,6 +428,7 @@
                     onclick={handleViewLogs}
                     class="rounded p-1 transition-colors hover:bg-blue-50"
                     title="로그 보기"
+                    aria-label="로그 보기"
                   >
                     <FileText class="h-4 w-4 cursor-pointer text-blue-500" />
                   </button>
@@ -266,12 +443,6 @@
                   </button>
                 </div>
               </div>
-
-              {#if pipeline.data && pipeline.data.description}
-                <p class="mb-4 line-clamp-2 text-sm text-gray-600">
-                  {pipeline.data.description}
-                </p>
-              {/if}
 
               <div class="space-y-2 text-sm">
                 {#if pipeline.imageTag}
@@ -317,13 +488,13 @@
                   <button
                     type="button"
                     onclick={() => handlePipelineClick(pipeline.pipelineId)}
-                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
+                    class="cursor-pointer text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
                   >
-                    상세 보기 →
+                    파이프라인 편집 →
                   </button>
                 </div>
               </div>
-            </article>
+            </div>
           {/each}
         {/if}
       </div>

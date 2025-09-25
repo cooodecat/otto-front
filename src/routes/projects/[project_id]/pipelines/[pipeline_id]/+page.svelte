@@ -8,7 +8,9 @@
   import {
     SvelteFlowProvider,
     type NodeTargetEventWithPointer,
-    type Connection
+    type Connection,
+    type Node,
+    type Edge
   } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { nodeTypes, createNodeInstance } from '$lib/components/flow/nodeTypes';
@@ -18,11 +20,12 @@
   import { CICDBlockType } from '$lib/types/flow-node.types';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
   import Toast from '$lib/components/Toast.svelte';
+  import type { PipelineResponseDto } from '$lib/sdk/structures/PipelineResponseDto';
 
   const projectId = $page.params.project_id;
   const pipelineId = $page.params.pipeline_id;
 
-  let pipeline = $state<any>(null);
+  let pipeline = $state<PipelineResponseDto | null>(null);
   let loading = $state(true);
   let error = $state('');
   let isSaving = $state(false);
@@ -56,10 +59,10 @@
   );
 
   // Flow 관련 상태
-  let nodes = $state<any[]>([]);
-  let edges = $state<any[]>([]);
+  let nodes = $state<Node[]>([]);
+  let edges = $state<Edge[]>([]);
   let initialized = $state(false);
-  let _flowInstance = $state<any>(null);
+  let _flowInstance = $state<unknown>(null);
   let showResetConfirm = $state(false);
 
   onMount(async () => {
@@ -727,7 +730,6 @@
   };
 
   // 엣지 변경 핸들러 (현재 미사용 - SvelteFlow에서 직접 지원하지 않음)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function _onEdgesChange(changes: Array<{ type: string; id?: string }>) {
     console.log('🔗 Edges changed:', changes);
 
@@ -924,7 +926,8 @@
             <button
               onclick={() => goto(`/projects/${projectId}/logs`)}
               class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
-              title="실행 로그 보기"
+              title="로그 보기"
+              aria-label="로그 보기"
             >
               <FileText class="h-4 w-4" />
               <span>로그 보기</span>
@@ -980,7 +983,8 @@
             <button
               onclick={() => goto(`/projects/${projectId}/logs`)}
               class="w-full cursor-pointer text-left transition-opacity hover:opacity-80"
-              title="클릭하여 로그 보기"
+              title="로그 보기"
+              aria-label="로그 보기"
             >
               <BuildStatus
                 status={buildStatus.buildStatus}

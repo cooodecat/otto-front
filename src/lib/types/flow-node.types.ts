@@ -334,7 +334,7 @@ export interface CICDBlockConfig {
   label: string;
   description: string;
   group: CICDBlockGroup;
-  icon?: any;
+  icon?: typeof Play;
   disabled?: boolean;
 }
 

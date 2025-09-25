@@ -1,9 +1,19 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { Plus, Search, Filter, Calendar, GitBranch, Activity, Trash2 } from 'lucide-svelte';
+  import {
+    Plus,
+    Search,
+    Filter,
+    Calendar,
+    GitBranch,
+    FileText,
+    Trash2,
+    Check,
+    X
+  } from 'lucide-svelte';
   import { getProject } from '$lib/sdk/functional/projects';
 
   let projects = $state<getProject.Output[]>([]);
@@ -17,6 +27,11 @@
     projectName: ''
   });
   let isDeleting = $state(false);
+  let editingProjectName = $state<{ id: string; value: string } | null>(null);
+  let editingProjectDescription = $state<{ id: string; value: string } | null>(null);
+  let projectNameInputRef = $state<HTMLInputElement | null>(null);
+  let projectDescriptionRef = $state<HTMLTextAreaElement | null>(null);
+  let savingProjectField = $state<{ id: string; field: 'name' | 'description' } | null>(null);
 
   // 검색 필터링
   const filteredProjects = $derived(
@@ -37,12 +52,19 @@
     error = '';
 
     try {
-      const data: any = await api.functional.projects.getProjects(makeFetch({ fetch }));
+      const data = (await api.functional.projects.getProjects(makeFetch({ fetch }))) as
+        | getProject.Output[]
+        | { projects: getProject.Output[] };
 
       // 데이터 설정
       if (Array.isArray(data)) {
         projects = [...data]; // 새로운 배열로 할당
-      } else if (data && Array.isArray(data.projects)) {
+      } else if (
+        data &&
+        typeof data === 'object' &&
+        'projects' in data &&
+        Array.isArray(data.projects)
+      ) {
         projects = [...data.projects]; // 새로운 배열로 할당
       } else {
         projects = [];
@@ -62,6 +84,118 @@
 
   function handleProjectClick(projectId: string) {
     goto(`/projects/${projectId}/pipelines`);
+  }
+
+  function handleProjectLogsClick(projectId: string, e: Event) {
+    e.stopPropagation();
+    goto(`/projects/${projectId}/logs`);
+  }
+
+  async function handleEditProjectName(project: getProject.Output, e: Event) {
+    e.stopPropagation();
+    editingProjectDescription = null;
+    editingProjectName = {
+      id: project.projectId,
+      value: project.projectName || ''
+    };
+    await tick();
+    projectNameInputRef?.focus();
+    projectNameInputRef?.select();
+  }
+
+  async function handleEditProjectDescription(project: getProject.Output, e: Event) {
+    e.stopPropagation();
+    editingProjectName = null;
+    editingProjectDescription = {
+      id: project.projectId,
+      value: project.projectDescription || ''
+    };
+    await tick();
+    projectDescriptionRef?.focus();
+  }
+
+  function cancelProjectNameEdit() {
+    editingProjectName = null;
+    projectNameInputRef = null;
+  }
+
+  function cancelProjectDescriptionEdit() {
+    editingProjectDescription = null;
+    projectDescriptionRef = null;
+  }
+
+  async function saveProjectName(project: getProject.Output) {
+    if (!editingProjectName || editingProjectName.id !== project.projectId) return;
+    const trimmed = editingProjectName.value.trim();
+    const current = project.projectName || '';
+
+    if (trimmed === current.trim()) {
+      cancelProjectNameEdit();
+      return;
+    }
+
+    savingProjectField = { id: project.projectId, field: 'name' };
+    try {
+      const connection = makeFetch({ fetch });
+      const updated = await api.functional.projects.updateProject(connection, project.projectId, {
+        projectName: trimmed
+      });
+      projects = projects.map((p) =>
+        p.projectId === project.projectId ? { ...p, ...updated } : p
+      );
+    } catch (error) {
+      console.error('프로젝트 이름 업데이트 실패:', error);
+    } finally {
+      savingProjectField = null;
+      cancelProjectNameEdit();
+    }
+  }
+
+  async function saveProjectDescription(project: getProject.Output) {
+    if (!editingProjectDescription || editingProjectDescription.id !== project.projectId) return;
+    const trimmed = editingProjectDescription.value.trim();
+    const current = project.projectDescription || '';
+
+    if (trimmed === current.trim()) {
+      cancelProjectDescriptionEdit();
+      return;
+    }
+
+    savingProjectField = { id: project.projectId, field: 'description' };
+    try {
+      const connection = makeFetch({ fetch });
+      const updated = await api.functional.projects.updateProject(connection, project.projectId, {
+        projectDescription: trimmed
+      });
+      projects = projects.map((p) =>
+        p.projectId === project.projectId ? { ...p, ...updated } : p
+      );
+    } catch (error) {
+      console.error('프로젝트 설명 업데이트 실패:', error);
+    } finally {
+      savingProjectField = null;
+      cancelProjectDescriptionEdit();
+    }
+  }
+
+  function onProjectNameKeydown(event: KeyboardEvent, project: getProject.Output) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void saveProjectName(project);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelProjectNameEdit();
+    }
+  }
+
+  function onProjectDescriptionKeydown(event: KeyboardEvent, project: getProject.Output) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelProjectDescriptionEdit();
+    } else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      void saveProjectDescription(project);
+    }
   }
 
   function formatDate(dateString: string) {
@@ -226,15 +360,78 @@
 
           <!-- Existing Project Cards -->
           {#each filteredProjects as project (project)}
-            <article
-              class="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+            <div
+              class="group relative cursor-pointer rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-purple-200 hover:shadow-lg"
+              role="button"
+              tabindex="0"
+              onclick={() => handleProjectClick(project.projectId)}
+              onkeydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleProjectClick(project.projectId);
+                }
+              }}
+              aria-label={`${project.projectName} 프로젝트로 이동`}
             >
-              <div class="mb-4 flex items-start justify-between">
-                <h3 class="text-lg font-semibold text-gray-900">
-                  {project.projectName}
-                </h3>
+              <div class="mb-4 flex items-start justify-between gap-4">
+                <div class="flex-1">
+                  {#if editingProjectName?.id === project.projectId}
+                    <div class="flex items-center gap-2">
+                      <input
+                        bind:this={projectNameInputRef}
+                        bind:value={editingProjectName.value}
+                        type="text"
+                        class="flex-1 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        placeholder="프로젝트 이름"
+                        onclick={(event) => event.stopPropagation()}
+                        onkeydown={(event) => onProjectNameKeydown(event, project)}
+                      />
+                      <button
+                        type="button"
+                        class="cursor-pointer rounded-lg bg-purple-600 p-2 text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+                        onclick={(event) => {
+                          event.stopPropagation();
+                          void saveProjectName(project);
+                        }}
+                        disabled={savingProjectField?.id === project.projectId &&
+                          savingProjectField.field === 'name'}
+                        aria-label="프로젝트 이름 저장"
+                      >
+                        <Check class="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        class="cursor-pointer rounded-lg border border-gray-300 p-2 text-gray-500 transition-colors hover:bg-gray-100"
+                        onclick={(event) => {
+                          event.stopPropagation();
+                          cancelProjectNameEdit();
+                        }}
+                        aria-label="프로젝트 이름 편집 취소"
+                      >
+                        <X class="h-4 w-4" />
+                      </button>
+                    </div>
+                  {:else}
+                    <button
+                      type="button"
+                      class="cursor-pointer bg-transparent p-0 text-left text-lg font-semibold text-gray-900 transition-colors hover:text-purple-600 hover:underline focus:outline-none"
+                      onclick={(e) => handleEditProjectName(project, e)}
+                      aria-label="프로젝트 이름 편집"
+                    >
+                      {project.projectName}
+                    </button>
+                  {/if}
+                </div>
                 <div class="flex items-center gap-2">
-                  <Activity class="h-5 w-5 text-green-500" />
+                  <button
+                    type="button"
+                    onclick={(e) => handleProjectLogsClick(project.projectId, e)}
+                    class="rounded p-1 transition-colors hover:bg-blue-50"
+                    title="로그 보기"
+                    aria-label="로그 보기"
+                  >
+                    <FileText class="h-4 w-4 cursor-pointer text-blue-500" />
+                  </button>
                   <button
                     type="button"
                     onclick={(e) => showDeleteConfirm(project.projectId, project.projectName, e)}
@@ -246,11 +443,63 @@
                 </div>
               </div>
 
-              {#if project.projectDescription}
-                <p class="mb-4 line-clamp-2 text-sm text-gray-600">
-                  {project.projectDescription}
-                </p>
-              {/if}
+              <div class="mb-4 text-sm text-gray-600">
+                {#if editingProjectDescription?.id === project.projectId}
+                  <div class="space-y-2">
+                    <textarea
+                      bind:this={projectDescriptionRef}
+                      bind:value={editingProjectDescription.value}
+                      rows="3"
+                      class="w-full resize-none rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      placeholder="프로젝트 설명"
+                      onclick={(event) => event.stopPropagation()}
+                      onkeydown={(event) => onProjectDescriptionKeydown(event, project)}
+                    ></textarea>
+                    <div class="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        class="cursor-pointer rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+                        onclick={(event) => {
+                          event.stopPropagation();
+                          void saveProjectDescription(project);
+                        }}
+                        disabled={savingProjectField?.id === project.projectId &&
+                          savingProjectField.field === 'description'}
+                      >
+                        <Check class="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        class="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                        onclick={(event) => {
+                          event.stopPropagation();
+                          cancelProjectDescriptionEdit();
+                        }}
+                      >
+                        <X class="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                {:else if project.projectDescription && project.projectDescription.trim() !== ''}
+                  <button
+                    type="button"
+                    class="line-clamp-2 w-full cursor-pointer bg-transparent p-0 text-left transition-colors hover:text-purple-500 hover:underline focus:outline-none"
+                    onclick={(e) => handleEditProjectDescription(project, e)}
+                    aria-label="프로젝트 설명 편집"
+                  >
+                    {project.projectDescription}
+                  </button>
+                {:else}
+                  <button
+                    type="button"
+                    class="cursor-pointer bg-transparent p-0 text-left text-gray-400 italic transition-colors hover:text-purple-500 hover:underline focus:outline-none"
+                    onclick={(e) => handleEditProjectDescription(project, e)}
+                    aria-label="프로젝트 설명 편집"
+                  >
+                    설명이 없습니다
+                  </button>
+                {/if}
+              </div>
 
               <div class="space-y-2 text-sm">
                 {#if project.githubRepositoryName}
@@ -289,13 +538,13 @@
                   <button
                     type="button"
                     onclick={() => handleProjectClick(project.projectId)}
-                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
+                    class="cursor-pointer text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
                   >
-                    파이프라인 보기 →
+                    파이프라인 이동 →
                   </button>
                 </div>
               </div>
-            </article>
+            </div>
           {/each}
         {/if}
       </div>

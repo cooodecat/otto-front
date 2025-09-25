@@ -4,7 +4,7 @@
 
   interface FlowStep {
     id: number;
-    icon: any;
+    icon: typeof GitBranch;
     title: string;
     description: string;
     color: string;
@@ -130,7 +130,7 @@
               <!-- Active Indicator -->
               {#if activeStep === index}
                 <div
-                  class="absolute right-4 top-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
+                  class="absolute top-4 right-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
                 ></div>
               {/if}
             </div>
@@ -195,7 +195,7 @@
             <!-- Active Indicator -->
             {#if activeStep === index}
               <div
-                class="absolute right-4 top-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
+                class="absolute top-4 right-4 h-3 w-3 bg-gradient-to-r {step.bgGradient} animate-ping rounded-full"
               ></div>
             {/if}
           </div>
