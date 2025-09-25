@@ -248,38 +248,43 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center justify-end gap-2">
-        {#if execution.pipelineId && onEdit}
-          <button
-            onclick={onEdit}
-            class="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            <Edit3 class="h-3.5 w-3.5" />
-            Edit Pipeline
-          </button>
-        {/if}
-        {#if onRerun}
-          <button
-            onclick={handleRerun}
-            disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
-            class="flex h-9 cursor-pointer items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            title={execution.status === 'RUNNING' || execution.status === 'PENDING'
-              ? 'Pipeline is currently running'
-              : 'Re-run this pipeline'}
-          >
-            {#if isRerunning}
-              <Loader2 class="h-3.5 w-3.5 animate-spin" />
-              Re-running...
-            {:else}
-              <RefreshCw class="h-3.5 w-3.5" />
-              Re-run
-            {/if}
-          </button>
-        {/if}
+      <div class="flex items-center justify-end gap-2">
+        <!-- Action buttons group -->
+        <div class="flex items-center gap-3">
+          {#if execution.pipelineId && onEdit}
+            <button
+              onclick={onEdit}
+              class="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <Edit3 class="h-3.5 w-3.5" />
+              Edit Pipeline
+            </button>
+          {/if}
+          {#if onRerun}
+            <button
+              onclick={handleRerun}
+              disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
+              class="flex h-9 cursor-pointer items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              title={execution.status === 'RUNNING' || execution.status === 'PENDING'
+                ? 'Pipeline is currently running'
+                : 'Re-run this pipeline'}
+            >
+              {#if isRerunning}
+                <Loader2 class="h-3.5 w-3.5 animate-spin" />
+                Re-running...
+              {:else}
+                <RefreshCw class="h-3.5 w-3.5" />
+                Re-run
+              {/if}
+            </button>
+          {/if}
+        </div>
+        
+        <!-- Close button with extra spacing -->
         {#if onClose}
           <button
             onclick={onClose}
-            class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-800"
+            class="ml-4 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-all hover:rotate-90 hover:bg-gray-100 hover:text-gray-800"
             aria-label="Close drawer"
           >
             <X class="h-4 w-4" />
