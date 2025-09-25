@@ -4,13 +4,26 @@
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { Plus, Search, Filter, Calendar, Settings, Play, Trash2, FileText } from 'lucide-svelte';
+  import {
+    Plus,
+    Search,
+    SlidersHorizontal,
+    Calendar,
+    Settings,
+    Play,
+    Trash2,
+    FileText,
+    ArrowLeft,
+    House,
+    ChevronRight
+  } from 'lucide-svelte';
   import { getPipelineById } from '$lib/sdk/functional/pipelines';
   import BuildStatus from '$lib/components/BuildStatus.svelte';
 
   const projectId = $page.params.project_id;
 
   let pipelines = $state<getPipelineById.Output[]>([]);
+  let projectInfo = $state<{ name: string } | null>(null);
   let loading = $state(false);
   let searchTerm = $state('');
   let error = $state('');
@@ -29,8 +42,21 @@
   );
 
   onMount(async () => {
-    await loadPipelines();
+    await Promise.all([loadPipelines(), loadProjectInfo()]);
   });
+
+  async function loadProjectInfo() {
+    try {
+      const project = await api.functional.projects.getProject(makeFetch({ fetch }), projectId!);
+      if (project) {
+        projectInfo = { name: project.projectName };
+      }
+    } catch (err) {
+      console.error('Error loading project info:', err);
+      // 프로젝트 정보 로드 실패 시 기본값 사용
+      projectInfo = { name: '프로젝트' };
+    }
+  }
 
   async function loadPipelines() {
     loading = true;
@@ -128,6 +154,40 @@
 
 <div class="min-h-screen bg-gray-50">
   <div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb Navigation -->
+    <nav class="mb-6 flex items-center gap-2 text-sm">
+      <button
+        onclick={() => goto('/projects')}
+        class="flex items-center gap-1 text-gray-600 transition-colors hover:text-purple-600"
+      >
+        <House class="h-4 w-4" />
+        <span>프로젝트</span>
+      </button>
+
+      <ChevronRight class="h-4 w-4 text-gray-400" />
+
+      {#if projectInfo}
+        <span class="font-medium text-gray-900">{projectInfo.name}</span>
+      {:else}
+        <span class="h-4 w-20 animate-pulse rounded bg-gray-200"></span>
+      {/if}
+
+      <ChevronRight class="h-4 w-4 text-gray-400" />
+
+      <span class="font-medium text-purple-600">파이프라인</span>
+    </nav>
+
+    <!-- Back Button for Mobile -->
+    <div class="mb-4 flex items-center gap-4 sm:hidden">
+      <button
+        onclick={() => window.history.back()}
+        class="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm transition-colors hover:bg-gray-50"
+      >
+        <ArrowLeft class="h-4 w-4" />
+        <span>뒤로</span>
+      </button>
+    </div>
+
     <!-- Pipeline Header -->
     <div class="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
       <div>
@@ -137,19 +197,19 @@
 
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         <div class="relative">
-          <Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="파이프라인 검색..."
             bind:value={searchTerm}
-            class="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none sm:w-64"
+            class="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 sm:w-64"
           />
         </div>
 
         <button
           class="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 transition-colors hover:bg-gray-50"
         >
-          <Filter class="h-4 w-4" />
+          <SlidersHorizontal class="h-4 w-4" />
           <span>필터</span>
         </button>
 
@@ -211,7 +271,7 @@
           <button
             type="button"
             onclick={handleCreatePipeline}
-            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
+            class="group flex min-h-[200px] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-purple-400 hover:shadow-md focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
           >
             <div class="text-center">
               <div
@@ -317,7 +377,7 @@
                   <button
                     type="button"
                     onclick={() => handlePipelineClick(pipeline.pipelineId)}
-                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
+                    class="text-xs font-medium text-purple-600 hover:text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                   >
                     상세 보기 →
                   </button>
@@ -337,7 +397,7 @@
     <!-- Backdrop with glass effect -->
     <button
       type="button"
-      class="bg-opacity-20 absolute inset-0 backdrop-blur-sm transition-opacity"
+      class="absolute inset-0 bg-opacity-20 backdrop-blur-sm transition-opacity"
       onclick={cancelDelete}
       aria-label="Cancel delete"
     ></button>
