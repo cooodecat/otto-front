@@ -186,15 +186,12 @@
         {/if}
       </div>
 
-      <!-- Trigger Info Row -->
-      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-        <span
-          >Triggered by: <span class="font-medium">{execution.triggeredBy || 'manual'}</span></span
-        >
-        {#if execution.pipelineName && !execution.pipelineName.includes('Unknown')}
-          <span>• Pipeline: <span class="font-medium">{execution.pipelineName}</span></span>
-        {/if}
-      </div>
+      <!-- Pipeline Info Row -->
+      {#if execution.pipelineName && !execution.pipelineName.includes('Unknown')}
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+          <span>Pipeline: <span class="font-medium">{execution.pipelineName}</span></span>
+        </div>
+      {/if}
     </div>
   </div>
 
