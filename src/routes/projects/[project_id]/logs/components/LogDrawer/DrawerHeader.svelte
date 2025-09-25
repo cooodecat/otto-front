@@ -58,17 +58,40 @@
   }
 
   function calculateDuration(): string {
-    if (execution.completedAt) {
+    // Debug logging
+    console.log('Calculating duration:', {
+      duration: execution.duration,
+      startedAt: execution.startedAt,
+      completedAt: execution.completedAt,
+      status: execution.status
+    });
+    
+    // execution.duration이 있으면 사용 (백엔드에서 제공하는 값, 초 단위)
+    if (execution.duration !== undefined && execution.duration !== null && execution.duration > 0) {
+      return formatDuration(execution.duration);
+    }
+    
+    // completedAt이 있으면 직접 계산
+    if (execution.completedAt && execution.startedAt) {
       const start = new Date(execution.startedAt).getTime();
       const end = new Date(execution.completedAt).getTime();
       const seconds = Math.floor((end - start) / 1000);
       return formatDuration(seconds);
-    } else if (getNormalizedStatus(execution.status) === 'RUNNING') {
+    }
+    
+    // 실행 중이면 현재까지 경과 시간 표시
+    if ((getNormalizedStatus(execution.status) === 'RUNNING' || getNormalizedStatus(execution.status) === 'PENDING') && execution.startedAt) {
       const start = new Date(execution.startedAt).getTime();
       const now = Date.now();
       const seconds = Math.floor((now - start) / 1000);
       return `${formatDuration(seconds)} (running)`;
     }
+    
+    // startedAt만 있는 경우에도 시도
+    if (execution.startedAt) {
+      return 'In progress';
+    }
+    
     return 'N/A';
   }
 
@@ -100,20 +123,52 @@
   }
 </script>
 
-<div class="border-b border-gray-200 px-6 py-4 pr-16">
-  <div class="flex items-start gap-4">
-    <!-- Execution Type Icon -->
-    <div class="mt-1 flex-shrink-0">
-      {#if execution.executionType === 'BUILD'}
-        <Hammer class="h-6 w-6 text-orange-500" />
-      {:else if execution.executionType === 'DEPLOY'}
-        <Rocket class="h-6 w-6 text-blue-500" />
-      {/if}
-    </div>
+<div class="relative border-b border-gray-200">
+  <!-- Action Buttons at Top Right (next to close button) -->
+  <div class="absolute top-6 right-20 z-10 flex gap-2">
+    {#if execution.pipelineId && onEdit}
+      <button
+        onclick={onEdit}
+        class="flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+      >
+        <Edit3 class="h-3.5 w-3.5" />
+        Edit Pipeline
+      </button>
+    {/if}
+    {#if onRerun}
+      <button
+        onclick={handleRerun}
+        disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
+        class="flex cursor-pointer items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        title={execution.status === 'RUNNING' || execution.status === 'PENDING'
+          ? 'Pipeline is currently running'
+          : 'Re-run this pipeline'}
+      >
+        {#if isRerunning}
+          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          Re-running...
+        {:else}
+          <RefreshCw class="h-3.5 w-3.5" />
+          Re-run
+        {/if}
+      </button>
+    {/if}
+  </div>
 
-    <div class="flex-1">
-      <!-- Title and Status -->
-      <div class="mb-2 flex items-center gap-3">
+  <div class="px-6 py-4">
+    <div class="flex items-start gap-4">
+      <!-- Execution Type Icon -->
+      <div class="mt-1 flex-shrink-0">
+        {#if execution.executionType === 'BUILD'}
+          <Hammer class="h-6 w-6 text-orange-500" />
+        {:else if execution.executionType === 'DEPLOY'}
+          <Rocket class="h-6 w-6 text-blue-500" />
+        {/if}
+      </div>
+
+      <div class="flex-1 pr-48">
+        <!-- Title and Status -->
+        <div class="mb-2 flex items-center gap-3">
         <h2 class="text-xl font-semibold text-gray-900">
           {execution.executionType} #{execution.buildNumber}
         </h2>
@@ -194,35 +249,5 @@
       {/if}
     </div>
   </div>
-
-  <!-- Action Buttons -->
-  <div class="flex gap-2 border-t border-gray-100 px-6 pt-3 pb-2">
-    {#if execution.pipelineId && onEdit}
-      <button
-        onclick={onEdit}
-        class="flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-      >
-        <Edit3 class="h-3.5 w-3.5" />
-        Edit Pipeline
-      </button>
-    {/if}
-    {#if onRerun}
-      <button
-        onclick={handleRerun}
-        disabled={isRerunning || execution.status === 'RUNNING' || execution.status === 'PENDING'}
-        class="flex cursor-pointer items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        title={execution.status === 'RUNNING' || execution.status === 'PENDING'
-          ? 'Pipeline is currently running'
-          : 'Re-run this pipeline'}
-      >
-        {#if isRerunning}
-          <Loader2 class="h-3.5 w-3.5 animate-spin" />
-          Re-running...
-        {:else}
-          <RefreshCw class="h-3.5 w-3.5" />
-          Re-run
-        {/if}
-      </button>
-    {/if}
   </div>
 </div>
