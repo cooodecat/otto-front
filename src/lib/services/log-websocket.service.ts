@@ -59,8 +59,7 @@ export class LogWebSocketService {
     console.log('Connecting to WebSocket:', logsNamespace);
 
     try {
-      this.socket = io(logsNamespace, {
-        auth: { token },
+      const socketOptions: any = {
         withCredentials: true,
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
@@ -68,7 +67,14 @@ export class LogWebSocketService {
         reconnectionDelayMax: 5000,
         timeout: 10000, // Add connection timeout
         transports: ['websocket', 'polling'] // Explicitly set transports
-      });
+      };
+      
+      // Only add auth if token exists
+      if (token) {
+        socketOptions.auth = { token };
+      }
+      
+      this.socket = io(logsNamespace, socketOptions);
 
       this.setupEventHandlers();
       this.setupReconnectionHandlers();
