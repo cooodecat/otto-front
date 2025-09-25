@@ -318,8 +318,15 @@
       const flowData = { nodes, edges };
 
       // Deploy 노드에서 deployOption 추출
-      const deployNode = nodes.find((node) => node.type === 'deploy' || node.data.blockType === 'deploy');
-      const deployOption = deployNode?.data?.deployOption || null;
+      const deployNode = nodes.find(
+        (node) => node.type === 'deploy' || node.data.blockType === 'deploy'
+      );
+      const deployOption = deployNode?.data?.deployOption && 
+        typeof deployNode.data.deployOption === 'object' &&
+        'port' in deployNode.data.deployOption &&
+        'command' in deployNode.data.deployOption
+        ? deployNode.data.deployOption as { port: number; command: string; }
+        : undefined;
 
       await api.functional.pipelines.updatePipeline(makeFetch({ fetch }), pipelineId, {
         pipelineName: pipeline.pipelineName,
@@ -358,8 +365,15 @@
         }));
 
       // Deploy 노드에서 deployOption 추출
-      const deployNode = nodes.find((node) => node.type === 'deploy' || node.data.blockType === 'deploy');
-      const deployOption = deployNode?.data?.deployOption || null;
+      const deployNode = nodes.find(
+        (node) => node.type === 'deploy' || node.data.blockType === 'deploy'
+      );
+      const deployOption = deployNode?.data?.deployOption && 
+        typeof deployNode.data.deployOption === 'object' &&
+        'port' in deployNode.data.deployOption &&
+        'command' in deployNode.data.deployOption
+        ? deployNode.data.deployOption as { port: number; command: string; }
+        : undefined;
 
       // 파이프라인 업데이트 (Flow 노드 포함)
       if (!pipelineId) {

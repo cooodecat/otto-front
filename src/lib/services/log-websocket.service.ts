@@ -144,10 +144,11 @@ export class LogWebSocketService {
         this.connectionAttemptTimeout = null;
       }
 
-      const authInfo = typeof this.socket?.auth === 'object' && this.socket.auth && 'token' in this.socket.auth
-        ? 'authenticated'
-        : 'no auth';
-      
+      const authInfo =
+        typeof this.socket?.auth === 'object' && this.socket.auth && 'token' in this.socket.auth
+          ? 'authenticated'
+          : 'no auth';
+
       console.log(
         `✅ [WebSocket] Successfully connected:\n` +
           `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
