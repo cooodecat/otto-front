@@ -40,6 +40,8 @@
 
   // WebSocket service - created only when needed
   let wsService = $state<LogWebSocketService | null>(null);
+  let isSettingUpWebSocket = $state(false);
+  let lastWebSocketSetupAttempt = $state(0);
 
   // Store unsubscribers
   let unsubscribers: (() => void)[] = [];
@@ -300,6 +302,19 @@
 
   // Setup WebSocket connection
   async function setupWebSocket() {
+    // Prevent concurrent setup attempts
+    if (isSettingUpWebSocket) {
+      console.log('WebSocket setup already in progress, skipping');
+      return;
+    }
+
+    // Rate limit setup attempts (minimum 5 seconds between attempts)
+    const now = Date.now();
+    if (now - lastWebSocketSetupAttempt < 5000) {
+      console.log('WebSocket setup rate limited, skipping');
+      return;
+    }
+
     // Skip WebSocket for completed executions
     if (
       execution?.status === 'SUCCESS' ||
@@ -312,6 +327,9 @@
       return;
     }
 
+    isSettingUpWebSocket = true;
+    lastWebSocketSetupAttempt = now;
+
     try {
       // Create WebSocket service only for running executions
       if (!wsService) {
@@ -322,7 +340,7 @@
 
       // Create a timeout promise
       const connectTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('WebSocket connection timeout')), 5000);
+        setTimeout(() => reject(new Error('WebSocket connection timeout')), 10000);
       });
 
       // Race between connection and timeout
@@ -399,6 +417,9 @@
       );
     } catch (error) {
       console.error('WebSocket connection failed:', error);
+      // Don't retry immediately, let the rate limiting handle it
+    } finally {
+      isSettingUpWebSocket = false;
     }
   }
 
@@ -504,19 +525,28 @@
 
   // Monitor execution status changes and reconnect WebSocket if needed
   $effect(() => {
-    if (execution && !loading) {
+    if (execution && !loading && !isSettingUpWebSocket) {
       // Check if we need to setup WebSocket for active executions
       const normalizedStatus = execution?.status?.toUpperCase();
       if (
         !wsService &&
+        !isSettingUpWebSocket &&
         normalizedStatus !== 'SUCCESS' &&
         normalizedStatus !== 'FAILED' &&
         normalizedStatus !== 'SUCCEEDED' &&
         normalizedStatus !== 'COMPLETED' &&
         normalizedStatus !== 'CANCELLED'
       ) {
-        console.log('Execution status changed to active state, setting up WebSocket');
-        setupWebSocket();
+        // Debounce the setup to prevent rapid retries
+        const timeoutId = setTimeout(() => {
+          if (!wsService && !isSettingUpWebSocket) {
+            console.log('Execution status indicates active state, setting up WebSocket');
+            setupWebSocket();
+          }
+        }, 1000);
+        
+        // Cleanup timeout on effect cleanup
+        return () => clearTimeout(timeoutId);
       }
     }
   });
