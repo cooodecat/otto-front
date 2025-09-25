@@ -3,9 +3,12 @@
   import ExecutionList from './components/ExecutionList.svelte';
   import ExecutionFilter from './components/ExecutionFilter.svelte';
   import LogDrawer from './components/LogDrawer/LogDrawer.svelte';
-  import { RefreshCw } from 'lucide-svelte';
+  import { RefreshCw, ChevronRight } from 'lucide-svelte';
 
   const projectId = $page.params.project_id!;
+  
+  // TODO: Get actual project name from API
+  const projectName = 'My Project';
 
   let selectedExecutionId = $state<string | null>(null);
   let filterType = $state<'ALL' | 'BUILD' | 'DEPLOY'>('ALL');
@@ -49,8 +52,37 @@
   });
 </script>
 
+<!-- Breadcrumb Navigation -->
+<div class="border-b bg-white">
+  <div class="mx-auto max-w-7xl px-6 py-3">
+    <nav aria-label="Breadcrumb">
+      <ol class="flex items-center space-x-2 text-sm">
+        <li>
+          <a href="/projects" class="text-gray-500 transition-colors hover:text-gray-700">
+            Projects
+          </a>
+        </li>
+        <li>
+          <ChevronRight class="h-4 w-4 text-gray-400" />
+        </li>
+        <li>
+          <a href="/projects/{projectId}" class="text-gray-500 transition-colors hover:text-gray-700">
+            {projectName}
+          </a>
+        </li>
+        <li>
+          <ChevronRight class="h-4 w-4 text-gray-400" />
+        </li>
+        <li>
+          <span class="font-medium text-gray-900">Logs</span>
+        </li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
 <div class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-gray-100">
-  <div class="mx-auto max-w-7xl p-6">
+  <div class="mx-auto max-w-6xl px-6 py-8">
     <!-- Header Card -->
     <div class="mb-6 overflow-hidden rounded-2xl bg-white shadow-lg">
       <div class="border-b border-gray-100 bg-gradient-to-r from-white to-gray-50 px-8 py-6">
@@ -76,13 +108,13 @@
       </div>
 
       <!-- Filter Section -->
-      <div class="px-8 py-4 bg-gray-50/50">
+      <div class="bg-gray-50/50 px-8 py-4">
         <ExecutionFilter bind:filterType />
       </div>
     </div>
 
     <!-- Execution List Card -->
-    <div class="overflow-hidden rounded-2xl bg-white shadow-lg {isDrawerOpen ? 'h-[calc(100vh-280px)]' : 'min-h-[calc(100vh-280px)]'}">
+    <div class="overflow-hidden rounded-2xl bg-white shadow-lg {isDrawerOpen ? 'h-[calc(100vh-320px)]' : 'min-h-[calc(100vh-320px)]'}">
       <div class="h-full {isDrawerOpen ? 'overflow-hidden' : 'overflow-y-auto'}">
         <ExecutionList
           {projectId}
