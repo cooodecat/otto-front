@@ -1,4 +1,4 @@
-import { io } from 'socket.io-client';
+import { io, type Socket } from 'socket.io-client';
 import { writable, type Writable } from 'svelte/store';
 import type {
   LogEntry,
@@ -27,7 +27,7 @@ function sanitizeWebsocketBaseUrl(input: string): string {
 }
 
 export class LogWebSocketService {
-  private socket: ReturnType<typeof io> | null = null;
+  private socket: Socket | null = null;
   private executionId: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -144,12 +144,15 @@ export class LogWebSocketService {
         this.connectionAttemptTimeout = null;
       }
 
+      const authInfo = typeof this.socket?.auth === 'object' && this.socket.auth && 'token' in this.socket.auth
+        ? 'authenticated'
+        : 'no auth';
+      
       console.log(
         `✅ [WebSocket] Successfully connected:\n` +
           `  - Socket ID: ${this.socket?.id || 'unknown'}\n` +
           `  - Transport: ${this.socket?.io?.engine?.transport?.name || 'unknown'}\n` +
-          `  - URL: ${this.socket?.io?.uri || 'unknown'}\n` +
-          `  - Auth: ${this.socket?.auth?.token ? 'authenticated' : 'no auth'}\n` +
+          `  - Auth: ${authInfo}\n` +
           `  - Previous execution ID: ${this.executionId || 'none'}`
       );
 
