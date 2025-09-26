@@ -355,10 +355,10 @@
     try {
       // Flow 노드 데이터를 백엔드 형식으로 변환
       const flowNodes = nodes
-        .filter((node) => node.type !== CICDBlockType.PIPELINE_START)
+        .filter((node) => node.type !== CICDBlockType.PIPELINE_START && node.type)
         .map((node) => ({
-          blockType: node.type,
-          groupType: node.data.groupType || node.type,
+          blockType: node.type as string,
+          groupType: (node.data?.groupType || node.type) as string,
           blockId: node.id,
           onSuccess: edges.find((e) => e.source === node.id)?.target || null,
           onFailed: null,
