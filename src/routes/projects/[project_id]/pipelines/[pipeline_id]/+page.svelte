@@ -11,8 +11,11 @@
     Save,
     ArrowLeft,
     FileText,
-    ExternalLink
+    ExternalLink,
+    QrCode
   } from 'lucide-svelte';
+  // @ts-ignore - svelte-qrcode doesn't have TypeScript declarations
+  import QRCode from 'svelte-qrcode';
   import {
     SvelteFlowProvider,
     type NodeTargetEventWithPointer,
@@ -66,6 +69,9 @@
 
   // 실행 상태 패널 표시 여부 (기본값 false, localStorage에 데이터가 있으면 true로 변경)
   let showExecutionPanel = $state(false);
+
+  // QR 코드 모달 표시 여부
+  let showQRModal = $state(false);
 
   // Polling intervals
   let statusPollingInterval: NodeJS.Timeout | null = null;
@@ -1190,7 +1196,7 @@
     <!-- 메인 영역 -->
     <div class="relative flex-1">
       <!-- 상단 헤더 -->
-      <div class="absolute top-0 right-0 left-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
+      <div class="absolute left-0 right-0 top-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <button
@@ -1264,7 +1270,7 @@
       {#if buildInfo || buildStatus || deploymentStatus}
         {#if showExecutionPanel}
           <div
-            class="absolute top-20 right-4 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+            class="absolute right-4 top-20 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
           >
             <div class="mb-3 flex items-center justify-between">
               <h3 class="text-sm font-semibold text-gray-700">실행 정보</h3>
@@ -1346,7 +1352,7 @@
                   </div>
 
                   {#if deploymentStatus?.deployUrl || pipeline?.deployUrl}
-                    <div class="mt-2">
+                    <div class="mt-2 flex items-center gap-2">
                       <a
                         href="http://{deploymentStatus?.deployUrl || pipeline?.deployUrl}"
                         target="_blank"
@@ -1356,6 +1362,15 @@
                         <ExternalLink class="h-3 w-3" />
                         {deploymentStatus?.deployUrl || pipeline?.deployUrl}
                       </a>
+                      {#if deploymentStatus?.status === 'SUCCESS' || deploymentStatus?.status === 'COMPLETED' || pipeline?.deployUrl}
+                        <button
+                          onclick={() => (showQRModal = true)}
+                          class="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200"
+                          title="QR 코드 보기"
+                        >
+                          <QrCode class="h-3 w-3" />
+                        </button>
+                      {/if}
                     </div>
                   {/if}
 
@@ -1372,7 +1387,7 @@
           <!-- 실행 상태 패널 열기 버튼 (패널이 닫혀 있을 때) -->
           <button
             onclick={() => (showExecutionPanel = true)}
-            class="absolute top-20 right-4 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-md transition-all hover:border-gray-300 hover:shadow-lg"
+            class="absolute right-4 top-20 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-md transition-all hover:border-gray-300 hover:shadow-lg"
             title="실행 정보 보기"
           >
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1448,3 +1463,63 @@
 {#if toast}
   <Toast type={toast.type} message={toast.message} onClose={() => (toast = null)} />
 {/if}
+
+<!-- QR Code Modal -->
+{#if showQRModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+    onclick={(e) => {
+      if (e.target === e.currentTarget) showQRModal = false;
+    }}
+  >
+    <div
+      class="relative flex h-[85vh] w-[85vh] flex-col items-center justify-center rounded-2xl bg-white/90 p-8 shadow-2xl backdrop-blur"
+    >
+      <!-- Close button -->
+      <button
+        onclick={() => (showQRModal = false)}
+        class="absolute right-4 top-4 rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100"
+        title="닫기"
+        aria-label="모달 닫기"
+      >
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          ></path>
+        </svg>
+      </button>
+
+      <!-- QR Code -->
+      <div class="flex h-full w-full items-center justify-center">
+        <QRCode
+          value={'http://' + (deploymentStatus?.deployUrl || pipeline?.deployUrl)}
+          size={Math.min(window.innerHeight * 0.85 * 0.7, window.innerWidth * 0.7)}
+          background="#ffffff"
+          color="#000000"
+          errorCorrection="M"
+        />
+      </div>
+
+      <!-- URL text -->
+      <div class="mt-4 text-center">
+        <p class="text-sm text-gray-600">모바일로 스캔하여 접속</p>
+        <p class="mt-1 font-mono text-xs text-gray-500">
+          {deploymentStatus?.deployUrl || pipeline?.deployUrl}
+        </p>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- ESC key handler for QR modal -->
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'Escape' && showQRModal) {
+      showQRModal = false;
+    }
+  }}
+/>
