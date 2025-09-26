@@ -474,6 +474,7 @@
 
   // Check for timeout (3 minutes without new logs) - UI indication only
   function startTimeoutCheck() {
+    // TIMEOUT CHECK DISABLED - No more polling
     if (timeoutCheckInterval) {
       clearInterval(timeoutCheckInterval);
     }
@@ -482,93 +483,9 @@
     isTimeoutSuspected = false;
     timeoutMessage = null;
 
-    timeoutCheckInterval = setInterval(async () => {
-      if (hasMarkedTimeoutFailure) {
-        return;
-      }
-
-      const normalizedStatus = execution?.status?.toUpperCase();
-
-      // Only track active executions
-      if (!execution || !(normalizedStatus === 'RUNNING' || normalizedStatus === 'PENDING')) {
-        return;
-      }
-
-      const timeSinceLastLog = Date.now() - lastLogReceivedTime;
-      const threeMinutesInMs = 3 * 60 * 1000; // 3 minutes
-
-      if (timeSinceLastLog >= threeMinutesInMs && logs.length === 0) {
-        // Set UI-only timeout indicator without modifying actual execution status
-        isTimeoutSuspected = true;
-        const secondsWithoutLogs = Math.floor(timeSinceLastLog / 1000);
-        timeoutMessage = `No logs received for ${secondsWithoutLogs} seconds. The execution might have stalled.`;
-
-        console.warn(
-          `No logs received for ${secondsWithoutLogs} seconds for execution ${currentExecutionId}.`
-        );
-
-        // Mark phases that were running as potentially stalled (UI only)
-        phases = phases.map((phase) => {
-          if (phase.status === 'running') {
-            return {
-              ...phase,
-              statusMetadata: {
-                ...phase.statusMetadata,
-                source: 'timeout',
-                lastUpdateReason: 'Possible timeout - no logs received',
-                updatedAt: new Date().toISOString()
-              }
-            };
-          }
-          return phase;
-        });
-
-        // Only mark as failure in backend if we're absolutely sure
-        if (timeSinceLastLog >= 5 * 60 * 1000 && !hasMarkedTimeoutFailure) {
-          hasMarkedTimeoutFailure = true;
-
-          const failureMetadata: Record<string, unknown> = {
-            failureReason: 'no_logs_timeout',
-            timeoutDurationMs: timeSinceLastLog
-          };
-
-          if (Number.isFinite(lastLogReceivedTime)) {
-            failureMetadata.lastLogReceivedAt = new Date(lastLogReceivedTime).toISOString();
-          }
-
-          try {
-            await logApiService.updateExecutionStatus(currentExecutionId, 'FAILED', {
-              completedAt: new Date().toISOString(),
-              errorMessage:
-                'Automatically marked as failed after no logs were received for 5 minutes.',
-              metadata: failureMetadata
-            });
-          } catch (error) {
-            console.error('Failed to persist timeout failure status:', error);
-          }
-        }
-      } else if (timeSinceLastLog < threeMinutesInMs && isTimeoutSuspected) {
-        // Clear timeout suspicion if we start receiving logs again
-        isTimeoutSuspected = false;
-        timeoutMessage = null;
-
-        // Clear timeout indicators from phases
-        phases = phases.map((phase) => {
-          if (phase.statusMetadata?.source === 'timeout') {
-            return {
-              ...phase,
-              statusMetadata: {
-                ...phase.statusMetadata,
-                source: 'log_parsing',
-                lastUpdateReason: 'Logs resumed',
-                updatedAt: new Date().toISOString()
-              }
-            };
-          }
-          return phase;
-        });
-      }
-    }, 10000); // Check every 10 seconds
+    // timeoutCheckInterval = setInterval(async () => {
+    //   // All timeout check logic disabled
+    // }, 10000);
   }
 
   function stopTimeoutCheck() {
@@ -1463,6 +1380,7 @@
           <LogsTab
             bind:this={logsTabRef}
             executionId={execution.executionId}
+            pipelineId={execution.pipelineId}
             executionStatus={execution.status}
             executionStartedAt={execution.startedAt}
             {phases}
