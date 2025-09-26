@@ -68,7 +68,7 @@ export class LogApiService {
       executionType: exec.executionType.toUpperCase() as ExecutionType,
       status: exec.status.toUpperCase() as ExecutionStatus,
       startedAt: exec.startedAt,
-      completedAt: exec.completedAt,
+      completedAt: exec.completedAt || undefined,
       updatedAt: exec.updatedAt,
       duration: (() => {
         // First try metadata.duration
@@ -116,7 +116,7 @@ export class LogApiService {
         errorCount: 0,
         warningCount: 0
       },
-      metadata: exec.metadata
+      metadata: exec.metadata || {}
     }));
   }
 
