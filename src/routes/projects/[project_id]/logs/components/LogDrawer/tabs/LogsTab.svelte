@@ -11,14 +11,18 @@
     Copy,
     Terminal,
     Layers,
-    RefreshCw
+    RefreshCw,
+    Code,
+    Server
   } from 'lucide-svelte';
   import LogGroup from '../LogGroup.svelte';
   import LogSegment from '../LogSegment.svelte';
   import { LogParser } from '$lib/utils/log-parser';
+  import { logApiService } from '$lib/services/log-api.service';
 
   interface Props {
     executionId: string;
+    pipelineId?: string;
     executionStatus?: ExecutionStatus;
     phases: PhaseInfo[];
     logs?: LogEntry[];
@@ -30,6 +34,7 @@
 
   let {
     executionId,
+    pipelineId,
     executionStatus: initialExecutionStatus,
     phases: _phases,
     logs = [],
@@ -41,6 +46,17 @@
 
   // Track the current execution status
   let executionStatus = $state<ExecutionStatus | null>(initialExecutionStatus || null);
+
+  // Tab system for Build and ECS logs
+  let activeTab = $state<'build' | 'ecs'>('build');
+  let ecsLogs = $state<Array<{
+    timestamp: string;
+    message: string;
+    level: string;
+    streamName: string;
+  }>>([]);
+  let ecsLoading = $state(false);
+  let ecsError = $state<string | null>(null);
 
   // Compute initial state based on status
   const computeInitialStates = (status: ExecutionStatus | undefined) => {
@@ -687,6 +703,49 @@
     return LogParser.parseMessage(message, searchQuery);
   }
 
+  // ECS logs loading
+  async function loadEcsLogs() {
+    if (!executionId || ecsLoading) return;
+    
+    ecsLoading = true;
+    ecsError = null;
+    
+    try {
+      // Use the new runtime API to get only the console.log from this specific execution
+      const result = await logApiService.getEcsRuntimeLogsByExecution(executionId, {
+        limit: 1000
+      });
+      ecsLogs = result.logs.map(log => ({
+        timestamp: log.timestamp,
+        message: log.message,
+        level: log.level,
+        streamName: log.streamName
+      }));
+    } catch (error) {
+      console.error('Failed to load ECS runtime logs:', error);
+      ecsError = error instanceof Error ? error.message : 'Failed to load ECS runtime logs';
+    } finally {
+      ecsLoading = false;
+    }
+  }
+
+  // ECS POLLING DISABLED - Use manual refresh button only
+  // $effect(() => {
+  //   if (activeTab === 'ecs' && executionId && ecsLogs.length === 0) {
+  //     loadEcsLogs();
+  //   }
+  // });
+
+  // Get ECS log stats
+  const ecsLogStats = $derived.by(() => {
+    const stats = {
+      total: ecsLogs.length,
+      errors: ecsLogs.filter((l) => l.level === 'error').length,
+      warnings: ecsLogs.filter((l) => l.level === 'warning').length
+    };
+    return stats;
+  });
+
   // Expose scroll method for parent (LogDrawer) to navigate to a phase by index
   export function scrollToPhaseIndex(index: number) {
     showGrouped = true; // ensure grouped view
@@ -722,6 +781,38 @@
 <div data-logs-tab class="flex min-h-0 flex-1 flex-col bg-gray-50/50">
   <!-- Fixed Toolbar -->
   <div class="m-4 mb-3 shrink-0 rounded-xl border border-gray-200 bg-white shadow-sm">
+    <!-- Tab Navigation -->
+    {#if pipelineId}
+      <div class="flex items-center border-b border-gray-100 px-4 py-2">
+        <div class="flex items-center gap-1 rounded-lg border border-gray-300 p-1">
+          <button
+            onclick={() => (activeTab = 'build')}
+            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {activeTab === 'build'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-600 hover:bg-gray-100'}"
+          >
+            <Code class="h-3.5 w-3.5" />
+            Build Logs
+            {#if activeTab === 'build'}
+              <span class="ml-1 text-xs">({logStats.total})</span>
+            {/if}
+          </button>
+          <button
+            onclick={() => (activeTab = 'ecs')}
+            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {activeTab === 'ecs'
+              ? 'bg-green-600 text-white'
+              : 'text-gray-600 hover:bg-gray-100'}"
+          >
+            <Server class="h-3.5 w-3.5" />
+            Deployment Logs
+            {#if activeTab === 'ecs'}
+              <span class="ml-1 text-xs">({ecsLogStats.total})</span>
+            {/if}
+          </button>
+        </div>
+      </div>
+    {/if}
+
     <!-- Search and Filter Bar -->
     <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-2">
       <!-- Search Input -->
@@ -904,20 +995,89 @@
           <Download class="h-3.5 w-3.5" />
           Download
         </button>
+        
+        {#if activeTab === 'ecs'}
+          <button
+            onclick={loadEcsLogs}
+            disabled={ecsLoading}
+            class="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw class="h-3.5 w-3.5 {ecsLoading ? 'animate-spin' : ''}" />
+            Refresh
+          </button>
+        {/if}
       </div>
     </div>
   </div>
 
   <!-- Scrollable Content Area -->
   <div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollArea} onscroll={handleScroll}>
-    {#if isLoading}
-      <div class="flex flex-col items-center justify-center p-8">
-        <div class="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-          <Loader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-gray-400" />
-          <p class="text-gray-500">Loading logs...</p>
+    {#if activeTab === 'ecs'}
+      <!-- ECS Logs Tab -->
+      {#if ecsLoading}
+        <div class="flex flex-col items-center justify-center p-8">
+          <div class="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+            <Loader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-gray-400" />
+            <p class="text-gray-500">Loading ECS deployment logs...</p>
+          </div>
         </div>
-      </div>
-    {:else if isLiveMode && (executionStatus === 'RUNNING' || executionStatus === 'PENDING')}
+      {:else if ecsError}
+        <div class="flex flex-col items-center justify-center p-8">
+          <div class="max-w-md rounded-lg border border-red-200 bg-red-50 p-8 shadow-sm">
+            <Server class="mx-auto mb-4 h-12 w-12 text-red-400" />
+            <p class="mb-2 font-medium text-red-700">Failed to load ECS logs</p>
+            <p class="mb-4 text-sm text-red-600">{ecsError}</p>
+            <button
+              onclick={loadEcsLogs}
+              class="flex cursor-pointer items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+            >
+              <RefreshCw class="h-4 w-4" />
+              Retry
+            </button>
+          </div>
+        </div>
+      {:else if ecsLogs.length === 0}
+        <div class="flex flex-col items-center justify-center p-8">
+          <div class="max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+            <Server class="mx-auto mb-4 h-12 w-12 text-gray-300" />
+            <p class="mb-2 font-medium text-gray-500">No ECS deployment logs available</p>
+            <p class="text-sm text-gray-400">
+              ECS deployment logs will appear here once the application is deployed
+            </p>
+          </div>
+        </div>
+      {:else}
+        <!-- ECS Logs Display -->
+        <div class="m-4 mt-2 rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm text-gray-100 shadow-lg">
+          <div class="max-h-[calc(100vh-16rem)] overflow-y-auto p-4">
+            {#each ecsLogs as log, i (`ecs-${log.timestamp}-${log.message}-${i}`)}
+              <div class="group flex py-0.5 transition-colors hover:bg-gray-800/50">
+                <span class="mr-4 w-8 text-right text-gray-500 tabular-nums select-none">{i + 1}</span>
+                <span class="mr-3 min-w-[120px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400">
+                  {log.streamName || 'ECS'}
+                </span>
+                <div class="flex-1 break-all whitespace-pre-wrap {log.level === 'error'
+                  ? 'text-red-400'
+                  : log.level === 'warning'
+                    ? 'text-yellow-400'
+                    : 'text-gray-300'}">
+                  {log.message}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    {:else}
+      <!-- Build Logs Tab -->
+      {#if isLoading}
+        <div class="flex flex-col items-center justify-center p-8">
+          <div class="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+            <Loader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-gray-400" />
+            <p class="text-gray-500">Loading logs...</p>
+          </div>
+        </div>
+      {:else if isLiveMode && (executionStatus === 'RUNNING' || executionStatus === 'PENDING')}
       {@const activePhases = [
         ...new Set(recentLogs.slice(-10).map((l) => getNormalizedData(l).phase))
       ].filter((p) => p !== 'OTHER')}
@@ -1182,6 +1342,7 @@
           {/each}
         </div>
       </div>
+    {/if}
     {/if}
   </div>
 </div>

@@ -230,17 +230,10 @@
   }
 
   function setupPolling() {
-    // Poll for updates every 10 seconds (silently)
-    pollingInterval = setInterval(() => {
-      // Only reload if there are running executions
-      const hasRunningExecutions = executions.some(
-        (exec) => exec.status === 'RUNNING' || exec.status === 'PENDING'
-      );
-      if (hasRunningExecutions) {
-        // Silent update without loading state
-        loadExecutions(true);
-      }
-    }, 10000); // Increased to 10 seconds for less frequent polling
+    // POLLING DISABLED - Use manual refresh instead
+    // pollingInterval = setInterval(() => {
+    //   loadExecutions(true);
+    // }, 10000);
   }
 
   function cleanupPolling() {

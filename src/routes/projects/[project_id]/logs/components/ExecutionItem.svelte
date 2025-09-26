@@ -138,8 +138,7 @@
         {/if}
 
         <span class="font-semibold text-gray-900">
-          #{execution.buildNumber}
-          {execution.executionType}
+          Log {execution.buildNumber}
         </span>
 
         <span

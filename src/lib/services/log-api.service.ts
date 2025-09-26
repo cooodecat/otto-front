@@ -8,7 +8,6 @@ import type {
   ExecutionStatus,
   TriggerType
 } from '$lib/types/log.types';
-import type { ExecutionResponseDto } from '$lib/sdk/structures/ExecutionResponseDto';
 
 export class LogApiService {
   // Helpers to extract commit info from varying backend schemas
@@ -53,22 +52,23 @@ export class LogApiService {
     // makeFetch가 자동으로 credentials: 'include'를 설정하므로 쿠키가 전송됨
     const executions = await api.functional.logs.executions.getExecutions(
       makeFetch(),
-      params.status as 'pending' | 'running' | 'success' | 'failed' | undefined,
-      params.type?.toLowerCase() as 'build' | 'deploy' | undefined,
-      undefined, // pipelineId
-      params.projectId,
-      params.pageSize, // 이제 선택적 매개변수
-      params.page ? (params.page - 1) * (params.pageSize || 20) : undefined // offset 계산
+      {
+        status: params.status,
+        executionType: params.type?.toLowerCase(),
+        projectId: params.projectId,
+        limit: params.pageSize,
+        offset: params.page ? (params.page - 1) * (params.pageSize || 20) : undefined
+      }
     );
 
-    // ExecutionResponseDto[] to ExecutionMetadata[] 변환
-    return executions.map((exec: ExecutionResponseDto, index: number) => ({
+    // API response to ExecutionMetadata[] 변환
+    return executions.map((exec, index: number) => ({
       executionId: exec.executionId,
       buildNumber: parseInt(exec.metadata?.buildNumber as string) || executions.length - index,
       executionType: exec.executionType.toUpperCase() as ExecutionType,
       status: exec.status.toUpperCase() as ExecutionStatus,
       startedAt: exec.startedAt,
-      completedAt: exec.completedAt,
+      completedAt: exec.completedAt || undefined,
       updatedAt: exec.updatedAt,
       duration: (() => {
         // First try metadata.duration
@@ -116,80 +116,15 @@ export class LogApiService {
         errorCount: 0,
         warningCount: 0
       },
-      metadata: exec.metadata
+      metadata: exec.metadata || {}
     }));
   }
 
-  async getExecutionById(executionId: string): Promise<ExecutionMetadata> {
-    const connection = makeFetch();
-    console.log('API Call - Getting execution by ID:', executionId);
-    console.log('API Connection:', connection);
-    const execution = await api.functional.logs.executions.getExecutionById(
-      connection,
-      executionId
-    );
-
-    console.log('API Response - Raw execution data:', execution);
-
-    return {
-      executionId: execution.executionId,
-      buildNumber:
-        parseInt(execution.metadata?.buildNumber as string) || Math.floor(Math.random() * 1000) + 1,
-      executionType: execution.executionType.toUpperCase() as ExecutionType,
-      status: execution.status.toUpperCase() as ExecutionStatus,
-      startedAt: execution.startedAt,
-      completedAt: execution.completedAt,
-      updatedAt: execution.updatedAt,
-      duration: (() => {
-        // First try metadata.duration
-        if (
-          execution.metadata?.duration &&
-          typeof execution.metadata.duration === 'number' &&
-          execution.metadata.duration > 0
-        ) {
-          return execution.metadata.duration;
-        }
-
-        // Prefer updatedAt - startedAt (always available and more reliable)
-        if (execution.updatedAt && execution.startedAt) {
-          const start = new Date(execution.startedAt).getTime();
-          const end = new Date(execution.updatedAt).getTime();
-          const seconds = Math.floor((end - start) / 1000);
-          // Only return if positive
-          if (seconds > 0) return seconds;
-        }
-
-        // Fallback to completedAt - startedAt if available
-        if (execution.completedAt && execution.startedAt) {
-          const start = new Date(execution.startedAt).getTime();
-          const end = new Date(execution.completedAt).getTime();
-          const seconds = Math.floor((end - start) / 1000);
-          // Only return if positive
-          if (seconds > 0) return seconds;
-        }
-
-        return 0;
-      })(),
-      branch: (execution.metadata?.branch as string) || 'main',
-      commitId: this.extractCommitId(execution) || '',
-      commitMessage: this.extractCommitMessage(execution) || '',
-      author:
-        (execution.metadata && 'author' in execution.metadata
-          ? String(execution.metadata.author)
-          : '') || '',
-      pipelineId: execution.pipelineId,
-      pipelineName:
-        (execution.metadata && 'pipelineName' in execution.metadata
-          ? String(execution.metadata.pipelineName)
-          : '') || '',
-      triggeredBy: (execution.metadata?.triggeredBy || 'manual') as TriggerType,
-      logStats: {
-        totalLines: execution.logCount || 0,
-        errorCount: 0,
-        warningCount: 0
-      },
-      metadata: execution.metadata
-    };
+  async getExecutionById(executionId: string): Promise<ExecutionMetadata | null> {
+    // Get single execution by filtering from getExecutions
+    const executions = await this.getExecutions({ projectId: '', pageSize: 1000 });
+    const execution = executions.find(exec => exec.executionId === executionId);
+    return execution || null;
   }
 
   async getExecutionLogs(
@@ -215,11 +150,13 @@ export class LogApiService {
       };
     }
     const connection = makeFetch();
-    const response = await api.functional.logs.executions.logs.getExecutionLogs(
+    const response = await api.functional.logs.executions.getExecutionLogs(
       connection,
       executionId,
       {
-        limit: params?.limit || 1000
+        limit: params?.limit || 1000,
+        offset: params?.offset,
+        level: params?.level
       }
     );
 
@@ -314,13 +251,49 @@ export class LogApiService {
     return [];
   }
 
-  async getArchivedLogUrl(executionId: string): Promise<string> {
+  async getEcsLogs(pipelineId: string, params?: {
+    limit?: number;
+    startTime?: string;
+    endTime?: string;
+  }) {
     const connection = makeFetch();
-    const response = await api.functional.logs.executions.archive_url.getArchiveUrl(
-      connection,
-      executionId
-    );
-    return response.url;
+    return await api.functional.logs.ecs.getEcsLogs(connection, pipelineId, {
+      limit: params?.limit,
+      startTime: params?.startTime,
+      endTime: params?.endTime,
+    });
+  }
+
+  async getEcsLogsByExecution(executionId: string, params?: {
+    limit?: number;
+  }) {
+    const connection = makeFetch();
+    return await api.functional.logs.ecs.execution.getEcsLogsByExecution(connection, executionId, {
+      limit: params?.limit,
+    });
+  }
+
+  async getEcsRuntimeLogsByExecution(executionId: string, params?: {
+    limit?: number;
+    containerName?: string;
+    streamPrefix?: string;
+    startTime?: string;
+    endTime?: string;
+  }) {
+    const connection = makeFetch();
+    return await api.functional.logs.ecs.execution.runtime.getEcsRuntimeLogsByExecution(connection, executionId, {
+      limit: params?.limit,
+      containerName: params?.containerName,
+      streamPrefix: params?.streamPrefix,
+      startTime: params?.startTime,
+      endTime: params?.endTime,
+    });
+  }
+
+  async getArchivedLogUrl(executionId: string): Promise<string> {
+    // TODO: Implement when archive_url endpoint is available in SDK
+    console.log('Archive URL requested for execution:', executionId);
+    return '';
   }
 
   // Mock data generators for development
@@ -357,6 +330,7 @@ export class LogApiService {
       }
     };
   }
+
 
   generateMockLogs(count: number = 50): LogEntry[] {
     const logs: LogEntry[] = [];

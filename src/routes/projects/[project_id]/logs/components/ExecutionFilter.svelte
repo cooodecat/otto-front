@@ -12,6 +12,8 @@
   let searchInput = $state('');
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const filterOptions = [
     { value: 'ALL', label: 'All' },
     { value: 'BUILD', label: 'Build' },
@@ -54,20 +56,6 @@
 </script>
 
 <div class="flex items-center gap-4">
-  <!-- Filter Tabs -->
-  <div class="flex rounded-xl bg-gray-100 p-1 shadow-inner">
-    {#each filterOptions as option (option)}
-      <button
-        onclick={() => (filterType = option.value)}
-        class="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 {filterType ===
-        option.value
-          ? 'bg-white text-blue-600 shadow-md'
-          : 'text-gray-600 hover:text-gray-900'}"
-      >
-        {option.label}
-      </button>
-    {/each}
-  </div>
 
   <!-- Search Input -->
   <div class="max-w-md flex-1">

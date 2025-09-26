@@ -122,7 +122,7 @@
           <div class="mb-2">
             <div class="flex items-center gap-3">
               <h2 class="text-xl font-semibold text-gray-900">
-                {execution.executionType} #{execution.buildNumber}
+                Log {execution.buildNumber}
               </h2>
               <span
                 class="rounded-full px-2.5 py-1 text-xs font-semibold {statusColors[
