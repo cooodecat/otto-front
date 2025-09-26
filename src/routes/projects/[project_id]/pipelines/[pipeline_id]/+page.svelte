@@ -14,7 +14,7 @@
     ExternalLink,
     QrCode
   } from 'lucide-svelte';
-  // @ts-ignore - svelte-qrcode doesn't have TypeScript declarations
+  // @ts-expect-error - svelte-qrcode doesn't have TypeScript declarations
   import QRCode from 'svelte-qrcode';
   import {
     SvelteFlowProvider,
@@ -1196,7 +1196,7 @@
     <!-- 메인 영역 -->
     <div class="relative flex-1">
       <!-- 상단 헤더 -->
-      <div class="absolute left-0 right-0 top-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
+      <div class="absolute top-0 right-0 left-0 z-20 border-b border-gray-200 bg-white px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <button
@@ -1270,7 +1270,7 @@
       {#if buildInfo || buildStatus || deploymentStatus}
         {#if showExecutionPanel}
           <div
-            class="absolute right-4 top-20 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+            class="absolute top-20 right-4 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
           >
             <div class="mb-3 flex items-center justify-between">
               <h3 class="text-sm font-semibold text-gray-700">실행 정보</h3>
@@ -1387,7 +1387,7 @@
           <!-- 실행 상태 패널 열기 버튼 (패널이 닫혀 있을 때) -->
           <button
             onclick={() => (showExecutionPanel = true)}
-            class="absolute right-4 top-20 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-md transition-all hover:border-gray-300 hover:shadow-lg"
+            class="absolute top-20 right-4 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-md transition-all hover:border-gray-300 hover:shadow-lg"
             title="실행 정보 보기"
           >
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1479,7 +1479,7 @@
       <!-- Close button -->
       <button
         onclick={() => (showQRModal = false)}
-        class="absolute right-4 top-4 rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100"
+        class="absolute top-4 right-4 rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100"
         title="닫기"
         aria-label="모달 닫기"
       >
