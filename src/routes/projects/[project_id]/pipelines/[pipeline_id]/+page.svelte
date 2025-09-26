@@ -1,10 +1,18 @@
 <script lang="ts">
-  import { onMount, setContext } from 'svelte';
+  import { onMount, onDestroy, setContext } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import api from '$lib/sdk';
   import { makeFetch } from '$lib/utils/make-fetch';
-  import { RotateCcw, Play, LoaderCircle, Save, ArrowLeft, FileText } from 'lucide-svelte';
+  import {
+    RotateCcw,
+    Play,
+    LoaderCircle,
+    Save,
+    ArrowLeft,
+    FileText,
+    ExternalLink
+  } from 'lucide-svelte';
   import {
     SvelteFlowProvider,
     type NodeTargetEventWithPointer,
@@ -46,17 +54,30 @@
   } | null>(null);
 
   // 임시: 배포 URL 헬스체크 상태 추가
-  let deployHealthStatus = $state<{
-    isHealthy?: boolean;
-    lastChecked?: Date;
-    responseStatus?: number;
-    isChecking?: boolean;
+  let deploymentStatus = $state<{
+    status: string;
+    deployUrl: string | null;
+    updatedAt: Date;
   } | null>(null);
-  let healthCheckInterval: NodeJS.Timeout | null = null;
-  let statusPollingInterval: NodeJS.Timeout | null = null;
+  let deploymentPollingInterval: NodeJS.Timeout | null = null;
   let toast = $state<{ type: 'success' | 'error' | 'warning' | 'info'; message: string } | null>(
     null
   );
+
+  // 실행 상태 패널 표시 여부 (기본값 false, localStorage에 데이터가 있으면 true로 변경)
+  let showExecutionPanel = $state(false);
+
+  // Polling intervals
+  let statusPollingInterval: NodeJS.Timeout | null = null;
+  let healthCheckInterval: NodeJS.Timeout | null = null;
+
+  // Deploy health status
+  let deployHealthStatus = $state<{
+    isHealthy: boolean;
+    isChecking: boolean;
+    lastChecked: Date | null;
+    error?: string;
+  } | null>(null);
 
   // Flow 관련 상태
   let nodes = $state<Node[]>([]);
@@ -71,7 +92,70 @@
       initializeFlow();
       initialized = true;
     }
+
+    // 파이프라인 정보가 로드된 후에만 실행 상태 복원
+    // pipelineId가 정확한지 확인
+    if (pipelineId && pipeline) {
+      console.log('🚀 파이프라인 로드 완료, 실행 상태 확인:', {
+        pipelineId,
+        pipelineName: pipeline.pipelineName
+      });
+      loadExecutionStatus();
+    } else {
+      console.warn('⚠️ 파이프라인 정보가 아직 로드되지 않았습니다.');
+    }
+
+    // 배포 상태 polling 시작
+    if (pipelineId) {
+      startDeploymentStatusPolling();
+    }
   });
+
+  onDestroy(() => {
+    // 클린업: polling 중지
+    if (deploymentPollingInterval) {
+      clearInterval(deploymentPollingInterval);
+    }
+  });
+
+  // 배포 상태 polling 함수
+  async function startDeploymentStatusPolling() {
+    // 초기 상태 조회
+    await fetchDeploymentStatus();
+
+    // 5초마다 상태 업데이트
+    deploymentPollingInterval = setInterval(async () => {
+      await fetchDeploymentStatus();
+    }, 5000);
+  }
+
+  // 배포 상태 조회
+  async function fetchDeploymentStatus() {
+    if (!pipelineId) return;
+
+    try {
+      const response = await api.functional.pipelines.getDeploymentStatus(
+        makeFetch({ fetch }),
+        pipelineId
+      );
+
+      deploymentStatus = response;
+
+      // 배포 완료 시 polling 중지
+      if (
+        response.status === 'SUCCESS' ||
+        response.status === 'COMPLETED' ||
+        response.status === 'FAILED'
+      ) {
+        if (deploymentPollingInterval) {
+          clearInterval(deploymentPollingInterval);
+          deploymentPollingInterval = null;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch deployment status:', err);
+    }
+  }
 
   // 로컬스토리지 자동 저장 (nodes 변경 감지)
   $effect(() => {
@@ -404,6 +488,7 @@
     buildInfo = null;
     buildStatus = null;
     error = '';
+    showExecutionPanel = true; // 실행 시작 시 패널 자동으로 열기
 
     try {
       // 파이프라인 실행 API 호출
@@ -499,21 +584,187 @@
     }
   }
 
+  // 실행 상태 자동 저장 (buildInfo, buildStatus, showExecutionPanel 변경 감지)
+  $effect(() => {
+    if (buildInfo || buildStatus) {
+      saveExecutionStatus();
+    }
+  });
+
   // 컴포넌트 정리 시 폴링 중지
   $effect(() => {
     return () => {
-      if (statusPollingInterval) {
-        clearInterval(statusPollingInterval);
-      }
-      // 임시: 헬스체크 폴링도 중지
-      if (healthCheckInterval) {
-        clearInterval(healthCheckInterval);
+      if (deploymentPollingInterval) {
+        clearInterval(deploymentPollingInterval);
       }
     };
   });
 
   function showToast(type: 'success' | 'error' | 'warning' | 'info', message: string) {
     toast = { type, message };
+  }
+
+  // 실행 상태를 localStorage에 저장
+  function saveExecutionStatus() {
+    if (!projectId || !pipelineId) return;
+
+    const storageKey = `execution-${projectId}-${pipelineId}`;
+    const executionData = {
+      buildInfo,
+      buildStatus,
+      deployHealthStatus,
+      deploymentStatus,
+      showPanel: showExecutionPanel, // 패널 표시 상태도 저장
+      timestamp: new Date().toISOString()
+    };
+
+    localStorage.setItem(storageKey, JSON.stringify(executionData));
+    console.log('💾 실행 상태 저장됨:', storageKey);
+  }
+
+  // 오래된 실행 데이터 정리 (24시간 이상 경과한 데이터)
+  function cleanupOldExecutionData() {
+    const allKeys = Object.keys(localStorage).filter((key) => key.startsWith('execution-'));
+    const now = new Date().getTime();
+
+    allKeys.forEach((key) => {
+      try {
+        const data = localStorage.getItem(key);
+        if (data) {
+          const parsed = JSON.parse(data);
+          const timestamp = new Date(parsed.timestamp).getTime();
+          const hoursDiff = (now - timestamp) / (1000 * 60 * 60);
+
+          // 24시간 이상 지난 데이터 삭제
+          if (hoursDiff > 24) {
+            localStorage.removeItem(key);
+            console.log('🗑️ 오래된 실행 데이터 삭제:', key);
+          }
+        }
+      } catch (e) {
+        // 파싱 실패한 데이터도 삭제
+        localStorage.removeItem(key);
+        console.error('🗑️ 잘못된 실행 데이터 삭제:', key, e);
+      }
+    });
+  }
+
+  // localStorage에서 실행 상태 불러오기
+  function loadExecutionStatus() {
+    if (!projectId || !pipelineId) return;
+
+    console.log('🔍 현재 파이프라인 정보:', {
+      projectId,
+      pipelineId,
+      pipelineName: pipeline?.pipelineName
+    });
+
+    // 먼저 오래된 데이터 정리
+    cleanupOldExecutionData();
+
+    const storageKey = `execution-${projectId}-${pipelineId}`;
+    const savedData = localStorage.getItem(storageKey);
+
+    console.log('🔍 실행 상태 확인 중...', storageKey);
+    console.log('📦 저장된 데이터 존재 여부:', !!savedData);
+
+    // 디버깅: 모든 execution 키 확인
+    const allExecutionKeys = Object.keys(localStorage).filter((key) =>
+      key.startsWith('execution-')
+    );
+    console.log('📋 모든 실행 키:', allExecutionKeys);
+
+    // 현재 프로젝트의 다른 키들 확인
+    const projectKeys = allExecutionKeys.filter((key) => key.includes(projectId));
+    console.log('📁 같은 프로젝트의 키들:', projectKeys);
+
+    // 만약 잘못된 키가 있다면 경고
+    if (!savedData && projectKeys.length > 0) {
+      console.warn(
+        '⚠️ 경고: 현재 파이프라인의 데이터가 없지만, 같은 프로젝트의 다른 파이프라인 데이터가 존재합니다.'
+      );
+      console.warn('⚠️ 데이터 격리가 제대로 되어있는지 확인이 필요합니다.');
+      // 다른 파이프라인의 데이터를 가져오지 않음 - 격리 보장
+      return;
+    }
+
+    if (savedData) {
+      try {
+        const executionData = JSON.parse(savedData);
+        console.log('📥 저장된 실행 상태 발견!', executionData);
+
+        // 24시간 이내의 데이터만 복원
+        const savedTime = new Date(executionData.timestamp);
+        const now = new Date();
+        const hoursDiff = (now.getTime() - savedTime.getTime()) / (1000 * 60 * 60);
+
+        if (hoursDiff < 24) {
+          buildInfo = executionData.buildInfo;
+          buildStatus = executionData.buildStatus;
+          deployHealthStatus = executionData.deployHealthStatus;
+          deploymentStatus = executionData.deploymentStatus; // 배포 상태도 복원
+
+          // 실행 중인 상태일 때만 패널 자동 표시
+          // 완료된 상태는 사용자가 직접 열어보도록 함
+          const isRunning =
+            buildStatus &&
+            !['SUCCEEDED', 'FAILED', 'STOPPED'].includes(buildStatus.buildStatus || '');
+
+          if (isRunning) {
+            // 실행 중인 경우에만 패널 자동 표시
+            showExecutionPanel = true;
+            console.log('🔄 실행 중인 빌드 발견 - 패널 자동 표시');
+          } else if (buildInfo || buildStatus || deploymentStatus) {
+            // 완료된 실행이 있는 경우 - 저장된 패널 상태 유지 (기본값: false)
+            showExecutionPanel = executionData.showPanel === true; // 명시적으로 true일 때만
+            console.log(
+              '📊 완료된 실행 데이터 발견 - 패널 상태:',
+              showExecutionPanel,
+              '(저장된 값:',
+              executionData.showPanel,
+              ')'
+            );
+          }
+
+          if (deploymentStatus) {
+            console.log('🚀 배포 상태 복원:', deploymentStatus);
+          }
+
+          // 실행 중인 상태면 폴링 재개
+          if (
+            buildStatus &&
+            !['SUCCEEDED', 'FAILED', 'STOPPED'].includes(buildStatus.buildStatus || '')
+          ) {
+            console.log('🔄 실행 중인 빌드 발견, 상태 폴링 재개');
+            isExecuting = true;
+            if (buildInfo?.buildId) {
+              startStatusPolling(buildInfo.buildId);
+            }
+          }
+
+          // 헬스체크가 진행 중이었다면 재개
+          if (deployHealthStatus && !deployHealthStatus.isHealthy && pipeline?.deployUrl) {
+            console.log('🔄 헬스체크 재개');
+            startHealthCheckPolling();
+          }
+
+          // 배포 URL이 있으면 파이프라인 정보도 새로고침하여 최신 상태 확인
+          if (deploymentStatus?.deployUrl || buildInfo?.ecrImageUri) {
+            console.log('🔄 파이프라인 정보 새로고침 (배포 URL 확인)');
+            refreshPipelineInfo();
+          }
+        } else {
+          // 24시간이 지난 데이터는 삭제
+          localStorage.removeItem(storageKey);
+          console.log('🗑️ 오래된 실행 상태 데이터 삭제');
+        }
+      } catch (error) {
+        console.error('❌ 실행 상태 복원 실패:', error);
+        localStorage.removeItem(storageKey);
+      }
+    } else {
+      console.log('💤 저장된 실행 상태 없음');
+    }
   }
 
   // 임시: 파이프라인 정보 새로고침 (배포 URL 업데이트 확인용)
@@ -542,49 +793,62 @@
     }
   }
 
-  // 임시: 백엔드 API를 통한 배포 헬스체크
+  // 백엔드 API를 통한 배포 상태 확인 (DB에서 deployments 테이블 조회)
   async function checkDeploymentHealth() {
     if (!pipelineId || deployHealthStatus?.isChecking) return;
 
     deployHealthStatus = {
-      ...deployHealthStatus,
+      isHealthy: deployHealthStatus?.isHealthy || false,
       isChecking: true,
-      lastChecked: new Date()
+      lastChecked: new Date(),
+      error: deployHealthStatus?.error
     };
 
     try {
-      console.log(`백엔드 헬스체크 API 호출: pipelineId=${pipelineId}`);
+      console.log(`배포 상태 확인 중: pipelineId=${pipelineId}`);
 
-      const result = await api.functional.pipelines.deployment.health.getDeploymentHealth(
+      // DB에서 deployment 상태 확인 (헬스체크 대신)
+      const result = await api.functional.pipelines.getDeploymentStatus(
         makeFetch({ fetch }),
         pipelineId
       );
 
+      // status가 SUCCESS이고 deployUrl이 있으면 건강한 것으로 처리
+      const isHealthy = result.status === 'SUCCESS' && !!result.deployUrl;
+
       deployHealthStatus = {
-        isHealthy: result.isHealthy,
-        lastChecked: new Date(result.lastChecked),
-        responseStatus: result.responseStatus,
-        isChecking: false
+        isHealthy: isHealthy,
+        lastChecked: new Date(),
+        isChecking: false,
+        error: undefined
       };
 
-      console.log(
-        `헬스체크 결과: ${result.responseStatus} - ${result.isHealthy ? '건강' : '비건강'} (${result.responseTime}ms)`
-      );
+      // 배포 URL 업데이트
+      if (result.deployUrl && !deploymentStatus?.deployUrl) {
+        deploymentStatus = {
+          ...deploymentStatus,
+          deployUrl: result.deployUrl,
+          status: result.status,
+          updatedAt: result.updatedAt
+        };
+      }
 
-      // 배포 완료 시 헬스체크 중지
-      if (result.isHealthy && healthCheckInterval) {
+      console.log(`배포 상태: ${result.status} - ${isHealthy ? '성공' : result.status}`);
+
+      // 배포 완료 시 체크 중지
+      if (isHealthy && healthCheckInterval) {
         clearInterval(healthCheckInterval);
         healthCheckInterval = null;
         showToast('success', '배포가 성공적으로 완료되었습니다! 사이트에 접속할 수 있습니다.');
       }
     } catch (error) {
-      console.log(`헬스체크 실패: ${error}`);
+      console.log(`배포 상태 확인 실패: ${error}`);
 
       deployHealthStatus = {
         isHealthy: false,
         lastChecked: new Date(),
-        responseStatus: 0,
-        isChecking: false
+        isChecking: false,
+        error: error instanceof Error ? error.message : '배포 상태 확인 실패'
       };
     }
   }
@@ -997,109 +1261,138 @@
       </div>
 
       <!-- Build Status Panel -->
-      {#if buildInfo || buildStatus}
-        <div
-          class="absolute top-20 right-4 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
-        >
-          <div class="mb-3">
-            <h3 class="text-sm font-semibold text-gray-700">실행 정보</h3>
-          </div>
-
-          {#if buildStatus}
-            <button
-              onclick={() => goto(`/projects/${projectId}/logs`)}
-              class="w-full cursor-pointer text-left transition-opacity hover:opacity-80"
-              title="로그 보기"
-              aria-label="로그 보기"
-            >
-              <BuildStatus
-                status={buildStatus.buildStatus}
-                currentPhase={buildStatus.currentPhase}
-                startTime={buildStatus.startTime?.toString()}
-                endTime={buildStatus.endTime?.toString()}
-              />
-            </button>
-          {/if}
-
-          {#if buildInfo}
-            <div class="mt-3 space-y-2 text-xs">
-              <div class="flex justify-between">
-                <span class="text-gray-500">실행 ID:</span>
-                <span class="font-mono text-gray-700"
-                  >{buildInfo.buildId?.split(':')[1] || buildInfo.buildId}</span
+      {#if buildInfo || buildStatus || deploymentStatus}
+        {#if showExecutionPanel}
+          <div
+            class="absolute top-20 right-4 z-10 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg"
+          >
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-gray-700">실행 정보</h3>
+              <div class="flex items-center gap-2">
+                <!-- 안쓸거입니다 지우기 버튼은. -->
+                <!-- <button
+                  onclick={clearExecutionStatus}
+                  class="rounded px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                  title="실행 정보 지우기"
                 >
+                  지우기
+                </button> -->
+                <button
+                  onclick={() => (showExecutionPanel = false)}
+                  class="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                  title="패널 닫기"
+                  aria-label="패널 닫기"
+                >
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    ></path>
+                  </svg>
+                </button>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">실행 번호:</span>
-                <span class="font-mono text-gray-700">{buildInfo.buildNumber}</span>
-              </div>
-              {#if buildInfo.imageTag}
-                <div class="flex justify-between">
-                  <span class="text-gray-500">이미지 태그:</span>
-                  <span class="ml-2 truncate font-mono text-gray-700" title={buildInfo.imageTag}>
-                    {buildInfo.imageTag}
-                  </span>
-                </div>
-              {/if}
+            </div>
 
-              <!-- 임시: 배포 URL 및 헬스체크 상태 -->
-              {#if pipeline?.deployUrl}
-                <div class="mt-2 border-t pt-2">
+            {#if buildStatus}
+              <button
+                onclick={() => goto(`/projects/${projectId}/logs`)}
+                class="w-full cursor-pointer text-left transition-opacity hover:opacity-80"
+                title="로그 보기"
+                aria-label="로그 보기"
+              >
+                <BuildStatus
+                  status={buildStatus.buildStatus}
+                  currentPhase={buildStatus.currentPhase}
+                  startTime={buildStatus.startTime?.toString()}
+                  endTime={buildStatus.endTime?.toString()}
+                />
+              </button>
+            {/if}
+
+            <!-- 배포 상태 섹션을 buildInfo 밖으로 이동 -->
+            {#if deploymentStatus || pipeline?.deployUrl}
+              <div class="mt-3 space-y-3">
+                <div class="rounded-lg bg-gray-50 p-3">
                   <div class="flex items-center justify-between">
-                    <span class="text-gray-500">배포 URL:</span>
+                    <span class="text-sm font-medium text-gray-700">배포 상태</span>
                     <div class="flex items-center gap-2">
-                      {#if deployHealthStatus?.isChecking}
-                        <div
-                          class="h-2 w-2 animate-pulse rounded-full bg-yellow-500"
-                          title="헬스체크 중"
-                        ></div>
-                      {:else if deployHealthStatus?.isHealthy}
-                        <div class="h-2 w-2 rounded-full bg-green-500" title="배포 완료"></div>
-                      {:else if deployHealthStatus?.isHealthy === false}
-                        <div class="h-2 w-2 rounded-full bg-red-500" title="배포 대기 중"></div>
+                      {#if deploymentStatus?.status === 'PENDING'}
+                        <div class="h-2 w-2 animate-pulse rounded-full bg-yellow-500"></div>
+                        <span class="text-xs text-yellow-600">준비 중</span>
+                      {:else if deploymentStatus?.status === 'DEPLOYING_ECS'}
+                        <div class="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
+                        <span class="text-xs text-blue-600">배포 중</span>
+                      {:else if deploymentStatus?.status === 'WAITING_HEALTH_CHECK'}
+                        <div class="h-2 w-2 animate-pulse rounded-full bg-orange-500"></div>
+                        <span class="text-xs text-orange-600">헬스체크 중</span>
+                      {:else if deploymentStatus?.status === 'SUCCESS' || deploymentStatus?.status === 'COMPLETED'}
+                        <div class="h-2 w-2 rounded-full bg-green-500"></div>
+                        <span class="text-xs text-green-600">배포 완료</span>
+                      {:else if deploymentStatus?.status === 'FAILED'}
+                        <div class="h-2 w-2 rounded-full bg-red-500"></div>
+                        <span class="text-xs text-red-600">배포 실패</span>
+                      {:else if pipeline?.deployUrl}
+                        <div class="h-2 w-2 rounded-full bg-green-500"></div>
+                        <span class="text-xs text-green-600">배포됨</span>
                       {:else}
-                        <div class="h-2 w-2 rounded-full bg-gray-400" title="상태 확인 중"></div>
+                        <div class="h-2 w-2 rounded-full bg-gray-400"></div>
+                        <span class="text-xs text-gray-600"
+                          >{deploymentStatus?.status || '알 수 없음'}</span
+                        >
                       {/if}
                     </div>
                   </div>
-                  <div class="mt-1">
-                    <a
-                      href="http://{pipeline.deployUrl}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="font-mono text-xs break-all text-blue-600 hover:text-blue-800"
-                      title="배포된 사이트 열기"
-                    >
-                      http://{pipeline.deployUrl}
-                    </a>
-                  </div>
-                  {#if deployHealthStatus}
+
+                  {#if deploymentStatus?.deployUrl || pipeline?.deployUrl}
+                    <div class="mt-2">
+                      <a
+                        href="http://{deploymentStatus?.deployUrl || pipeline?.deployUrl}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 hover:bg-blue-200"
+                      >
+                        <ExternalLink class="h-3 w-3" />
+                        {deploymentStatus?.deployUrl || pipeline?.deployUrl}
+                      </a>
+                    </div>
+                  {/if}
+
+                  {#if deploymentStatus?.updatedAt}
                     <div class="mt-1 text-xs text-gray-500">
-                      {#if deployHealthStatus.isChecking}
-                        사이트 상태 확인 중...
-                      {:else if deployHealthStatus.isHealthy}
-                        사이트 접속 가능 ({deployHealthStatus.responseStatus || 200})
-                      {:else}
-                        사이트 준비 중... (잠시 후 다시 시도해주세요)
-                      {/if}
-                      {#if deployHealthStatus.lastChecked}
-                        <br />마지막 확인: {deployHealthStatus.lastChecked.toLocaleTimeString()}
-                      {/if}
+                      업데이트: {new Date(deploymentStatus.updatedAt).toLocaleTimeString()}
                     </div>
                   {/if}
                 </div>
-              {/if}
-              {#if buildStatus?.logs?.groupName}
-                <div class="mt-2 border-t pt-2">
-                  <span class="text-gray-500">CloudWatch 로그:</span>
-                  <div class="mt-1 font-mono text-xs break-all text-gray-600">
-                    {buildStatus.logs.groupName}
-                  </div>
-                </div>
-              {/if}
-            </div>
-          {/if}
-        </div>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <!-- 실행 상태 패널 열기 버튼 (패널이 닫혀 있을 때) -->
+          <button
+            onclick={() => (showExecutionPanel = true)}
+            class="absolute top-20 right-4 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-md transition-all hover:border-gray-300 hover:shadow-lg"
+            title="실행 정보 보기"
+          >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              ></path>
+            </svg>
+            <span>실행 정보 보기</span>
+            {#if buildStatus?.buildStatus === 'IN_PROGRESS' || buildStatus?.buildStatus === 'PENDING'}
+              <div class="h-2 w-2 animate-pulse rounded-full bg-blue-500"></div>
+            {:else if buildStatus?.buildStatus === 'SUCCEEDED'}
+              <div class="h-2 w-2 rounded-full bg-green-500"></div>
+            {:else if buildStatus?.buildStatus === 'FAILED'}
+              <div class="h-2 w-2 rounded-full bg-red-500"></div>
+            {/if}
+          </button>
+        {/if}
       {/if}
 
       <!-- Flow Canvas -->

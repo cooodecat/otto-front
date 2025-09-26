@@ -75,6 +75,7 @@ src/
     │   └── new/            # 새 프로젝트 생성
     └── app/github/callback/ # GitHub App 설치 콜백
 ```
+
 ## API 통합 패턴
 
 ### Nestia SDK 사용법
@@ -201,7 +202,6 @@ npx nestia sdk
 
 ### 배포 전 체크
 
-
 ```bash
 # 타입 체크
 pnpm check
@@ -235,4 +235,3 @@ pnpm preview
 - **런타임**: Node.js 22.x
 
 - **도메인**: codecat-otto.shop
-
