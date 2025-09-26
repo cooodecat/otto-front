@@ -1,4 +1,6 @@
+import type { AlbDetail } from "./AlbDetail";
 import type { CodeBuildDetail } from "./CodeBuildDetail";
+import type { EcsDetail } from "./EcsDetail";
 
 export type EventBridgeEvent = {
   id: string;
@@ -9,5 +11,5 @@ export type EventBridgeEvent = {
   source: string;
   resources: string[];
   "detail-type": string;
-  detail: CodeBuildDetail;
+  detail: CodeBuildDetail | EcsDetail | AlbDetail;
 };
