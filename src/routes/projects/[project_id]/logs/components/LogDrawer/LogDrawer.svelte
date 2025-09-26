@@ -55,8 +55,10 @@
   let lastWebSocketSetupAttempt = $state(0);
 
   // Track last log received time for timeout detection
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let lastLogReceivedTime = $state<number>(Date.now());
   let timeoutCheckInterval: ReturnType<typeof setInterval> | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let hasMarkedTimeoutFailure = false;
 
   // UI-only timeout indicator (doesn't modify actual execution status)

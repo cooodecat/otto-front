@@ -12,6 +12,8 @@
   let searchInput = $state('');
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const filterOptions = [
     { value: 'ALL', label: 'All' },
     { value: 'BUILD', label: 'Build' },
