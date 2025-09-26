@@ -12,7 +12,6 @@
   let searchInput = $state('');
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
-
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const filterOptions = [
     { value: 'ALL', label: 'All' },
@@ -56,7 +55,6 @@
 </script>
 
 <div class="flex items-center gap-4">
-
   <!-- Search Input -->
   <div class="max-w-md flex-1">
     <div class="relative">

@@ -50,16 +50,13 @@ export class LogApiService {
   }): Promise<ExecutionMetadata[]> {
     // SDK를 사용하여 executions 가져오기
     // makeFetch가 자동으로 credentials: 'include'를 설정하므로 쿠키가 전송됨
-    const executions = await api.functional.logs.executions.getExecutions(
-      makeFetch(),
-      {
-        status: params.status,
-        executionType: params.type?.toLowerCase(),
-        projectId: params.projectId,
-        limit: params.pageSize,
-        offset: params.page ? (params.page - 1) * (params.pageSize || 20) : undefined
-      }
-    );
+    const executions = await api.functional.logs.executions.getExecutions(makeFetch(), {
+      status: params.status,
+      executionType: params.type?.toLowerCase(),
+      projectId: params.projectId,
+      limit: params.pageSize,
+      offset: params.page ? (params.page - 1) * (params.pageSize || 20) : undefined
+    });
 
     // API response to ExecutionMetadata[] 변환
     return executions.map((exec, index: number) => ({
@@ -123,7 +120,7 @@ export class LogApiService {
   async getExecutionById(executionId: string): Promise<ExecutionMetadata | null> {
     // Get single execution by filtering from getExecutions
     const executions = await this.getExecutions({ projectId: '', pageSize: 1000 });
-    const execution = executions.find(exec => exec.executionId === executionId);
+    const execution = executions.find((exec) => exec.executionId === executionId);
     return execution || null;
   }
 
@@ -251,43 +248,56 @@ export class LogApiService {
     return [];
   }
 
-  async getEcsLogs(pipelineId: string, params?: {
-    limit?: number;
-    startTime?: string;
-    endTime?: string;
-  }) {
+  async getEcsLogs(
+    pipelineId: string,
+    params?: {
+      limit?: number;
+      startTime?: string;
+      endTime?: string;
+    }
+  ) {
     const connection = makeFetch();
     return await api.functional.logs.ecs.getEcsLogs(connection, pipelineId, {
       limit: params?.limit,
       startTime: params?.startTime,
-      endTime: params?.endTime,
+      endTime: params?.endTime
     });
   }
 
-  async getEcsLogsByExecution(executionId: string, params?: {
-    limit?: number;
-  }) {
+  async getEcsLogsByExecution(
+    executionId: string,
+    params?: {
+      limit?: number;
+    }
+  ) {
     const connection = makeFetch();
     return await api.functional.logs.ecs.execution.getEcsLogsByExecution(connection, executionId, {
-      limit: params?.limit,
+      limit: params?.limit
     });
   }
 
-  async getEcsRuntimeLogsByExecution(executionId: string, params?: {
-    limit?: number;
-    containerName?: string;
-    streamPrefix?: string;
-    startTime?: string;
-    endTime?: string;
-  }) {
+  async getEcsRuntimeLogsByExecution(
+    executionId: string,
+    params?: {
+      limit?: number;
+      containerName?: string;
+      streamPrefix?: string;
+      startTime?: string;
+      endTime?: string;
+    }
+  ) {
     const connection = makeFetch();
-    return await api.functional.logs.ecs.execution.runtime.getEcsRuntimeLogsByExecution(connection, executionId, {
-      limit: params?.limit,
-      containerName: params?.containerName,
-      streamPrefix: params?.streamPrefix,
-      startTime: params?.startTime,
-      endTime: params?.endTime,
-    });
+    return await api.functional.logs.ecs.execution.runtime.getEcsRuntimeLogsByExecution(
+      connection,
+      executionId,
+      {
+        limit: params?.limit,
+        containerName: params?.containerName,
+        streamPrefix: params?.streamPrefix,
+        startTime: params?.startTime,
+        endTime: params?.endTime
+      }
+    );
   }
 
   async getArchivedLogUrl(executionId: string): Promise<string> {
@@ -330,7 +340,6 @@ export class LogApiService {
       }
     };
   }
-
 
   generateMockLogs(count: number = 50): LogEntry[] {
     const logs: LogEntry[] = [];

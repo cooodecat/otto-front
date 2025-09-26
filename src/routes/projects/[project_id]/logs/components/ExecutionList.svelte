@@ -203,28 +203,50 @@
 
       await wsService.connect(token);
 
-      // Subscribe to status updates
-      statusUnsubscribe = wsService.status.subscribe((newStatus) => {
-        // Update execution status in the list
-        executions = executions.map((exec) => {
-          if (exec.executionId === selectedExecutionId) {
-            return { ...exec, status: newStatus };
+      // Subscribe to status updates (null check for safety)
+      const statusStore = wsService?.status;
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (statusStore) {
+        statusUnsubscribe = statusStore.subscribe((newStatus) => {
+          // Only update if we have a valid status
+          if (!newStatus) {
+            console.warn('Received null/undefined status update');
+            return;
           }
-          return exec;
+
+          // Update execution status in the list
+          executions = executions.map((exec) => {
+            if (exec.executionId === selectedExecutionId) {
+              return { ...exec, status: newStatus };
+            }
+            return exec;
+          });
         });
-      });
+      } else {
+        console.warn('WebSocket service or status is not available');
+      }
     } catch (err) {
       console.error('Failed to setup WebSocket:', err);
+      // WebSocket 연결 실패해도 앱이 계속 작동하도록 함
+      wsService = null;
     }
   }
 
   function cleanupWebSocket() {
     if (statusUnsubscribe) {
-      statusUnsubscribe();
+      try {
+        statusUnsubscribe();
+      } catch (err) {
+        console.error('Error unsubscribing from status:', err);
+      }
       statusUnsubscribe = null;
     }
     if (wsService) {
-      wsService.disconnect();
+      try {
+        wsService.disconnect();
+      } catch (err) {
+        console.error('Error disconnecting WebSocket:', err);
+      }
       wsService = null;
     }
   }

@@ -49,12 +49,14 @@
 
   // Tab system for Build and ECS logs
   let activeTab = $state<'build' | 'ecs'>('build');
-  let ecsLogs = $state<Array<{
-    timestamp: string;
-    message: string;
-    level: string;
-    streamName: string;
-  }>>([]);
+  let ecsLogs = $state<
+    Array<{
+      timestamp: string;
+      message: string;
+      level: string;
+      streamName: string;
+    }>
+  >([]);
   let ecsLoading = $state(false);
   let ecsError = $state<string | null>(null);
 
@@ -706,16 +708,16 @@
   // ECS logs loading
   async function loadEcsLogs() {
     if (!executionId || ecsLoading) return;
-    
+
     ecsLoading = true;
     ecsError = null;
-    
+
     try {
       // Use the new runtime API to get only the console.log from this specific execution
       const result = await logApiService.getEcsRuntimeLogsByExecution(executionId, {
         limit: 1000
       });
-      ecsLogs = result.logs.map(log => ({
+      ecsLogs = result.logs.map((log) => ({
         timestamp: log.timestamp,
         message: log.message,
         level: log.level,
@@ -787,7 +789,8 @@
         <div class="flex items-center gap-1 rounded-lg border border-gray-300 p-1">
           <button
             onclick={() => (activeTab = 'build')}
-            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {activeTab === 'build'
+            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {activeTab ===
+            'build'
               ? 'bg-blue-600 text-white'
               : 'text-gray-600 hover:bg-gray-100'}"
           >
@@ -799,7 +802,8 @@
           </button>
           <button
             onclick={() => (activeTab = 'ecs')}
-            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {activeTab === 'ecs'
+            class="flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors {activeTab ===
+            'ecs'
               ? 'bg-green-600 text-white'
               : 'text-gray-600 hover:bg-gray-100'}"
           >
@@ -995,7 +999,7 @@
           <Download class="h-3.5 w-3.5" />
           Download
         </button>
-        
+
         {#if activeTab === 'ecs'}
           <button
             onclick={loadEcsLogs}
@@ -1048,19 +1052,27 @@
         </div>
       {:else}
         <!-- ECS Logs Display -->
-        <div class="m-4 mt-2 rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm text-gray-100 shadow-lg">
+        <div
+          class="m-4 mt-2 rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm text-gray-100 shadow-lg"
+        >
           <div class="max-h-[calc(100vh-16rem)] overflow-y-auto p-4">
             {#each ecsLogs as log, i (`ecs-${log.timestamp}-${log.message}-${i}`)}
               <div class="group flex py-0.5 transition-colors hover:bg-gray-800/50">
-                <span class="mr-4 w-8 text-right text-gray-500 tabular-nums select-none">{i + 1}</span>
-                <span class="mr-3 min-w-[120px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400">
+                <span class="mr-4 w-8 text-right text-gray-500 tabular-nums select-none"
+                  >{i + 1}</span
+                >
+                <span
+                  class="mr-3 min-w-[120px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400"
+                >
                   {log.streamName || 'ECS'}
                 </span>
-                <div class="flex-1 break-all whitespace-pre-wrap {log.level === 'error'
-                  ? 'text-red-400'
-                  : log.level === 'warning'
-                    ? 'text-yellow-400'
-                    : 'text-gray-300'}">
+                <div
+                  class="flex-1 break-all whitespace-pre-wrap {log.level === 'error'
+                    ? 'text-red-400'
+                    : log.level === 'warning'
+                      ? 'text-yellow-400'
+                      : 'text-gray-300'}"
+                >
                   {log.message}
                 </div>
               </div>
@@ -1078,259 +1090,93 @@
           </div>
         </div>
       {:else if isLiveMode && (executionStatus === 'RUNNING' || executionStatus === 'PENDING')}
-      {@const activePhases = [
-        ...new Set(recentLogs.slice(-10).map((l) => getNormalizedData(l).phase))
-      ].filter((p) => p !== 'OTHER')}
-      {@const _ = console.log(
-        'Live Stream Debug - isLiveMode:',
-        $state.snapshot(isLiveMode),
-        'executionStatus:',
-        $state.snapshot(executionStatus)
-      )}
-      <!-- Phase-aware Live Streaming View (Only available during execution) -->
-      <div class="px-4 pb-4">
-        <!-- Live Streaming Indicator -->
-        <div
-          class="sticky top-0 z-20 mb-4 rounded-lg border border-gray-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="relative flex h-3 w-3">
-                <span
-                  class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"
-                ></span>
-                <span class="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
-              </span>
-              <span class="text-sm font-medium text-gray-700">Live Streaming</span>
+        {@const activePhases = [
+          ...new Set(recentLogs.slice(-10).map((l) => getNormalizedData(l).phase))
+        ].filter((p) => p !== 'OTHER')}
+        {@const _ = console.log(
+          'Live Stream Debug - isLiveMode:',
+          $state.snapshot(isLiveMode),
+          'executionStatus:',
+          $state.snapshot(executionStatus)
+        )}
+        <!-- Phase-aware Live Streaming View (Only available during execution) -->
+        <div class="px-4 pb-4">
+          <!-- Live Streaming Indicator -->
+          <div
+            class="sticky top-0 z-20 mb-4 rounded-lg border border-gray-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="relative flex h-3 w-3">
+                  <span
+                    class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"
+                  ></span>
+                  <span class="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
+                </span>
+                <span class="text-sm font-medium text-gray-700">Live Streaming</span>
 
-              <!-- Active Phases Indicator -->
-              {#if activePhases.length > 0}
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-500">Active:</span>
-                  {#each activePhases as phase}
-                    <span
-                      class="animate-pulse rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
-                    >
-                      {phase.replace(/_/g, ' ')}
-                    </span>
-                  {/each}
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
-
-        <!-- Live Logs Stream -->
-        {#if recentLogs.length > 0}
-          <div class="rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm shadow-lg">
-            <div class="space-y-0.5 p-4">
-              {#each recentLogs as log, i (`${log.timestamp}-${log.message}-${i}`)}
-                {@const prevLog = i > 0 ? recentLogs[i - 1] : null}
-                {@const showTransition = isPhaseTransition(log, prevLog)}
-                {@const { phase } = getNormalizedData(log)}
-                {@const isNewLog =
-                  Date.now() - lastNewLogTime < 2000 && i === recentLogs.length - 1}
-
-                {#if showTransition && phase !== 'OTHER'}
-                  <!-- Phase Transition Separator (hide for OTHER) -->
-                  <div class="my-3 flex items-center gap-3">
-                    <div
-                      class="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"
-                    ></div>
-                    <span
-                      class="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold tracking-wider text-blue-400 uppercase"
-                    >
-                      {phase.replace(/_/g, ' ')} Started
-                    </span>
-                    <div
-                      class="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"
-                    ></div>
-                  </div>
-                {/if}
-
-                <div
-                  class="group -mx-2 flex rounded px-2 py-0.5 transition-colors hover:bg-gray-800/30 {isNewLog
-                    ? 'new-log-live'
-                    : ''}"
-                >
-                  <span class="mr-4 w-6 text-right text-xs text-gray-600 tabular-nums select-none"
-                    >{getGlobalLineNumber(log)}</span
-                  >
-                  <!-- Phase Badge for better context (hide OTHER) -->
-                  {#if phase !== 'OTHER'}
-                    <span
-                      class="mr-3 min-w-[100px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400"
-                    >
-                      {phase.replace(/_/g, ' ')}
-                    </span>
-                  {/if}
-                  <div class="flex-1 overflow-hidden whitespace-pre-wrap text-white">
-                    {#each parseLogMessage(log.message || '').segments as segment}
-                      <LogSegment {segment} />
+                <!-- Active Phases Indicator -->
+                {#if activePhases.length > 0}
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500">Active:</span>
+                    {#each activePhases as phase}
+                      <span
+                        class="animate-pulse rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
+                      >
+                        {phase.replace(/_/g, ' ')}
+                      </span>
                     {/each}
                   </div>
-                </div>
-              {/each}
-            </div>
-          </div>
-        {:else}
-          <!-- Waiting for logs in Live mode -->
-          <div
-            class="rounded-lg border border-gray-800 bg-gray-900 p-8 font-mono text-sm shadow-lg"
-          >
-            <div class="flex flex-col items-center justify-center">
-              <Loader2 class="mb-4 h-8 w-8 animate-spin text-gray-500" />
-              <p class="text-sm text-gray-400">Waiting for logs...</p>
-              <p class="mt-2 text-xs text-gray-500">Logs will appear here as they are generated</p>
-            </div>
-          </div>
-        {/if}
-
-        <!-- Auto-scroll indicator -->
-        {#if autoScroll && recentLogs.length > 0}
-          <div class="mt-3 flex items-center justify-center">
-            <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-500">
-              Auto-scrolling enabled
-            </span>
-          </div>
-        {/if}
-      </div>
-    {:else if logs.length === 0}
-      {@const showRerun = shouldShowRerun()}
-      {@const _ = console.log(
-        'Show Re-run button?',
-        showRerun,
-        'Status:',
-        $state.snapshot(executionStatus),
-        'Logs:',
-        logs.length,
-        'StartedAt:',
-        executionStartedAt
-      )}
-      <div class="flex flex-col items-center justify-center p-8">
-        <div class="max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-          <Terminal class="mx-auto mb-4 h-12 w-12 text-gray-300" />
-          <p class="mb-2 font-medium text-gray-500">No logs available</p>
-          {#if executionStatus === 'RUNNING' || executionStatus === 'PENDING'}
-            <p class="mb-3 text-sm text-gray-400">
-              This execution appears to be stuck or interrupted.
-            </p>
-            <div
-              class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-gray-500"
-            >
-              <p class="mb-1 font-medium">Possible reasons:</p>
-              <ul class="list-inside list-disc space-y-1">
-                <li>The build process was interrupted</li>
-                <li>Logs were not saved to the database</li>
-                <li>The execution is still initializing</li>
-              </ul>
-              <p class="mt-2">Try refreshing the page or check the build system status.</p>
-            </div>
-          {:else if executionStatus === 'FAILED'}
-            <p class="mb-4 text-sm text-gray-400">This execution failed without generating logs.</p>
-          {:else}
-            <p class="text-sm text-gray-400">Logs will appear here as the execution progresses</p>
-          {/if}
-
-          {#if showRerun}
-            <div class="mt-4 flex justify-center gap-3">
-              <button
-                onclick={handleRerun}
-                class="flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-              >
-                <RefreshCw class="h-4 w-4" />
-                Re-run Execution
-              </button>
-              <button
-                onclick={() => window.location.reload()}
-                class="flex cursor-pointer items-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300"
-              >
-                <RefreshCw class="h-4 w-4" />
-                Refresh Page
-              </button>
-            </div>
-          {/if}
-        </div>
-      </div>
-    {:else if showGrouped}
-      <!-- Grouped View with Floating Cards -->
-      <div class="px-4 pb-4">
-        {#each logsByPhase as [phase, phaseLogs], index}
-          <LogGroup
-            {phase}
-            logs={phaseLogs}
-            status={getPhaseStatusAt(index, phase, phaseLogs)}
-            startTime={phaseLogs[0]?.timestamp}
-            endTime={phaseLogs[phaseLogs.length - 1]?.timestamp}
-            initialExpanded={allExpanded ||
-              getPhaseStatusAt(index, phase, phaseLogs) === 'running' ||
-              getPhaseStatusAt(index, phase, phaseLogs) === 'failed'}
-            phaseIndex={index}
-            totalPhases={logsByPhase.length}
-            {searchQuery}
-            forceExpand={scrollTargetIndex === index}
-            externalExpanded={allExpanded}
-          />
-        {/each}
-      </div>
-    {:else}
-      <!-- Terminal View with Phase Headers -->
-      <div
-        class="m-4 mt-2 rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm text-gray-100 shadow-lg"
-      >
-        <div
-          bind:this={logContainer}
-          class="max-h-[calc(100vh-16rem)] overflow-y-auto p-4"
-          onscroll={handleScroll}
-        >
-          {#each logsByPhase as [phase, phaseLogs]}
-            <div class="phase-section">
-              <!-- Phase Header (Sticky in scrollable container) -->
-              <div
-                class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-700 bg-gray-800 bg-gray-800/95 px-4 py-2 backdrop-blur-sm"
-              >
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold tracking-wider text-gray-400 uppercase">
-                    {phase.replace(/_/g, ' ')}
-                  </span>
-                  <span class="text-xs text-gray-500">
-                    ({phaseLogs.length} logs)
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  {#if phaseLogs.some((l) => l.level === 'error')}
-                    <span class="text-xs text-red-400">
-                      {phaseLogs.filter((l) => l.level === 'error').length} errors
-                    </span>
-                  {/if}
-                  {#if phaseLogs.some((l) => l.level === 'warning')}
-                    <span class="text-xs text-yellow-400">
-                      {phaseLogs.filter((l) => l.level === 'warning').length} warnings
-                    </span>
-                  {/if}
-                </div>
+                {/if}
               </div>
+            </div>
+          </div>
 
-              <!-- Phase Logs -->
-              <div class="px-4 py-2">
-                {#each phaseLogs as log, i (`${log.timestamp}-${log.message}-${i}`)}
+          <!-- Live Logs Stream -->
+          {#if recentLogs.length > 0}
+            <div class="rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm shadow-lg">
+              <div class="space-y-0.5 p-4">
+                {#each recentLogs as log, i (`${log.timestamp}-${log.message}-${i}`)}
+                  {@const prevLog = i > 0 ? recentLogs[i - 1] : null}
+                  {@const showTransition = isPhaseTransition(log, prevLog)}
+                  {@const { phase } = getNormalizedData(log)}
                   {@const isNewLog =
-                    Date.now() - lastNewLogTime < 2000 && i === phaseLogs.length - 1}
+                    Date.now() - lastNewLogTime < 2000 && i === recentLogs.length - 1}
+
+                  {#if showTransition && phase !== 'OTHER'}
+                    <!-- Phase Transition Separator (hide for OTHER) -->
+                    <div class="my-3 flex items-center gap-3">
+                      <div
+                        class="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"
+                      ></div>
+                      <span
+                        class="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold tracking-wider text-blue-400 uppercase"
+                      >
+                        {phase.replace(/_/g, ' ')} Started
+                      </span>
+                      <div
+                        class="h-px flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"
+                      ></div>
+                    </div>
+                  {/if}
+
                   <div
-                    data-log-entry
-                    data-log-index={getGlobalLineNumber(log) || i + 1}
-                    tabindex="-1"
-                    class="group flex py-0.5 transition-colors hover:bg-gray-800/50 focus:border-l-4 focus:border-blue-500 focus:bg-blue-100 focus:outline-none {isNewLog
-                      ? 'new-log-line'
+                    class="group -mx-2 flex rounded px-2 py-0.5 transition-colors hover:bg-gray-800/30 {isNewLog
+                      ? 'new-log-live'
                       : ''}"
                   >
-                    <span class="mr-4 w-8 text-right text-gray-500 tabular-nums select-none"
-                      >{getGlobalLineNumber(log) || i + 1}</span
+                    <span class="mr-4 w-6 text-right text-xs text-gray-600 tabular-nums select-none"
+                      >{getGlobalLineNumber(log)}</span
                     >
-                    <div
-                      class="flex-1 break-all whitespace-pre-wrap {levelColors[log.level] ||
-                        'text-gray-300'}"
-                    >
+                    <!-- Phase Badge for better context (hide OTHER) -->
+                    {#if phase !== 'OTHER'}
+                      <span
+                        class="mr-3 min-w-[100px] rounded bg-gray-800 px-1.5 py-0.5 text-center text-xs font-medium text-gray-400"
+                      >
+                        {phase.replace(/_/g, ' ')}
+                      </span>
+                    {/if}
+                    <div class="flex-1 overflow-hidden whitespace-pre-wrap text-white">
                       {#each parseLogMessage(log.message || '').segments as segment}
                         <LogSegment {segment} />
                       {/each}
@@ -1339,10 +1185,180 @@
                 {/each}
               </div>
             </div>
+          {:else}
+            <!-- Waiting for logs in Live mode -->
+            <div
+              class="rounded-lg border border-gray-800 bg-gray-900 p-8 font-mono text-sm shadow-lg"
+            >
+              <div class="flex flex-col items-center justify-center">
+                <Loader2 class="mb-4 h-8 w-8 animate-spin text-gray-500" />
+                <p class="text-sm text-gray-400">Waiting for logs...</p>
+                <p class="mt-2 text-xs text-gray-500">
+                  Logs will appear here as they are generated
+                </p>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Auto-scroll indicator -->
+          {#if autoScroll && recentLogs.length > 0}
+            <div class="mt-3 flex items-center justify-center">
+              <span class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-500">
+                Auto-scrolling enabled
+              </span>
+            </div>
+          {/if}
+        </div>
+      {:else if logs.length === 0}
+        {@const showRerun = shouldShowRerun()}
+        {@const _ = console.log(
+          'Show Re-run button?',
+          showRerun,
+          'Status:',
+          $state.snapshot(executionStatus),
+          'Logs:',
+          logs.length,
+          'StartedAt:',
+          executionStartedAt
+        )}
+        <div class="flex flex-col items-center justify-center p-8">
+          <div class="max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+            <Terminal class="mx-auto mb-4 h-12 w-12 text-gray-300" />
+            <p class="mb-2 font-medium text-gray-500">No logs available</p>
+            {#if executionStatus === 'RUNNING' || executionStatus === 'PENDING'}
+              <p class="mb-3 text-sm text-gray-400">
+                This execution appears to be stuck or interrupted.
+              </p>
+              <div
+                class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-gray-500"
+              >
+                <p class="mb-1 font-medium">Possible reasons:</p>
+                <ul class="list-inside list-disc space-y-1">
+                  <li>The build process was interrupted</li>
+                  <li>Logs were not saved to the database</li>
+                  <li>The execution is still initializing</li>
+                </ul>
+                <p class="mt-2">Try refreshing the page or check the build system status.</p>
+              </div>
+            {:else if executionStatus === 'FAILED'}
+              <p class="mb-4 text-sm text-gray-400">
+                This execution failed without generating logs.
+              </p>
+            {:else}
+              <p class="text-sm text-gray-400">Logs will appear here as the execution progresses</p>
+            {/if}
+
+            {#if showRerun}
+              <div class="mt-4 flex justify-center gap-3">
+                <button
+                  onclick={handleRerun}
+                  class="flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                >
+                  <RefreshCw class="h-4 w-4" />
+                  Re-run Execution
+                </button>
+                <button
+                  onclick={() => window.location.reload()}
+                  class="flex cursor-pointer items-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300"
+                >
+                  <RefreshCw class="h-4 w-4" />
+                  Refresh Page
+                </button>
+              </div>
+            {/if}
+          </div>
+        </div>
+      {:else if showGrouped}
+        <!-- Grouped View with Floating Cards -->
+        <div class="px-4 pb-4">
+          {#each logsByPhase as [phase, phaseLogs], index}
+            <LogGroup
+              {phase}
+              logs={phaseLogs}
+              status={getPhaseStatusAt(index, phase, phaseLogs)}
+              startTime={phaseLogs[0]?.timestamp}
+              endTime={phaseLogs[phaseLogs.length - 1]?.timestamp}
+              initialExpanded={allExpanded ||
+                getPhaseStatusAt(index, phase, phaseLogs) === 'running' ||
+                getPhaseStatusAt(index, phase, phaseLogs) === 'failed'}
+              phaseIndex={index}
+              totalPhases={logsByPhase.length}
+              {searchQuery}
+              forceExpand={scrollTargetIndex === index}
+              externalExpanded={allExpanded}
+            />
           {/each}
         </div>
-      </div>
-    {/if}
+      {:else}
+        <!-- Terminal View with Phase Headers -->
+        <div
+          class="m-4 mt-2 rounded-lg border border-gray-800 bg-gray-900 font-mono text-sm text-gray-100 shadow-lg"
+        >
+          <div
+            bind:this={logContainer}
+            class="max-h-[calc(100vh-16rem)] overflow-y-auto p-4"
+            onscroll={handleScroll}
+          >
+            {#each logsByPhase as [phase, phaseLogs]}
+              <div class="phase-section">
+                <!-- Phase Header (Sticky in scrollable container) -->
+                <div
+                  class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-700 bg-gray-800 bg-gray-800/95 px-4 py-2 backdrop-blur-sm"
+                >
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold tracking-wider text-gray-400 uppercase">
+                      {phase.replace(/_/g, ' ')}
+                    </span>
+                    <span class="text-xs text-gray-500">
+                      ({phaseLogs.length} logs)
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    {#if phaseLogs.some((l) => l.level === 'error')}
+                      <span class="text-xs text-red-400">
+                        {phaseLogs.filter((l) => l.level === 'error').length} errors
+                      </span>
+                    {/if}
+                    {#if phaseLogs.some((l) => l.level === 'warning')}
+                      <span class="text-xs text-yellow-400">
+                        {phaseLogs.filter((l) => l.level === 'warning').length} warnings
+                      </span>
+                    {/if}
+                  </div>
+                </div>
+
+                <!-- Phase Logs -->
+                <div class="px-4 py-2">
+                  {#each phaseLogs as log, i (`${log.timestamp}-${log.message}-${i}`)}
+                    {@const isNewLog =
+                      Date.now() - lastNewLogTime < 2000 && i === phaseLogs.length - 1}
+                    <div
+                      data-log-entry
+                      data-log-index={getGlobalLineNumber(log) || i + 1}
+                      tabindex="-1"
+                      class="group flex py-0.5 transition-colors hover:bg-gray-800/50 focus:border-l-4 focus:border-blue-500 focus:bg-blue-100 focus:outline-none {isNewLog
+                        ? 'new-log-line'
+                        : ''}"
+                    >
+                      <span class="mr-4 w-8 text-right text-gray-500 tabular-nums select-none"
+                        >{getGlobalLineNumber(log) || i + 1}</span
+                      >
+                      <div
+                        class="flex-1 break-all whitespace-pre-wrap {levelColors[log.level] ||
+                          'text-gray-300'}"
+                      >
+                        {#each parseLogMessage(log.message || '').segments as segment}
+                          <LogSegment {segment} />
+                        {/each}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
